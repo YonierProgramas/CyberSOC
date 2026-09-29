@@ -1,0 +1,7 @@
+node_modules/
+.npm-cache/
+.electron-cache/
+out/
+coverage/
+.smoke-profile/
+package-lock.json
