@@ -18,6 +18,10 @@ const mocks = vi.hoisted(() => ({
   createAISettings: vi.fn(),
   registerSettingsIpc: vi.fn(),
   stopSettingsIpc: vi.fn(),
+  createAIWorkflow: vi.fn(),
+  startAI: vi.fn(),
+  stopAI: vi.fn(),
+  resumeAI: vi.fn(),
 }));
 vi.mock('electron', () => ({
   app: {
@@ -32,6 +36,7 @@ vi.mock('../src/main/composition-root', () => ({
   createDatabase: mocks.createDatabase,
   createScanOrchestrator: mocks.createScanOrchestrator,
   createAISettings: mocks.createAISettings,
+  createAIWorkflow: mocks.createAIWorkflow,
   createEngine: () => ({
     close: mocks.closeEngine,
     reconnect: mocks.reconnect,
@@ -56,6 +61,13 @@ vi.mock('../src/main/ipc/settings.ipc', () => ({
 beforeEach(() => {
   vi.resetModules();
   mocks.createDatabase.mockReturnValue({ close: mocks.closeDatabase });
+  mocks.createAIWorkflow.mockReturnValue({
+    start: mocks.startAI,
+    stop: mocks.stopAI,
+    resume: mocks.resumeAI,
+    on: vi.fn(),
+  });
+  mocks.stopAI.mockResolvedValue(undefined);
   mocks.createScanOrchestrator.mockReturnValue({ marker: 'scan' });
   mocks.registerDialogIpc.mockReturnValue(mocks.stopDialogIpc);
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
@@ -75,6 +87,15 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
   expect(mocks.getPath).toHaveBeenCalledWith('userData');
   expect(mocks.createDatabase).toHaveBeenCalledWith('injected-user-data');
+  expect(mocks.startAI).toHaveBeenCalledOnce();
+  expect(mocks.createDatabase.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.startAI.mock.invocationCallOrder[0]!,
+  );
+  mocks.createAISettings.mock.calls[0]![1].onReady();
+  expect(mocks.resumeAI).toHaveBeenCalledOnce();
+  expect(mocks.createScanOrchestrator.mock.calls[0]![2]).toBe(
+    mocks.createAIWorkflow.mock.results[0]!.value,
+  );
   expect(mocks.registerScanIpc).toHaveBeenCalledExactlyOnceWith(
     expect.any(Function),
     expect.stringContaining('index.html'),
@@ -100,11 +121,32 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.stopScanIpc).toHaveBeenCalledOnce();
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopAI).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
   handler('will-quit')();
   expect(mocks.closeDatabase).toHaveBeenCalledOnce();
   handler('will-quit')();
   expect(mocks.closeDatabase).toHaveBeenCalledOnce();
+});
+
+it('espera la cancelación de IA antes de cerrar motor y SQLite', async () => {
+  let finish!: () => void;
+  mocks.stopAI.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await import('../src/main/index');
+  await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
+  const handler = mocks.on.mock.calls.find(
+    ([name]) => name === 'before-quit',
+  )![1];
+  handler({ preventDefault: vi.fn() });
+  await Promise.resolve();
+  expect(mocks.closeEngine).not.toHaveBeenCalled();
+  expect(mocks.closeDatabase).not.toHaveBeenCalled();
+  finish();
+  await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
 });
 
 it('espera a cancelar el escaneo antes de cerrar motor y BD', async () => {

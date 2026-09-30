@@ -12,7 +12,13 @@ import { createLogger } from '../core/logging/logger';
 import { AppConfigStore } from '../core/config/AppConfig';
 import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
-import { ScanOrchestrator } from '../core/scan/ScanOrchestrator';
+import { EvidenceRepository } from '../core/persistence/EvidenceRepository';
+import { LayerTraceRepository } from '../core/persistence/LayerTraceRepository';
+import { decideRisk } from '../core/risk/RiskPolicy';
+import {
+  ScanOrchestrator,
+  type ScanEngine,
+} from '../core/scan/ScanOrchestrator';
 import { ClaudeProvider } from '../core/ai/providers/ClaudeProvider';
 import type { AIErrorKind, AIProvider } from '../core/ai/AIProvider';
 import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
@@ -65,11 +71,22 @@ export function createAISettings(
   options: {
     secrets?: SecretStore;
     logger?: Pick<AppLogger, 'info' | 'warn'>;
+    onReady?: () => void;
   } = {},
 ): AISettingsService {
   const secrets = options.secrets ?? createSecretStore(database);
   const logger =
     options.logger ?? createLogger(join(app.getPath('userData'), 'logs'));
+  const notifyReady = () => {
+    try {
+      options.onReady?.();
+    } catch {
+      logger.warn(
+        { component: 'ai' },
+        'No se pudo reanudar el análisis de IA.',
+      );
+    }
+  };
   return {
     setApiKey(key) {
       try {
@@ -78,6 +95,7 @@ export function createAISettings(
           { component: 'settings' },
           'API key guardada de forma cifrada.',
         );
+        notifyReady();
       } catch {
         logger.warn(
           { component: 'settings' },
@@ -123,6 +141,7 @@ export function createAISettings(
           };
         const result = await provider.healthCheck();
         if (result.ok) {
+          notifyReady();
           logger.info({ component: 'settings' }, 'Conexión de IA comprobada.');
           // Solo datos locales y numéricos: ni cuerpos HTTP ni model devuelto por la red.
           return {
@@ -183,14 +202,72 @@ function connectionErrorMessage(kind: AIErrorKind): string {
 
 export function createScanOrchestrator(
   database: Database,
-  engine: EngineProcess,
+  engine: ScanEngine,
+  worker?: Pick<AIAnalysisWorker, 'enqueueAutomatic'>,
 ): ScanOrchestrator {
   const config = new AppConfigStore(database);
+  const results = new ScanResultRepository(database);
   return new ScanOrchestrator({
     config: () => config.load(),
     engine,
     jobs: new ScanJobRepository(database),
-    results: new ScanResultRepository(database),
+    results,
+    persistResult(record, result) {
+      const verdict = result.verdict;
+      const decision =
+        result.score != null &&
+        (verdict === 'CLEAN' ||
+          verdict === 'SUSPICIOUS' ||
+          verdict === 'DETECTED')
+          ? decideRisk({ verdict, score: result.score })
+          : null;
+      const detectedType = result.evidence.find(
+        (e) => e.code === 'TYPE_MISMATCH',
+      )?.facts.detectedType;
+      const enriched = {
+        ...record,
+        detectedType: typeof detectedType === 'string' ? detectedType : null,
+      };
+      database.transaction(() => {
+        if (decision || result.status !== 'SCANNED') {
+          results.insertComplete({
+            result: enriched,
+            evidence: result.evidence,
+            layers: result.layers,
+            assessment: decision
+              ? {
+                  engineVerdict: decision.engineVerdict,
+                  engineScore: decision.engineScore,
+                  finalVerdict: decision.finalVerdict,
+                  finalLevel: decision.finalLevel,
+                  reviewRequired: decision.reviewRequired,
+                  origin: decision.origin,
+                  traceJson: JSON.stringify(decision.trace),
+                  policyVersion: decision.policyVersion,
+                }
+              : null,
+          });
+        } else {
+          // Compatibilidad con respuestas v1 anteriores a T2.3: conservar los hechos
+          // sin inventar una puntuación o declarar CLEAN un resultado no evaluado.
+          results.insertResult(enriched);
+          new EvidenceRepository(database).insertMany(
+            record.id,
+            result.evidence,
+          );
+          new LayerTraceRepository(database).insertTrace(
+            record.id,
+            result.layers,
+          );
+        }
+      });
+      // La IA falla de forma independiente: el resultado local ya está confirmado.
+      try {
+        worker?.enqueueAutomatic(record.id);
+      } catch {
+        console.error('No se pudo encolar el análisis de IA.');
+      }
+    },
     onError: (error) => console.error('Error de escaneo:', error),
   });
 }

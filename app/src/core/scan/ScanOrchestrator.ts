@@ -11,7 +11,10 @@ import type {
   ScanJobRecord,
   ScanJobRepository,
 } from '../persistence/ScanJobRepository';
-import type { ScanResultRepository } from '../persistence/ScanResultRepository';
+import type {
+  ScanResultRepository,
+  InsertScanResult,
+} from '../persistence/ScanResultRepository';
 import { engineResultSchema, type EngineResult } from '../../shared/protocol';
 import { FileDiscovery } from './FileDiscovery';
 import { ProgressThrottle } from './ProgressThrottle';
@@ -47,6 +50,11 @@ export interface ScanDependencies {
   engine: ScanEngine;
   jobs: Pick<ScanJobRepository, 'create' | 'updateStatus' | 'updateCounters'>;
   results: Pick<ScanResultRepository, 'insertResult'>;
+  /** Persistencia completa S2; el adaptador recibe también los hechos del motor. */
+  persistResult?: (
+    record: InsertScanResult,
+    engineResult: EngineResult,
+  ) => void;
   createDiscovery?: () => ScanDiscovery;
   sizeOf?: (path: string) => Promise<number>;
   onError?: (error: unknown) => void;
@@ -341,7 +349,7 @@ export class ScanOrchestrator extends EventEmitter<{
         if (result.taskId !== task.taskId)
           throw new Error('El motor respondió para otra tarea.');
         // Only the in-flight file may finish after requestCancel; no new task is started.
-        this.dependencies.results.insertResult({
+        const record: InsertScanResult = {
           id: task.taskId,
           jobId: run.job.id,
           seq: task.seq,
@@ -355,7 +363,10 @@ export class ScanOrchestrator extends EventEmitter<{
           errorCode: result.error?.code,
           errorMessage: result.error?.message,
           durationMs: result.durationMs,
-        });
+        };
+        if (this.dependencies.persistResult)
+          this.dependencies.persistResult(record, result);
+        else this.dependencies.results.insertResult(record);
         const counters = run.job.counters;
         run.job.updateCounters({
           ...counters,

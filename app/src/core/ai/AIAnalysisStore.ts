@@ -130,6 +130,15 @@ export class AIAnalysisStore {
     });
   }
 
+  pausedResults(): string[] {
+    return this.db
+      .prepare(
+        "SELECT id FROM scan_results WHERE ai_status IN ('NOT_CONFIGURED','UNAVAILABLE') ORDER BY scanned_at, job_id, seq, id",
+      )
+      .all()
+      .map((row) => String(row.id));
+  }
+
   saveAttempt(
     input: InsertAIAnalysis,
     status: AIStatus,

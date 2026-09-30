@@ -11,8 +11,10 @@ import {
   createEngine,
   createScanOrchestrator,
   createAISettings,
+  createAIWorkflow,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
+import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -21,6 +23,7 @@ let database: Database | null = null;
 let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
+let aiWorker: AIAnalysisWorker | null = null;
 let readyToQuit = false;
 let quitting = false;
 
@@ -38,10 +41,14 @@ app.on('before-quit', (event) => {
   stopSettingsIpc = null;
   stopDialogIpc?.();
   stopDialogIpc = null;
-  void (stopScanIpc?.() ?? Promise.resolve())
-    .catch((error: unknown) =>
-      console.error('Error al finalizar el escaneo:', error),
-    )
+  void Promise.allSettled([
+    stopScanIpc?.() ?? Promise.resolve(),
+    aiWorker?.stop() ?? Promise.resolve(),
+  ])
+    .then((results) => {
+      if (results.some((result) => result.status === 'rejected'))
+        console.error('No se pudo finalizar algún trabajo pendiente.');
+    })
     .then(() => engine.close())
     .catch((error: unknown) =>
       console.error('Error al cerrar el motor:', error),
@@ -64,13 +71,18 @@ app
   .whenReady()
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
+    aiWorker = createAIWorkflow(database);
+    aiWorker.on('workerError', () =>
+      console.error('El worker de IA se ha pausado.'),
+    );
+    aiWorker.start();
     const trustedRendererUrl = pathToFileURL(rendererPath).href;
     stopSettingsIpc = registerSettingsIpc(
       () => mainWindow,
       trustedRendererUrl,
-      createAISettings(database),
+      createAISettings(database, { onReady: () => aiWorker?.resume() }),
     );
-    const scan = createScanOrchestrator(database, engine);
+    const scan = createScanOrchestrator(database, engine, aiWorker);
     stopDialogIpc = registerDialogIpc(() => mainWindow, trustedRendererUrl);
     stopScanIpc = registerScanIpc(
       () => mainWindow,

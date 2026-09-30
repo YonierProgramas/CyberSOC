@@ -253,9 +253,12 @@ describe('SecretStore y composición de Claude', () => {
         );
       }),
     );
-    const service = createAISettings(db, { secrets: store });
+    const onReady = vi.fn();
+    const service = createAISettings(db, { secrets: store, onReady });
     service.setApiKey(KEY);
+    expect(onReady).toHaveBeenCalledTimes(1);
     await service.testConnection();
+    expect(onReady).toHaveBeenCalledTimes(2);
     service.setApiKey(NEXT);
     native.decryptString.mockReturnValue(NEXT);
     await service.testConnection();

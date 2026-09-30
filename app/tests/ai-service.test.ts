@@ -374,6 +374,7 @@ it('429 respeta retryAfterMs y no adelanta el segundo archivo', async () => {
   await flush();
   expect(store.results.get(first)?.aiStatus).toBe('RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(4999);
+  worker.resume(); // Un healthCheck exitoso no debe saltarse Retry-After.
   expect(fake.requests).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1);
   expect(fake.requests).toHaveLength(3);
@@ -500,4 +501,16 @@ it('proveedor no configurado se registra sin red y sin alterar el veredicto', as
     verdict: 'SUSPICIOUS',
     aiStatus: 'NOT_CONFIGURED',
   });
+});
+
+it('corregir la credencial recupera NOT_CONFIGURED incluso después de reiniciar', async () => {
+  const id = seed();
+  store.setStatus(id, 'NOT_CONFIGURED');
+  worker.start();
+  await flush();
+  expect(fake.requests).toHaveLength(0);
+  fake.enqueueValue(valid);
+  worker.resume();
+  await flush();
+  expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });

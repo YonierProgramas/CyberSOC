@@ -63,14 +63,24 @@ export class AIAnalysisWorker extends EventEmitter {
   }
 
   resume(): void {
-    this.paused = false;
-    this.failures = 0;
-    this.openUntil = 0;
-    const head = this.queue.peek();
-    if (head) {
-      head.retries = 0;
-      head.due = 0;
-      this.status(head.id, 'PENDING');
+    if (!this.active || this.running) return;
+    if (this.paused) {
+      this.paused = false;
+      this.failures = 0;
+      this.openUntil = 0;
+      const head = this.queue.peek();
+      if (head) {
+        head.retries = 0;
+        head.due = 0;
+        this.status(head.id, 'PENDING');
+      }
+    }
+    // Una credencial corregida también recupera resultados pausados antes de reiniciar.
+    for (const id of this.service.store.pausedResults()) {
+      if (!this.scheduled.has(id)) {
+        this.status(id, 'PENDING');
+        this.schedule(id);
+      }
     }
     this.kick();
   }
