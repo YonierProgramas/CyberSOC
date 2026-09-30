@@ -1,5 +1,6 @@
 import type { Database } from './Database';
 import { initialMigration } from './migrations/001_init';
+import { scansMigration } from './migrations/002_scans';
 
 export interface Migration {
   readonly version: number;
@@ -10,7 +11,10 @@ export interface Migration {
 export class MigrationRunner {
   constructor(
     private readonly database: Database,
-    private readonly migrations: readonly Migration[] = [initialMigration],
+    private readonly migrations: readonly Migration[] = [
+      initialMigration,
+      scansMigration,
+    ],
   ) {}
 
   run(): number[] {

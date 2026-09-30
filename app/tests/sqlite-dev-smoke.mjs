@@ -172,17 +172,18 @@ try {
     assert.equal(result.path, join(profile, 'cybersoc.db'));
     assert.equal(result.visible, true);
     assert.equal(result.journal, 'wal');
-    assert.equal(result.history.length, 1);
+    assert.equal(result.history.length, 2);
     assert.equal(result.history[0].version, 1);
+    assert.equal(result.history[1].version, 2);
     assert.deepEqual(
       result.tables.map(({ name }) => name),
-      ['schema_migrations', 'settings'],
+      ['scan_jobs', 'scan_results', 'schema_migrations', 'settings'],
     );
   }
   assert.deepEqual(
     second.history,
     first.history,
-    'Un reinicio no debe cambiar applied_at ni reaplicar 001',
+    'Un reinicio no debe cambiar applied_at ni reaplicar migraciones',
   );
   console.info(JSON.stringify({ first, second, ca05: 'passed' }, null, 2));
 } finally {
