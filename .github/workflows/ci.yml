@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, s0/ci]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  # T0.3 still lacks package installation: subprocess tests run from src explicitly.
+  PYTHONPATH: ${{ github.workspace }}/CyberSOC/engine/src
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  app:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: CyberSOC/app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: CyberSOC
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: CyberSOC/app/package-lock.json
+      # Install the engine so the real-process Vitest test does not skip itself.
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.17"
+          python-version: "3.12"
+          working-directory: CyberSOC/engine
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install engine for integration tests
+        working-directory: CyberSOC/engine
+        run: uv sync --locked
+      - name: Install app
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests (including TypeScript contracts; no live AI smoke)
+        run: npm test
+
+  engine:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: CyberSOC/engine
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: CyberSOC
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.17"
+          python-version: "3.12"
+          working-directory: CyberSOC/engine
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install engine
+        run: uv sync --locked
+      - name: Lint
+        run: uv run --locked ruff check
+      - name: Tests (including Python contracts)
+        run: uv run --locked pytest
