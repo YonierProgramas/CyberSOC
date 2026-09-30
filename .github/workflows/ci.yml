@@ -48,9 +48,11 @@ jobs:
           # Sin esto, setup-uv toma cache-dir de pyproject.toml sin resolverlo contra
           # working-directory y el guardado de la caché falla. El input sí se resuelve.
           cache-local-path: .uv-cache
+      # --compile-bytecode: con PYTHONDONTWRITEBYTECODE=1 cada arranque del motor
+      # recompilaria pydantic desde fuente y engine.hello superaria su timeout de 5 s.
       - name: Install engine for integration tests
         working-directory: CyberSOC/engine
-        run: uv sync --locked
+        run: uv sync --locked --compile-bytecode
       - name: Install app
         run: npm ci
       - name: Typecheck
@@ -81,7 +83,7 @@ jobs:
           cache-dependency-glob: uv.lock
           cache-local-path: .uv-cache
       - name: Install engine
-        run: uv sync --locked
+        run: uv sync --locked --compile-bytecode
       - name: Lint
         run: uv run --locked ruff check
       - name: Tests (including Python contracts)
