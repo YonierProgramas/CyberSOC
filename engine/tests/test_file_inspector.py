@@ -24,6 +24,9 @@ def inspect(path, max_bytes=1024 * 1024):
     wire = result.model_dump(mode="json", exclude_unset=True)
     assert EngineResult.model_validate(wire).model_dump(exclude_unset=True) == wire
     assert result.evidence == []
+    assert [trace.layer for trace in result.layers] == ["HASH", "FILETYPE"]
+    assert all(trace.ms >= 0 for trace in result.layers)
+    assert all(trace.reason for trace in result.layers if trace.status == "SKIPPED")
     assert result.durationMs >= 0
     assert "verdict" not in wire
     return result
@@ -142,7 +145,7 @@ def test_size_rechecked_on_open_handle(tmp_path):
     metadata = SimpleNamespace(st_size=1, st_mode=actual.st_mode, st_mtime=actual.st_mtime)
     with (
         patch.object(Path, "stat", return_value=metadata),
-        patch("cybersoc_engine.analysis.file_inspector.sha256_stream") as hashing,
+        patch("cybersoc_engine.pipeline.sha256_stream") as hashing,
     ):
         result = inspect(path, max_bytes=2)
     assert result.error.code == "TOO_LARGE"
@@ -177,7 +180,7 @@ def test_read_failure_closes_file(tmp_path):
     fh = path.open("rb")
     with (
         patch("cybersoc_engine.analysis.file_inspector.open_binary", return_value=fh),
-        patch("cybersoc_engine.analysis.file_inspector.sha256_stream", side_effect=OSError("read")),
+        patch("cybersoc_engine.pipeline.sha256_stream", side_effect=OSError("read")),
     ):
         result = inspect(path)
     assert result.status == "ERROR"

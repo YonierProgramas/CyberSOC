@@ -11,7 +11,7 @@ const python = resolve(
 );
 
 it.skipIf(!existsSync(python))(
-  'motor real: hello, ping, scan.file con traza HASH, reconexion y shutdown',
+  'motor real: hello, ping, scan.file con HASH y FILETYPE, reconexion y shutdown',
   async () => {
     const messages: string[] = [];
     const engine = new EngineProcess({
@@ -47,6 +47,13 @@ it.skipIf(!existsSync(python))(
       expect(result.layers).toEqual([
         {
           layer: 'HASH',
+          status: 'RAN',
+          hits: 0,
+          points: 0,
+          ms: expect.any(Number),
+        },
+        {
+          layer: 'FILETYPE',
           status: 'RAN',
           hits: 0,
           points: 0,

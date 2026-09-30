@@ -517,7 +517,7 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
     path = tmp_path / "inofensivo.txt"
     if scenario != "missing":
         path.write_text("Texto inofensivo de prueba.", encoding="utf-8")
-    with patch("cybersoc_engine.analysis.file_inspector.sha256_stream") as hashing:
+    with patch("cybersoc_engine.pipeline.sha256_stream") as hashing:
         hashing.return_value = "a" * 64
         if scenario == "read_error":
             hashing.side_effect = OSError("read failed")
@@ -528,7 +528,7 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
         )
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert len(result.layers) == 1
+    assert [layer.layer for layer in result.layers] == ["HASH", "FILETYPE"]
     trace = result.layers[0]
     assert trace.layer == "HASH"
     assert (

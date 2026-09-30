@@ -5,17 +5,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
-from cybersoc_engine.analysis.hashing import sha256_stream
 from cybersoc_engine.analysis.windows_io import readonly_opener
 from cybersoc_engine.errors import map_file_error
 from cybersoc_engine.models import (
     EngineResult,
     FileError,
-    FileHashes,
     FileInfo,
-    LayerTrace,
     ScanFileOptions,
 )
+from cybersoc_engine.pipeline import AnalysisPipeline
 from cybersoc_engine.version import ENGINE_VERSION
 
 # Windows file attributes not exposed by Python 3.12's stat module.
@@ -48,10 +46,11 @@ def _file_info(path: Path, metadata: os.stat_result) -> FileInfo:
 
 
 class FileInspector:
+    def __init__(self) -> None:
+        self.pipeline = AnalysisPipeline()
+
     def inspect(self, path: str, opts: ScanFileOptions, *, task_id: str) -> EngineResult:
         started = perf_counter()
-        hash_started: float | None = None
-        hash_ms = 0.0
         result = EngineResult(
             taskId=task_id,
             status="ERROR",
@@ -85,32 +84,17 @@ class FileInspector:
                     result.error = reason
                     return result
                 result.file = _file_info(target, opened)
-                hash_started = perf_counter()
-                try:
-                    result.hashes = FileHashes(sha256=sha256_stream(fh))
-                finally:
-                    hash_ms = (perf_counter() - hash_started) * 1000
-            result.status = "SCANNED"
+                self.pipeline.analyze(fh, result)
         except OSError as error:
+            result.status = "ERROR"
             result.error = map_file_error(error)
         except ValueError:
+            result.status = "ERROR"
             # Invalid filesystem paths (e.g. NUL) are file errors, not RPC failures.
             result.error = FileError(
                 code="IO_ERROR", message="Ruta o metadatos de archivo inválidos"
             )
         finally:
-            # HASH es la única capa implementada antes de T2.2/T2.3.
-            if result.hashes is not None:
-                trace = LayerTrace(layer="HASH", status="RAN", hits=0, points=0, ms=hash_ms)
-            else:
-                trace = LayerTrace(
-                    layer="HASH",
-                    status="ERROR" if hash_started is not None else "SKIPPED",
-                    reason=result.error.code if result.error else "NOT_ANALYZED",
-                    hits=0,
-                    points=0,
-                    ms=hash_ms,
-                )
-            result.layers = [trace]
+            self.pipeline.complete_skipped(result)
             result.durationMs = (perf_counter() - started) * 1000
         return result
