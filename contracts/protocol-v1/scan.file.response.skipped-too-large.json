@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 45,
+  "result": {
+    "taskId": "t_15",
+    "status": "SKIPPED",
+    "error": {
+      "code": "TOO_LARGE",
+      "message": "El archivo supera el tamaño máximo permitido"
+    },
+    "evidence": [],
+    "durationMs": 0,
+    "engineVersion": "0.1.0"
+  }
+}

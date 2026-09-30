@@ -75,3 +75,65 @@ export type PingResponse = z.infer<typeof pingResponseSchema>;
 export type ShutdownRequest = z.infer<typeof shutdownRequestSchema>;
 export type ShutdownResponse = z.infer<typeof shutdownResponseSchema>;
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
+
+export const fileScanStatusSchema = z.enum(['SCANNED', 'ERROR', 'SKIPPED']);
+export const fileErrorCodeSchema = z.enum([
+  'FILE_NOT_FOUND',
+  'ACCESS_DENIED',
+  'FILE_LOCKED',
+  'IO_ERROR',
+  'TOO_LARGE',
+  'CLOUD_PLACEHOLDER',
+  'TIMEOUT',
+  'ENGINE_CRASHED',
+]);
+
+export const scanFileParamsSchema = z.strictObject({
+  jobId: z.string(),
+  taskId: z.string(),
+  path: z.string(),
+  options: z.strictObject({ maxBytes: z.number() }),
+});
+
+// Optional fields follow the S1 interface; their presence is not tied to status.
+export const engineResultSchema = z.strictObject({
+  taskId: z.string(),
+  status: fileScanStatusSchema,
+  file: z
+    .strictObject({
+      name: z.string(),
+      extension: z.string().nullable(),
+      sizeBytes: z.number(),
+      modifiedAt: z.string(),
+    })
+    .optional(),
+  hashes: z
+    .strictObject({
+      sha256: z
+        .string()
+        .length(64)
+        .regex(/^[a-fA-F0-9]{64}$/),
+    })
+    .optional(),
+  evidence: z.array(z.unknown()),
+  error: z
+    .strictObject({ code: fileErrorCodeSchema, message: z.string() })
+    .optional(),
+  durationMs: z.number(),
+  engineVersion: z.string(),
+});
+
+export const scanFileRequestSchema = z.strictObject({
+  ...envelope,
+  method: z.literal('scan.file'),
+  params: scanFileParamsSchema,
+});
+export const scanFileResponseSchema = z.strictObject({
+  ...envelope,
+  result: engineResultSchema,
+});
+
+export type ScanFileParams = z.infer<typeof scanFileParamsSchema>;
+export type EngineResult = z.infer<typeof engineResultSchema>;
+export type ScanFileRequest = z.infer<typeof scanFileRequestSchema>;
+export type ScanFileResponse = z.infer<typeof scanFileResponseSchema>;

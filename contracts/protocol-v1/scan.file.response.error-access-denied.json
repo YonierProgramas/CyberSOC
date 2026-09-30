@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "result": {
+    "taskId": "t_13",
+    "status": "ERROR",
+    "error": { "code": "ACCESS_DENIED", "message": "Permiso denegado" },
+    "evidence": [],
+    "durationMs": 1,
+    "engineVersion": "0.1.0"
+  }
+}

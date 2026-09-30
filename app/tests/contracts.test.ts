@@ -10,6 +10,8 @@ import {
   shutdownResponseSchema,
   methodNotFoundResponseSchema,
   parseErrorResponseSchema,
+  scanFileRequestSchema,
+  scanFileResponseSchema,
 } from '../src/shared/protocol';
 
 const directory = fileURLToPath(
@@ -24,6 +26,11 @@ const schemas = {
   'engine.shutdown.response.json': shutdownResponseSchema,
   'error.method-not-found.json': methodNotFoundResponseSchema,
   'error.parse-error.json': parseErrorResponseSchema,
+  'scan.file.request.json': scanFileRequestSchema,
+  'scan.file.response.scanned.json': scanFileResponseSchema,
+  'scan.file.response.error-access-denied.json': scanFileResponseSchema,
+  'scan.file.response.skipped-cloud.json': scanFileResponseSchema,
+  'scan.file.response.skipped-too-large.json': scanFileResponseSchema,
 };
 
 function load(name: string): Record<string, unknown> {
@@ -58,11 +65,11 @@ function mutate(
     copy,
   );
   if (change === 'delete') delete parent[key];
-  else parent[key] = key === 'id' ? true : null;
+  else parent[key] = key === 'id' || key === 'extension' ? true : null;
   return copy;
 }
 
-it('valida exactamente los ocho archivos compartidos', () => {
+it('valida exactamente los trece archivos compartidos', () => {
   expect(readdirSync(directory).sort()).toEqual(Object.keys(schemas).sort());
 });
 
@@ -73,11 +80,18 @@ for (const [name, schema] of Object.entries(schemas)) {
       expect(schema.parse(example)).toEqual(example);
     });
     for (const path of fieldPaths(example)) {
-      it(`rechaza eliminar ${path.join('.')}`, () => {
-        expect(schema.safeParse(mutate(example, path, 'delete')).success).toBe(
-          false,
+      const optional =
+        name.startsWith('scan.file.response.') &&
+        ['result.file', 'result.hashes', 'result.error'].includes(
+          path.join('.'),
         );
-      });
+      if (!optional) {
+        it(`rechaza eliminar ${path.join('.')}`, () => {
+          expect(
+            schema.safeParse(mutate(example, path, 'delete')).success,
+          ).toBe(false);
+        });
+      }
       it(`rechaza tipo incorrecto en ${path.join('.')}`, () => {
         expect(schema.safeParse(mutate(example, path, 'type')).success).toBe(
           false,

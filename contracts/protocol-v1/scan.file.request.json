@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "scan.file",
+  "params": {
+    "jobId": "j_7f",
+    "taskId": "t_12",
+    "path": "C:\\Users\\ana\\Documentos\\Año 2026\\informe_año_económico.pdf",
+    "options": { "maxBytes": 536870912 }
+  }
+}
