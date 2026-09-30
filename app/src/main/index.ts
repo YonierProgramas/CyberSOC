@@ -89,6 +89,7 @@ app
       trustedRendererUrl,
       scan,
       database,
+      aiWorker,
     );
     registerSystemIpc(() => mainWindow, trustedRendererUrl, engine);
     void engine

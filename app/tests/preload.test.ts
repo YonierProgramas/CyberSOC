@@ -57,8 +57,11 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
     'getJob',
     'listJobs',
     'listResults',
+    'getResult',
+    'analyzeNow',
     'onProgress',
     'onFinished',
+    'onResultUpdated',
   ]);
   expect(Object.keys(api.system)).toEqual(['getStatus', 'reconnectEngine']);
 
@@ -86,10 +89,15 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   const query = { jobId: 'j1', offset: 0, limit: 200 };
   await api.scan.listResults(query);
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:listResults', query);
+  await api.scan.getResult('r1');
+  expect(electron.invoke).toHaveBeenLastCalledWith('scan:getResult', 'r1');
+  await api.scan.analyzeNow('r1');
+  expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
 
   for (const [subscribe, channel] of [
     [api.scan.onProgress, 'scan:progress'],
     [api.scan.onFinished, 'scan:finished'],
+    [api.scan.onResultUpdated, 'ai:resultUpdated'],
   ] as const) {
     const callback = vi.fn();
     const unsubscribe = subscribe(callback);

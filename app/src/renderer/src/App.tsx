@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { HistoryPage } from './pages/HistoryPage';
 import { ScanPage } from './pages/ScanPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { StatusPage } from './pages/StatusPage';
 
-type View = 'scan' | 'history' | 'status';
+type View = 'scan' | 'history' | 'status' | 'settings';
 
 export function App() {
   const [view, setView] = useState<View>('scan');
@@ -31,10 +32,18 @@ export function App() {
         >
           Estado
         </button>
+        <button
+          type="button"
+          aria-current={view === 'settings' ? 'page' : undefined}
+          onClick={() => setView('settings')}
+        >
+          Configuración
+        </button>
       </nav>
       {view === 'scan' && <ScanPage />}
       {view === 'history' && <HistoryPage />}
       {view === 'status' && <StatusPage />}
+      {view === 'settings' && <SettingsPage />}
     </div>
   );
 }

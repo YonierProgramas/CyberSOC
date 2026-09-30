@@ -48,6 +48,9 @@ export interface ScanResultDTO {
   errorMessage: string | null;
   durationMs: number | null;
   scannedAt: string;
+  engineScore: number | null;
+  riskLevel: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRÍTICO' | null;
+  aiStatus: AIStatus;
 }
 export interface ScanProgress {
   jobId: string;
@@ -84,6 +87,71 @@ export const SCAN_LIST_JOBS = 'scan:listJobs';
 export const SCAN_LIST_RESULTS = 'scan:listResults';
 export const SCAN_PROGRESS = 'scan:progress';
 export const SCAN_FINISHED = 'scan:finished';
+export const SCAN_GET_RESULT = 'scan:getResult';
+export const SCAN_ANALYZE_NOW = 'scan:analyzeNow';
+export const AI_RESULT_UPDATED = 'ai:resultUpdated';
+
+export type AIStatus =
+  | 'NOT_REQUIRED'
+  | 'PENDING'
+  | 'RUNNING'
+  | 'RETRY_WAIT'
+  | 'COMPLETED'
+  | 'UNAVAILABLE'
+  | 'INVALID'
+  | 'NOT_CONFIGURED';
+
+export interface EvidenceView {
+  id: string;
+  source: string;
+  code: string;
+  severity: 'INFO' | 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  points: number;
+}
+
+export interface LayerView {
+  layer: string;
+  status: 'RAN' | 'SKIPPED' | 'DISABLED' | 'ERROR';
+  reason: string | null;
+  hits: number;
+  points: number;
+}
+
+export interface AICorrelationView {
+  evidenceIds: string[];
+  insight: string;
+}
+
+export interface AIAnalysisView {
+  summary: string;
+  plainExplanation: string;
+  technicalAnalysis: string;
+  correlations: AICorrelationView[];
+  recommendedAction: string;
+  actionRationale: string;
+}
+
+export interface AISentView {
+  contextJson: string;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  latencyMs: number | null;
+  validationStatus: string;
+}
+
+export interface ResultDetailDTO {
+  result: ScanResultDTO;
+  evidence: EvidenceView[];
+  layers: LayerView[];
+  analysis: AIAnalysisView | null;
+  sent: AISentView | null;
+}
+
+export interface AIResultUpdated {
+  resultId: string;
+  aiStatus: AIStatus;
+}
 export const SETTINGS_AI_SET_API_KEY = 'settings.ai:setApiKey';
 export const SETTINGS_AI_CLEAR_API_KEY = 'settings.ai:clearApiKey';
 export const SETTINGS_AI_GET_STATUS = 'settings.ai:getStatus';
@@ -157,10 +225,15 @@ export interface CyberSocApi {
     readonly listResults: (
       query: ScanResultsQuery,
     ) => Promise<Page<ScanResultDTO>>;
+    readonly getResult: (resultId: string) => Promise<ResultDetailDTO>;
+    readonly analyzeNow: (resultId: string) => Promise<void>;
     readonly onProgress: (
       callback: (progress: ScanProgress) => void,
     ) => () => void;
     readonly onFinished: (callback: (job: ScanJobDTO) => void) => () => void;
+    readonly onResultUpdated: (
+      callback: (update: AIResultUpdated) => void,
+    ) => () => void;
   };
   readonly system: {
     readonly getStatus: () => Promise<SystemStatus>;

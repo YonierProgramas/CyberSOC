@@ -101,6 +101,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     expect.stringContaining('index.html'),
     { marker: 'scan' },
     { close: mocks.closeDatabase },
+    mocks.createAIWorkflow.mock.results[0]!.value,
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.registerSettingsIpc).toHaveBeenCalledExactlyOnceWith(

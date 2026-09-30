@@ -1,17 +1,26 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { z } from 'zod';
 import type { Database } from '../../core/persistence/Database';
+import { aiAssessmentSchema } from '../../core/ai/schemas';
+import { AIAnalysisRepository } from '../../core/persistence/AIAnalysisRepository';
+import { EvidenceRepository } from '../../core/persistence/EvidenceRepository';
+import { LayerTraceRepository } from '../../core/persistence/LayerTraceRepository';
 import { ScanJobRepository } from '../../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../../core/persistence/ScanResultRepository';
 import type { ScanOrchestrator } from '../../core/scan/ScanOrchestrator';
 import {
+  AI_RESULT_UPDATED,
+  SCAN_ANALYZE_NOW,
   SCAN_START,
   SCAN_CANCEL,
   SCAN_GET_JOB,
+  SCAN_GET_RESULT,
   SCAN_LIST_JOBS,
   SCAN_LIST_RESULTS,
   SCAN_PROGRESS,
   SCAN_FINISHED,
+  type AIResultUpdated,
+  type ResultDetailDTO,
   type ScanJobDTO,
   type ScanResultDTO,
   type Page,
@@ -36,11 +45,24 @@ const pageArguments = z.tuple([
   }),
 ]);
 
+export interface AIAnalysisControl {
+  analyzeNow(resultId: string): void;
+  on(
+    event: 'ai:resultUpdated',
+    listener: (update: AIResultUpdated) => void,
+  ): void;
+  off(
+    event: 'ai:resultUpdated',
+    listener: (update: AIResultUpdated) => void,
+  ): void;
+}
+
 export function registerScanIpc(
   getWindow: () => BrowserWindow | null,
   trustedRendererUrl: string,
   orchestrator: ScanOrchestrator,
   database: Database,
+  ai?: AIAnalysisControl,
 ): () => Promise<void> {
   let disposed = false;
   let activeJobId: string | null = null;
@@ -103,6 +125,20 @@ export function registerScanIpc(
       };
     },
   );
+  ipcMain.handle(
+    SCAN_GET_RESULT,
+    (event, ...args: unknown[]): ResultDetailDTO => {
+      validate(event);
+      const [id] = idArguments.parse(args);
+      return resultDetail(database, id);
+    },
+  );
+  ipcMain.handle(SCAN_ANALYZE_NOW, (event, ...args: unknown[]): void => {
+    validate(event);
+    const [id] = idArguments.parse(args);
+    if (!ai) throw new Error('El análisis de IA no está disponible.');
+    ai.analyzeNow(id);
+  });
 
   const progress = (value: ScanProgress) =>
     trustedWindow(getWindow, trustedRendererUrl)?.webContents.send(
@@ -116,21 +152,92 @@ export function registerScanIpc(
       value,
     );
   };
+  const updated = (value: AIResultUpdated) =>
+    trustedWindow(getWindow, trustedRendererUrl)?.webContents.send(
+      AI_RESULT_UPDATED,
+      value,
+    );
   orchestrator.on('progress', progress);
   orchestrator.on('finished', finished);
+  ai?.on('ai:resultUpdated', updated);
   return async () => {
     if (disposed) return;
     disposed = true;
     orchestrator.off('progress', progress);
     orchestrator.off('finished', finished);
+    ai?.off('ai:resultUpdated', updated);
     for (const channel of [
       SCAN_START,
       SCAN_CANCEL,
       SCAN_GET_JOB,
+      SCAN_GET_RESULT,
+      SCAN_ANALYZE_NOW,
       SCAN_LIST_JOBS,
       SCAN_LIST_RESULTS,
     ])
       ipcMain.removeHandler(channel);
     if (activeJobId !== null) await orchestrator.cancel(activeJobId);
+  };
+}
+
+function readAnalysis(
+  validationStatus: string | undefined,
+  responseJson: string | null | undefined,
+): ResultDetailDTO['analysis'] {
+  if (validationStatus !== 'VALID' || !responseJson) return null;
+  try {
+    const parsed = aiAssessmentSchema.safeParse(JSON.parse(responseJson));
+    if (!parsed.success) return null;
+    return {
+      summary: parsed.data.summary,
+      plainExplanation: parsed.data.plainExplanation,
+      technicalAnalysis: parsed.data.technicalAnalysis,
+      correlations: parsed.data.correlations.map((item) => ({
+        evidenceIds: [...item.evidenceIds],
+        insight: item.insight,
+      })),
+      recommendedAction: parsed.data.recommendedAction,
+      actionRationale: parsed.data.actionRationale,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resultDetail(database: Database, id: string): ResultDetailDTO {
+  const result = new ScanResultRepository(database).get(id);
+  if (!result) throw new Error('No existe el resultado de escaneo.');
+  const attempt = new AIAnalysisRepository(database).latestByResult(id);
+  const analysis = readAnalysis(
+    attempt?.validationStatus,
+    attempt?.responseJson,
+  );
+  return {
+    result,
+    evidence: new EvidenceRepository(database).listByResult(id).map((item) => ({
+      id: item.evidenceKey,
+      source: item.source,
+      code: item.code,
+      severity: item.severity,
+      points: item.points,
+    })),
+    layers: new LayerTraceRepository(database).listByResult(id).map((item) => ({
+      layer: item.layer,
+      status: item.status,
+      reason: item.reason,
+      hits: item.hits,
+      points: item.points,
+    })),
+    analysis,
+    sent: attempt
+      ? {
+          contextJson: attempt.contextJson,
+          model: attempt.model,
+          inputTokens: attempt.inputTokens,
+          outputTokens: attempt.outputTokens,
+          latencyMs: attempt.latencyMs,
+          validationStatus: attempt.validationStatus,
+        }
+      : null,
   };
 }

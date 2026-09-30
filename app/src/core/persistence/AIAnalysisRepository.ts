@@ -122,6 +122,16 @@ export class AIAnalysisRepository {
       .get(id) as unknown as AIAnalysisRecord | undefined;
   }
 
+  latestByResult(resultId: string): AIAnalysisRecord | undefined {
+    return this.database
+      .prepare(
+        `${selectAnalysis}
+      WHERE result_id = ? AND kind = 'FILE_RESULT'
+      ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+      )
+      .get(resultId) as unknown as AIAnalysisRecord | undefined;
+  }
+
   latestValidByResult(resultId: string): AIAnalysisRecord | undefined {
     return this.database
       .prepare(

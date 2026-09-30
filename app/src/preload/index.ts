@@ -11,10 +11,14 @@ import {
   SCAN_GET_JOB,
   SCAN_LIST_JOBS,
   SCAN_LIST_RESULTS,
+  SCAN_GET_RESULT,
+  SCAN_ANALYZE_NOW,
   SCAN_PROGRESS,
   SCAN_FINISHED,
+  AI_RESULT_UPDATED,
   type ScanProgress,
   type ScanJobDTO,
+  type AIResultUpdated,
   SETTINGS_AI_SET_API_KEY,
   SETTINGS_AI_CLEAR_API_KEY,
   SETTINGS_AI_GET_STATUS,
@@ -22,7 +26,8 @@ import {
 } from '../shared/ipc';
 
 function subscribe<T>(
-  channel: typeof SCAN_PROGRESS | typeof SCAN_FINISHED,
+  channel:
+    typeof SCAN_PROGRESS | typeof SCAN_FINISHED | typeof AI_RESULT_UPDATED,
   callback: (value: T) => void,
 ): () => void {
   if (typeof callback !== 'function')
@@ -61,8 +66,12 @@ const api: CyberSocApi = {
         ? ipcRenderer.invoke(SCAN_LIST_JOBS)
         : ipcRenderer.invoke(SCAN_LIST_JOBS, limit),
     listResults: (query) => ipcRenderer.invoke(SCAN_LIST_RESULTS, query),
+    getResult: (resultId) => ipcRenderer.invoke(SCAN_GET_RESULT, resultId),
+    analyzeNow: (resultId) => ipcRenderer.invoke(SCAN_ANALYZE_NOW, resultId),
     onProgress: (callback) => subscribe<ScanProgress>(SCAN_PROGRESS, callback),
     onFinished: (callback) => subscribe<ScanJobDTO>(SCAN_FINISHED, callback),
+    onResultUpdated: (callback) =>
+      subscribe<AIResultUpdated>(AI_RESULT_UPDATED, callback),
   },
   system: {
     getStatus: (): Promise<SystemStatus> =>

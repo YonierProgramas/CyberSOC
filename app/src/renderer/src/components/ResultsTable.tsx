@@ -7,6 +7,7 @@ import {
   shortHash,
   verdictLabel,
 } from '../scan/format';
+import { ResultDetail } from './ResultDetail';
 
 export function ResultsTable({
   jobId,
@@ -19,9 +20,11 @@ export function ResultsTable({
   const [data, setData] = useState<Page<ScanResultDTO> | null>(null);
   const [failed, setFailed] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     setPage(0);
+    setSelectedId(null);
   }, [jobId]);
 
   useEffect(() => {
@@ -73,7 +76,13 @@ export function ResultsTable({
               data.items.map((result) => {
                 const hash = result.sha256;
                 return (
-                  <tr key={result.id}>
+                  <tr
+                    key={result.id}
+                    data-testid="result-row"
+                    data-result-id={result.id}
+                    aria-selected={selectedId === result.id}
+                    onClick={() => setSelectedId(result.id)}
+                  >
                     <td>{result.fileName}</td>
                     <td className="path" title={result.path}>
                       {result.path}
@@ -95,7 +104,7 @@ export function ResultsTable({
                       )}
                     </td>
                     <td>{resultStatusLabel(result.status)}</td>
-                    <td>{verdictLabel()}</td>
+                    <td>{verdictLabel(result.verdict)}</td>
                   </tr>
                 );
               })
@@ -126,6 +135,7 @@ export function ResultsTable({
           Siguiente
         </button>
       </div>
+      {selectedId && <ResultDetail resultId={selectedId} />}
     </section>
   );
 }
