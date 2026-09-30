@@ -106,32 +106,46 @@ export class ClaudeProvider implements AIProvider {
       return { ok: false, error: this.mapError(error, signals) };
     }
 
-    const stopError = mapStopReason(response.stop_reason);
-    if (stopError) return { ok: false, error: stopError };
-
-    const text = response.content
+    // El texto y los tokens se conservan también en los fallos: la respuesta se guarda para
+    // auditoría y AIResponseValidator decide su validation_status exacto.
+    const rawText = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')
       .map((block) => block.text)
       .join('');
+    const usage = {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+    const withResponse = (error: AIError): { ok: false; error: AIError } => ({
+      ok: false,
+      error: { ...error, rawText, usage },
+    });
+
+    // "max_tokens" se comprueba antes de parsear: una respuesta cortada es INCOMPLETE, no JSON roto.
+    const stopError = mapStopReason(response.stop_reason);
+    if (stopError) return withResponse(stopError);
+
     let json: unknown;
     try {
-      json = JSON.parse(text);
+      json = JSON.parse(rawText);
     } catch {
-      return invalidOutput('La respuesta no es JSON válido.');
+      return withResponse(
+        invalidOutput('La respuesta no es JSON válido.').error,
+      );
     }
     const parsed = req.schema.safeParse(json);
     if (!parsed.success)
-      return invalidOutput('La respuesta no cumple el esquema.');
+      return withResponse(
+        invalidOutput('La respuesta no cumple el esquema.').error,
+      );
 
     return {
       ok: true,
       value: parsed.data,
       model: response.model,
-      usage: {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      },
+      usage,
       latencyMs: elapsed(started),
+      rawText,
     };
   }
 

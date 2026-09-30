@@ -27,7 +27,15 @@ export interface AIUsage {
 }
 
 export type AIResult<T> =
-  | { ok: true; value: T; model: string; usage: AIUsage; latencyMs: number }
+  | {
+      ok: true;
+      value: T;
+      model: string;
+      usage: AIUsage;
+      latencyMs: number;
+      /** Texto exacto devuelto por el modelo: lo revalida `AIResponseValidator` y se guarda para auditoría. */
+      rawText?: string;
+    }
   | { ok: false; error: AIError };
 
 export type AIErrorKind =
@@ -45,4 +53,8 @@ export interface AIError {
   retryable: boolean;
   retryAfterMs?: number;
   message: string;
+  /** Solo si hubo respuesta del modelo (p. ej. INVALID_OUTPUT o INCOMPLETE): su texto exacto. */
+  rawText?: string;
+  /** Tokens consumidos por esa respuesta, aunque no sea utilizable. */
+  usage?: AIUsage;
 }

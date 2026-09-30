@@ -6,6 +6,12 @@ import {
   parseRetryAfterMs,
   toClaudeJsonSchema,
 } from '../src/core/ai/providers/ClaudeProvider';
+import {
+  ANALYSIS_MAX_TOKENS,
+  ANALYSIS_SYSTEM_PROMPT,
+  buildAnalysisRequest,
+} from '../src/core/ai/prompts/analysis.v1';
+import { aiAssessmentJsonSchema } from '../src/core/ai/schemas';
 
 // Clave ficticia: nunca se envía a ningún sitio porque `fetch` está simulado.
 const API_KEY = 'sk-ant-test-0000000000';
@@ -138,6 +144,7 @@ describe('ClaudeProvider.generateStructured', () => {
       model: MODEL,
       usage: { inputTokens: 21, outputTokens: 9 },
       latencyMs: expect.any(Number),
+      rawText: validText,
     });
     expect(calls).toHaveLength(1);
     const call = calls[0]!;
@@ -339,10 +346,28 @@ describe('ClaudeProvider.generateStructured', () => {
       const { claude } = provider(() => message(validText, stopReason));
       await expect(claude.generateStructured(request)).resolves.toEqual({
         ok: false,
-        error: { kind, retryable, message: expect.any(String) },
+        error: {
+          kind,
+          retryable,
+          message: expect.any(String),
+          // Se conserva la respuesta para auditoría y para AIResponseValidator.
+          rawText: validText,
+          usage: { inputTokens: 21, outputTokens: 9 },
+        },
       });
     },
   );
+
+  it('max_tokens → INCOMPLETE aunque el texto cortado no sea JSON válido', async () => {
+    const cut = '{"status": "ok", "model": "clau';
+    const { claude } = provider(() => message(cut, 'max_tokens'));
+    const result = await claude.generateStructured(request);
+    expect(result.ok ? null : result.error).toMatchObject({
+      kind: 'INCOMPLETE',
+      retryable: true,
+      rawText: cut,
+    });
+  });
 
   it.each([
     ['JSON inválido', '{"status": "ok"'],
@@ -358,7 +383,22 @@ describe('ClaudeProvider.generateStructured', () => {
         kind: 'INVALID_OUTPUT',
         retryable: true,
         message: expect.any(String),
+        rawText: text,
+        usage: { inputTokens: 21, outputTokens: 9 },
       },
+    });
+  });
+
+  it('una petición de análisis real envía el JSON Schema de ai-assessment/v1 y max_tokens de la tarea', async () => {
+    const { claude, calls } = provider(() => message(validText));
+    await claude.generateStructured(
+      buildAnalysisRequest('{"schema":"cybersoc.ai-context/v1"}'),
+    );
+    const body = calls[0]!.body as Record<string, unknown>;
+    expect(body.max_tokens).toBe(ANALYSIS_MAX_TOKENS);
+    expect(body.system).toBe(ANALYSIS_SYSTEM_PROMPT);
+    expect(body.output_config).toEqual({
+      format: { type: 'json_schema', schema: aiAssessmentJsonSchema() },
     });
   });
 });

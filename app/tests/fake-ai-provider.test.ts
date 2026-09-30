@@ -23,6 +23,7 @@ describe('FakeAIProvider', () => {
       model: 'fake-1',
       usage: { inputTokens: 10, outputTokens: 5 },
       latencyMs: 42,
+      rawText: '{"status":"ok","model":"a"}',
     });
     await expect(fake.generateStructured(request)).resolves.toMatchObject({
       ok: true,
@@ -43,7 +44,44 @@ describe('FakeAIProvider', () => {
         kind: 'INVALID_OUTPUT',
         retryable: true,
         message: expect.any(String),
+        rawText: '{"status":"mal","model":1}',
+        usage: { inputTokens: 0, outputTokens: 0 },
       },
+    });
+  });
+
+  it('enqueueRaw: JSON roto → INVALID_OUTPUT con el texto exacto', async () => {
+    const fake = new FakeAIProvider().enqueueRaw('{"status": "ok"', {
+      usage: { inputTokens: 7, outputTokens: 3 },
+    });
+    const result = await fake.generateStructured(request);
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        kind: 'INVALID_OUTPUT',
+        retryable: true,
+        message: expect.any(String),
+        rawText: '{"status": "ok"',
+        usage: { inputTokens: 7, outputTokens: 3 },
+      },
+    });
+  });
+
+  it('enqueueRaw: max_tokens → INCOMPLETE aunque el JSON sea válido', async () => {
+    const text = '{"status":"ok","model":"a"}';
+    const fake = new FakeAIProvider()
+      .enqueueRaw(text, { stopReason: 'max_tokens' })
+      .enqueueRaw(text);
+    const cut = await fake.generateStructured(request);
+    expect(cut.ok ? null : cut.error).toMatchObject({
+      kind: 'INCOMPLETE',
+      retryable: true,
+      rawText: text,
+    });
+    await expect(fake.generateStructured(request)).resolves.toMatchObject({
+      ok: true,
+      value: { status: 'ok', model: 'a' },
+      rawText: text,
     });
   });
 

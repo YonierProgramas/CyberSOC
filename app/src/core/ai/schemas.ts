@@ -77,7 +77,8 @@ export const engineVerdictSchema = z.enum([
   'DETECTED',
   'NOT_ANALYZED',
 ]);
-export const riskLevelSchema = z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRITICO']);
+// Mismos valores que el contrato del motor (T2.1) y risk_assessments (T2.4).
+export const riskLevelSchema = z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRÍTICO']);
 /** Zonas de D15 (S3). */
 export const zoneSchema = z.enum([
   'DESCARGAS',

@@ -33,8 +33,14 @@ interface ErrorOptions {
   retryAfterMs?: number;
 }
 
+interface RawOptions extends ValueOptions {
+  /** `'max_tokens'` simula una respuesta cortada (INCOMPLETE). Por defecto `'end_turn'`. */
+  stopReason?: 'end_turn' | 'max_tokens';
+}
+
 type Scripted =
   | { kind: 'value'; value: unknown; options: ValueOptions }
+  | { kind: 'raw'; text: string; options: RawOptions }
   | { kind: 'error'; error: AIError };
 
 export interface FakeAIProviderOptions {
@@ -60,6 +66,16 @@ export class FakeAIProvider implements AIProvider {
   /** Programa una respuesta válida. Se valida contra el esquema de la petición al consumirse. */
   enqueueValue(value: unknown, options: ValueOptions = {}): this {
     this.script.push({ kind: 'value', value, options });
+    return this;
+  }
+
+  /**
+   * Programa el texto exacto que devolvería el modelo (p. ej. JSON roto o cortado). Se procesa
+   * igual que en ClaudeProvider: INCOMPLETE si se cortó, INVALID_OUTPUT si no es JSON o no cumple
+   * el esquema; en ambos casos el error lleva `rawText` y `usage`.
+   */
+  enqueueRaw(text: string, options: RawOptions = {}): this {
+    this.script.push({ kind: 'raw', text, options });
     return this;
   }
 
@@ -129,23 +145,42 @@ export class FakeAIProvider implements AIProvider {
     }
     if (next.kind === 'error') return { ok: false, error: { ...next.error } };
 
-    const parsed = req.schema.safeParse(structuredClone(next.value));
+    const rawText =
+      next.kind === 'raw' ? next.text : JSON.stringify(next.value);
+    const usage = {
+      ...(next.options.usage ?? { inputTokens: 0, outputTokens: 0 }),
+    };
+    const failure = (
+      kind: AIErrorKind,
+      message: string,
+    ): { ok: false; error: AIError } => ({
+      ok: false,
+      error: { kind, retryable: true, message, rawText, usage },
+    });
+
+    if (next.kind === 'raw' && next.options.stopReason === 'max_tokens') {
+      return failure(
+        'INCOMPLETE',
+        'Respuesta cortada por el límite de tokens.',
+      );
+    }
+    let json: unknown;
+    try {
+      json = JSON.parse(rawText);
+    } catch {
+      return failure('INVALID_OUTPUT', 'La respuesta no es JSON válido.');
+    }
+    const parsed = req.schema.safeParse(json);
     if (!parsed.success) {
-      return {
-        ok: false,
-        error: {
-          kind: 'INVALID_OUTPUT',
-          retryable: true,
-          message: 'La respuesta no cumple el esquema.',
-        },
-      };
+      return failure('INVALID_OUTPUT', 'La respuesta no cumple el esquema.');
     }
     return {
       ok: true,
       value: parsed.data,
       model: next.options.model ?? this.model,
-      usage: { ...(next.options.usage ?? { inputTokens: 0, outputTokens: 0 }) },
+      usage,
       latencyMs: next.options.latencyMs ?? 0,
+      rawText,
     };
   }
 }

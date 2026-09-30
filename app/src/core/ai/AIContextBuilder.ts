@@ -153,7 +153,19 @@ export class AIContextBuilder {
     // Lanza si el resultado no cumple el esquema (p. ej. un SHA-256 mal formado): es un error
     // del llamador y es preferible a enviar un contexto inválido.
     const context = aiContextSchema.parse(draft);
-    const json = JSON.stringify(context);
+    const json = toPromptSafeJson(context);
     return { context, json, sha256: sha256Hex(json) };
   }
+}
+
+/**
+ * `JSON.stringify` con `<`, `>` y `&` escritos como escapes Unicode de JSON (barra invertida,
+ * `u` y el código hexadecimal: 003c, 003e y 0026). El JSON parseado es idéntico, pero un campo
+ * hostil no puede cerrar la etiqueta <contexto> del prompt.
+ */
+export function toPromptSafeJson(value: unknown): string {
+  return JSON.stringify(value).replace(
+    /[<>&]/g,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
 }
