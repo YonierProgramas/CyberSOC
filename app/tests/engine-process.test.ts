@@ -97,10 +97,51 @@ describe('EngineProcess', () => {
       expect.objectContaining({ windowsHide: true, shell: false }),
     );
     child.stderr.write('mensaje\n');
-    expect(logger.info).toHaveBeenCalledWith('mensaje');
+    expect(logger.info).toHaveBeenCalledWith('mensaje', {
+      component: 'engine',
+    });
     await engine.close();
     expect(child.kill).not.toHaveBeenCalled();
     expect(engine.getState().status).toBe('disconnected');
+  });
+  it('conserva los campos JSON de stderr con component engine', async () => {
+    const { engine, child, logger } = fixture();
+    await engine.reconnect();
+    child.stderr.write(
+      `${JSON.stringify({
+        timestamp: '2026-10-01T15:00:00.000Z',
+        level: 'INFO',
+        component: 'other',
+        message: 'Engine started',
+        rpc_code: -32601,
+      })}\n`,
+    );
+    child.stderr.write(
+      `${JSON.stringify({
+        level: 'ERROR',
+        message: 'boom',
+        error_type: 'RuntimeError',
+      })}\n`,
+    );
+    expect(logger.info).toHaveBeenCalledWith(
+      'Engine started',
+      expect.objectContaining({
+        component: 'engine',
+        timestamp: '2026-10-01T15:00:00.000Z',
+        level: 'INFO',
+        message: 'Engine started',
+        rpc_code: -32601,
+      }),
+    );
+    expect(logger.error).toHaveBeenCalledWith(
+      'boom',
+      expect.objectContaining({
+        component: 'engine',
+        level: 'ERROR',
+        error_type: 'RuntimeError',
+      }),
+    );
+    await engine.close();
   });
   it('refleja la muerte del proceso de inmediato', async () => {
     const { engine, child } = fixture();

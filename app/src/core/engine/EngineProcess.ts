@@ -10,8 +10,41 @@ export interface EngineCommand {
   args: string[];
 }
 export interface EngineLogger {
-  info(message: string): void;
-  error(message: string): void;
+  info(message: string, fields?: Record<string, unknown>): void;
+  error(message: string, fields?: Record<string, unknown>): void;
+  log?(level: string, message: string, fields?: Record<string, unknown>): void;
+}
+
+export function asEngineLogger(logger: {
+  write(
+    level: string,
+    fields: { component: string; [key: string]: unknown },
+    message: string,
+  ): void;
+}): EngineLogger {
+  return {
+    info(message, fields = {}) {
+      logger.write('info', { ...fields, component: 'engine' }, message);
+    },
+    error(message, fields = {}) {
+      logger.write('error', { ...fields, component: 'engine' }, message);
+    },
+    log(level, message, fields = {}) {
+      logger.write(level, { ...fields, component: 'engine' }, message);
+    },
+  };
+}
+
+function parseLogObject(line: string): Record<string, unknown> | null {
+  if (!line.startsWith('{')) return null;
+  try {
+    const value: unknown = JSON.parse(line);
+    if (!value || typeof value !== 'object' || Array.isArray(value))
+      return null;
+    return value as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
 
 // No shell expansion. JSON argv also supports literal quotes inside arguments.
@@ -152,9 +185,9 @@ export class EngineProcess {
         input: child.stderr,
         crlfDelay: Infinity,
       });
-      stderr.on('line', (line) => this.options.logger.info(line));
+      stderr.on('line', (line) => this.recordStderrLine(line));
       child.stderr.on('error', (error) =>
-        this.options.logger.error(error.message),
+        this.record('error', error.message, { component: 'engine' }),
       );
       const finish = () => {
         current.hasExited = true;
@@ -164,7 +197,7 @@ export class EngineProcess {
       };
       child.once('exit', finish);
       child.once('error', (error) => {
-        this.options.logger.error(error.message);
+        this.record('error', error.message, { component: 'engine' });
         if (child.pid === undefined) finish();
       });
       child.once('close', () => stderr.close());
@@ -177,8 +210,10 @@ export class EngineProcess {
         };
       }
     } catch (error) {
-      this.options.logger.error(
+      this.record(
+        'error',
         error instanceof Error ? error.message : 'Error del motor.',
+        { component: 'engine' },
       );
       if (run) await this.stop(run);
       if (
@@ -198,6 +233,48 @@ export class EngineProcess {
       }
     }
     return this.getState();
+  }
+
+  private record(
+    level: string,
+    message: string,
+    fields: Record<string, unknown>,
+  ): void {
+    if (this.options.logger.log) {
+      this.options.logger.log(level, message, fields);
+      return;
+    }
+    const normalized = level.toLowerCase();
+    if (
+      normalized === 'error' ||
+      normalized === 'fatal' ||
+      normalized === 'critical'
+    ) {
+      this.options.logger.error(message, fields);
+      return;
+    }
+    this.options.logger.info(message, fields);
+  }
+
+  private recordStderrLine(line: string): void {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const parsed = parseLogObject(trimmed);
+    if (!parsed) {
+      this.record('info', trimmed, { component: 'engine' });
+      return;
+    }
+    const message =
+      typeof parsed.message === 'string'
+        ? parsed.message
+        : typeof parsed.msg === 'string'
+          ? parsed.msg
+          : trimmed;
+    this.record(
+      typeof parsed.level === 'string' ? parsed.level : 'info',
+      message,
+      { ...parsed, component: 'engine' },
+    );
   }
 
   private stop(run: Run): Promise<void> {

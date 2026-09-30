@@ -1,10 +1,18 @@
+import { app } from 'electron';
 import { join } from 'node:path';
 import {
+  asEngineLogger,
   EngineProcess,
   parseEngineCommand,
 } from '../core/engine/EngineProcess';
+import { createLogger } from '../core/logging/logger';
 
-export function createEngine(appRoot: string): EngineProcess {
+export function createEngine(
+  appRoot: string,
+  userDataPath = app.getPath('userData'),
+): EngineProcess {
+  const logger = createLogger(join(userDataPath, 'logs'));
+  logger.info({ component: 'core' }, 'Logging started');
   return new EngineProcess({
     cwd: appRoot,
     command: () =>
@@ -22,9 +30,6 @@ export function createEngine(appRoot: string): EngineProcess {
             ),
             args: ['-m', 'cybersoc_engine'],
           },
-    logger: {
-      info: (message) => console.info('[engine]', message),
-      error: (message) => console.error('[engine]', message),
-    },
+    logger: asEngineLogger(logger),
   });
 }
