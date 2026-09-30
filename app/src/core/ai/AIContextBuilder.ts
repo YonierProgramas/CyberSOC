@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { win32 } from 'node:path';
 import type { AppConfig } from '../config/AppConfig';
+import type { Evidence, LayerTrace } from '../../shared/protocol';
 import {
   AI_CONTEXT_LIMITS,
   AI_CONTEXT_SCHEMA_ID,
@@ -28,6 +29,17 @@ export interface BuiltAIContext {
   json: string;
   /** SHA-256 (hex) de `json` en UTF-8: `ai_analyses.context_sha256`. */
   sha256: string;
+}
+
+export interface AnalysisFacts {
+  evidence: readonly Evidence[];
+  layers: readonly LayerTrace[];
+  engineVersion: string | null;
+  signaturesVersion: string | null;
+  score: number | null;
+  riskLevel: AIContext['engine']['riskLevel'];
+  detectedType: string | null;
+  timesSeenBefore: number;
 }
 
 const ELLIPSIS = '…';
@@ -92,13 +104,14 @@ export function pseudonymFor(
 }
 
 /**
- * Construye `ai-context/v1` (v0: solo los hechos del archivo, sin evidencias ni traza).
+ * Construye `ai-context/v1` con hechos, top-20 de evidencias, capas e historial.
+ * Sin `analysis` conserva la forma inicial para lectores anteriores.
  * Todo texto del resultado viaja como dato dentro de su campo; nunca se interpreta.
  */
 export class AIContextBuilder {
   constructor(private readonly readConfig: () => Pick<AppConfig, 'ai'>) {}
 
-  build(result: ScanResultFacts): BuiltAIContext {
+  build(result: ScanResultFacts, analysis?: AnalysisFacts): BuiltAIContext {
     const { sendFileNames } = this.readConfig().ai;
     let fieldsTruncated = false;
     const limit = (value: string, max: number): string => {
@@ -107,6 +120,33 @@ export class AIContextBuilder {
       return out;
     };
     const L = AI_CONTEXT_LIMITS;
+    // Top-20: ordenar una copia cuesta O(n log n) tiempo y O(n) espacio.
+    // El orden estable conserva el orden del motor cuando hay empate de puntos.
+    const selected = [...(analysis?.evidence ?? [])]
+      .sort((a, b) => b.points - a.points)
+      .slice(0, L.maxEvidence);
+    const evidence = selected.map((item) => ({
+      id: item.id,
+      source: item.source,
+      code: item.code,
+      severity: item.severity,
+      // No se serializa facts: podría contener datos arbitrarios o contenido.
+      summary: limit(
+        sendFileNames
+          ? item.title.replace(
+              /[A-Za-z]:[\\/]+users[\\/]+[^\\/\s]+/gi,
+              '%USERPROFILE%',
+            )
+          : `${item.code} (${item.severity})`,
+        L.evidenceSummary,
+      ),
+    }));
+    const layers = analysis?.layers.map((item) => ({
+      layer: item.layer,
+      status: item.status,
+      hits: item.hits,
+      ...(item.reason ? { reason: limit(item.reason, L.layerReason) } : {}),
+    }));
 
     const name = sendFileNames
       ? limit(result.fileName, L.fileName)
@@ -127,23 +167,42 @@ export class AIContextBuilder {
           result.extension === null
             ? null
             : limit(result.extension, L.extension),
-        detectedType: null,
-        typeMatchesExtension: null,
+        detectedType:
+          analysis?.detectedType == null
+            ? null
+            : limit(analysis.detectedType, L.detectedType),
+        typeMatchesExtension: analysis?.evidence.some(
+          (e) => e.code === 'TYPE_MISMATCH',
+        )
+          ? false
+          : null,
         sizeBytes: result.sizeBytes,
         location,
         sha256: result.sha256?.toLowerCase() ?? null,
       },
       engine: {
-        engineVersion: null,
-        signaturesVersion: null,
+        engineVersion:
+          analysis?.engineVersion == null
+            ? null
+            : limit(analysis.engineVersion, L.version),
+        signaturesVersion:
+          analysis?.signaturesVersion == null
+            ? null
+            : limit(analysis.signaturesVersion, L.version),
         verdict: result.verdict,
-        score: null,
-        riskLevel: null,
-        scoreBreakdown: [],
+        score: analysis?.score ?? null,
+        riskLevel: analysis?.riskLevel ?? null,
+        scoreBreakdown: selected.map((item) => ({
+          evidenceId: item.id,
+          points: item.points,
+        })),
       },
-      evidence: [],
+      evidence,
+      ...(analysis
+        ? { layers, history: { timesSeenBefore: analysis.timesSeenBefore } }
+        : {}),
       constraints: {
-        evidenceTruncated: false,
+        evidenceTruncated: (analysis?.evidence.length ?? 0) > L.maxEvidence,
         fieldsTruncated,
         fileNamePseudonymized: !sendFileNames,
         contentIncluded: false,

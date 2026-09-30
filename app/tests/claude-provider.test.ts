@@ -353,6 +353,8 @@ describe('ClaudeProvider.generateStructured', () => {
           // Se conserva la respuesta para auditoría y para AIResponseValidator.
           rawText: validText,
           usage: { inputTokens: 21, outputTokens: 9 },
+          model: 'claude-haiku-4-5-20251001',
+          latencyMs: expect.any(Number),
         },
       });
     },
@@ -385,6 +387,8 @@ describe('ClaudeProvider.generateStructured', () => {
         message: expect.any(String),
         rawText: text,
         usage: { inputTokens: 21, outputTokens: 9 },
+        model: 'claude-haiku-4-5-20251001',
+        latencyMs: expect.any(Number),
       },
     });
   });

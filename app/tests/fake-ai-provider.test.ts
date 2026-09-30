@@ -46,6 +46,8 @@ describe('FakeAIProvider', () => {
         message: expect.any(String),
         rawText: '{"status":"mal","model":1}',
         usage: { inputTokens: 0, outputTokens: 0 },
+        model: 'fake-model',
+        latencyMs: 0,
       },
     });
   });
@@ -63,6 +65,8 @@ describe('FakeAIProvider', () => {
         message: expect.any(String),
         rawText: '{"status": "ok"',
         usage: { inputTokens: 7, outputTokens: 3 },
+        model: 'fake-model',
+        latencyMs: 0,
       },
     });
   });

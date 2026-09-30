@@ -11,7 +11,7 @@ export const AI_CONTEXT_LIMITS = {
   extension: 32,
   detectedType: 64,
   location: 260,
-  version: 32,
+  version: 96,
   evidenceCode: 64,
   evidenceSummary: 300,
   maxEvidence: 20,

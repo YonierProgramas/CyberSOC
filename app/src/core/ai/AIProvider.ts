@@ -57,4 +57,7 @@ export interface AIError {
   rawText?: string;
   /** Tokens consumidos por esa respuesta, aunque no sea utilizable. */
   usage?: AIUsage;
+  /** Metadatos reales si hubo respuesta, incluso cuando no pasó la validación. */
+  model?: string;
+  latencyMs?: number;
 }

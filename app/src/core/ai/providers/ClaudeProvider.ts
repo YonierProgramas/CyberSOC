@@ -118,7 +118,13 @@ export class ClaudeProvider implements AIProvider {
     };
     const withResponse = (error: AIError): { ok: false; error: AIError } => ({
       ok: false,
-      error: { ...error, rawText, usage },
+      error: {
+        ...error,
+        rawText,
+        usage,
+        model: response.model,
+        latencyMs: elapsed(started),
+      },
     });
 
     // "max_tokens" se comprueba antes de parsear: una respuesta cortada es INCOMPLETE, no JSON roto.

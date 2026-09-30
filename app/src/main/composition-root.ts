@@ -14,7 +14,10 @@ import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
 import { ScanOrchestrator } from '../core/scan/ScanOrchestrator';
 import { ClaudeProvider } from '../core/ai/providers/ClaudeProvider';
-import type { AIErrorKind } from '../core/ai/AIProvider';
+import type { AIErrorKind, AIProvider } from '../core/ai/AIProvider';
+import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
+import { AISecurityService } from '../core/ai/AISecurityService';
+import { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
 import type { AIHealthCheck } from '../shared/ipc';
 import type { AppLogger } from '../core/logging/logger';
 import { SecretStore } from './SecretStore';
@@ -25,6 +28,20 @@ export function createSecretStore(database: Database): SecretStore {
     developmentKey: () =>
       app.isPackaged ? undefined : process.env.CYBERSOC_ANTHROPIC_API_KEY,
   });
+}
+
+/** El ciclo de vida de main inicia/detiene este worker; el proveedor se lee por petición. */
+export function createAIWorkflow(
+  database: Database,
+  provider: () => AIProvider | null = () => createAIProvider(database),
+): AIAnalysisWorker {
+  const config = new AppConfigStore(database);
+  return new AIAnalysisWorker(
+    new AISecurityService(new AIAnalysisStore(database), provider, () =>
+      config.load(),
+    ),
+    () => config.load().ai.autoAnalyzeLimitPerScan,
+  );
 }
 
 export function createAIProvider(

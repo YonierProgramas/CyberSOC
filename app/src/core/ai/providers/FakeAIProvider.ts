@@ -155,7 +155,15 @@ export class FakeAIProvider implements AIProvider {
       message: string,
     ): { ok: false; error: AIError } => ({
       ok: false,
-      error: { kind, retryable: true, message, rawText, usage },
+      error: {
+        kind,
+        retryable: true,
+        message,
+        rawText,
+        usage,
+        model: next.options.model ?? this.model,
+        latencyMs: next.options.latencyMs ?? 0,
+      },
     });
 
     if (next.kind === 'raw' && next.options.stopReason === 'max_tokens') {
