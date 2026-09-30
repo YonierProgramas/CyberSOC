@@ -45,6 +45,9 @@ jobs:
           working-directory: CyberSOC/engine
           enable-cache: true
           cache-dependency-glob: uv.lock
+          # Sin esto, setup-uv toma cache-dir de pyproject.toml sin resolverlo contra
+          # working-directory y el guardado de la caché falla. El input sí se resuelve.
+          cache-local-path: .uv-cache
       - name: Install engine for integration tests
         working-directory: CyberSOC/engine
         run: uv sync --locked
@@ -76,6 +79,7 @@ jobs:
           working-directory: CyberSOC/engine
           enable-cache: true
           cache-dependency-glob: uv.lock
+          cache-local-path: .uv-cache
       - name: Install engine
         run: uv sync --locked
       - name: Lint
