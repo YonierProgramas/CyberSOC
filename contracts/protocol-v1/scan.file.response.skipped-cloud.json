@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 44,
+  "result": {
+    "taskId": "t_14",
+    "status": "SKIPPED",
+    "error": {
+      "code": "CLOUD_PLACEHOLDER",
+      "message": "Archivo de OneDrive no descargado"
+    },
+    "evidence": [],
+    "durationMs": 0,
+    "engineVersion": "0.1.0"
+  }
+}

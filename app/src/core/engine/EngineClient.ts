@@ -1,3 +1,5 @@
+import type { EngineResult, ScanFileParams } from '../../shared/protocol';
+
 export interface EngineInfo {
   protocol: '1';
   engineVersion: string;
@@ -9,6 +11,13 @@ export interface EngineClient {
   hello(): Promise<EngineInfo>;
   ping(): Promise<{ ts: string }>;
   shutdown(): Promise<void>;
+  scanFile(params: ScanFileParams, timeoutMs: number): Promise<EngineResult>;
+}
+
+export class RpcTimeoutError extends Error {
+  constructor(method: string, timeoutMs: number) {
+    super(`Timeout de ${method} (${timeoutMs} ms).`);
+  }
 }
 
 export class RpcRemoteError extends Error {

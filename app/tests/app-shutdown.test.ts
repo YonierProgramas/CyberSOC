@@ -34,7 +34,7 @@ it('before-quit espera al cierre del motor y evita cierres simultaneos', async (
   const event = { preventDefault: vi.fn() };
   beforeQuit(event);
   beforeQuit(event);
-  expect(mocks.close).toHaveBeenCalledOnce();
+  await vi.waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
   expect(mocks.quit).not.toHaveBeenCalled();
   finish();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());

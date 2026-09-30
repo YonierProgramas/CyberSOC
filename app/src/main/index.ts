@@ -2,14 +2,22 @@ import { app, type BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { registerSystemIpc } from './ipc/system.ipc';
+import { registerDialogIpc } from './ipc/dialog.ipc';
+import { registerScanIpc } from './ipc/scan.ipc';
 import { createMainWindow } from './window';
-import { createDatabase, createEngine } from './composition-root';
+import {
+  createDatabase,
+  createEngine,
+  createScanOrchestrator,
+} from './composition-root';
 import type { Database } from '../core/persistence/Database';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
 const engine = createEngine(app.getAppPath());
 let database: Database | null = null;
+let stopScanIpc: (() => Promise<void>) | null = null;
+let stopDialogIpc: (() => void) | null = null;
 let readyToQuit = false;
 let quitting = false;
 
@@ -23,8 +31,13 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
-  void engine
-    .close()
+  stopDialogIpc?.();
+  stopDialogIpc = null;
+  void (stopScanIpc?.() ?? Promise.resolve())
+    .catch((error: unknown) =>
+      console.error('Error al finalizar el escaneo:', error),
+    )
+    .then(() => engine.close())
     .catch((error: unknown) =>
       console.error('Error al cerrar el motor:', error),
     )
@@ -46,11 +59,16 @@ app
   .whenReady()
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
-    registerSystemIpc(
+    const trustedRendererUrl = pathToFileURL(rendererPath).href;
+    const scan = createScanOrchestrator(database, engine);
+    stopDialogIpc = registerDialogIpc(() => mainWindow, trustedRendererUrl);
+    stopScanIpc = registerScanIpc(
       () => mainWindow,
-      pathToFileURL(rendererPath).href,
-      engine,
+      trustedRendererUrl,
+      scan,
+      database,
     );
+    registerSystemIpc(() => mainWindow, trustedRendererUrl, engine);
     void engine
       .reconnect()
       .catch((error: unknown) =>

@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:sqlite:dev": "node tests/sqlite-dev-smoke.mjs",
     "ai:smoke": "node --experimental-strip-types scripts/ai-smoke.ts",
-    "bench:queue": "node --experimental-strip-types scripts/benchmark-queue.ts"
+    "bench:queue": "node --experimental-strip-types scripts/benchmark-queue.ts",
+    "perf:scan": "node --experimental-strip-types scripts/perf-scan.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.129.0",
