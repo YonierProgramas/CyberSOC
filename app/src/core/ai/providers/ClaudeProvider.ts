@@ -194,10 +194,11 @@ export class ClaudeProvider implements AIProvider {
         };
       }
       // 400, 404, 413…: la petición no es válida; reintentarla igual no sirve.
+      const detail = apiErrorDetail(error);
       return {
         kind: 'PROVIDER_DOWN',
         retryable: false,
-        message: `La API de Claude rechazó la petición (HTTP ${error.status}${error.type ? `, ${error.type}` : ''}).`,
+        message: `La API de Claude rechazó la petición (HTTP ${error.status}${error.type ? `, ${error.type}` : ''})${detail ? `: ${detail}` : '.'}`,
       };
     }
     return {
@@ -244,6 +245,18 @@ function mapStopReason(
         `Motivo de parada inesperado: ${String(stopReason)}.`,
       ).error;
   }
+}
+
+const MAX_DETAIL_LENGTH = 300;
+
+/** Mensaje de error del cuerpo de la respuesta (`error.message`), recortado. No contiene la clave. */
+function apiErrorDetail(error: APIError): string | undefined {
+  const body = error.error as { error?: { message?: unknown } } | undefined;
+  const message = body?.error?.message;
+  if (typeof message !== 'string' || message.trim() === '') return undefined;
+  return message.length > MAX_DETAIL_LENGTH
+    ? `${message.slice(0, MAX_DETAIL_LENGTH)}…`
+    : message;
 }
 
 function invalidOutput(message: string): { ok: false; error: AIError } {
