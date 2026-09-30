@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint . && prettier --check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench:queue": "node --experimental-strip-types scripts/benchmark-queue.ts"
   },
   "dependencies": {
     "pino": "10.3.1",
