@@ -4,6 +4,7 @@ from typing import BinaryIO
 from cybersoc_engine.analysis.hashing import sha256_stream
 from cybersoc_engine.engines.base import AnalysisContext, DetectionEngine
 from cybersoc_engine.engines.filetype_engine import FileTypeEngine
+from cybersoc_engine.engines.signature_engine import SignatureEngine
 from cybersoc_engine.errors import map_file_error
 from cybersoc_engine.models import EngineResult, FileError, FileHashes, LayerTrace
 
@@ -12,10 +13,10 @@ PREFIX_BYTES = 4096
 
 class AnalysisPipeline:
     def __init__(self) -> None:
-        self.engines: tuple[DetectionEngine, ...] = (FileTypeEngine(),)
+        self.engines: tuple[DetectionEngine, ...] = (SignatureEngine(), FileTypeEngine())
 
     def analyze(self, stream: BinaryIO, result: EngineResult) -> None:
-        """Ejecuta HASH y FILETYPE sobre el mismo descriptor de solo lectura."""
+        """Ejecuta HASH, SIGNATURES y FILETYPE sin volver a abrir la ruta."""
         started = perf_counter()
         try:
             result.hashes = FileHashes(sha256=sha256_stream(stream))
@@ -47,8 +48,10 @@ class AnalysisPipeline:
             try:
                 # Releer solo una muestra acotada evita abrir otra vez la ruta y
                 # cargar el archivo entero en memoria. El descriptor sigue abierto.
-                stream.seek(0)
-                prefix = stream.read(PREFIX_BYTES)
+                prefix = b""
+                if engine.layer_id == "FILETYPE":
+                    stream.seek(0)
+                    prefix = stream.read(PREFIX_BYTES)
                 ctx = AnalysisContext(file=result.file, prefix=prefix, sha256=result.hashes.sha256)
                 findings = engine.analyze(ctx)
                 # La lista conserva el orden de capas/hallazgos. Recorrer e

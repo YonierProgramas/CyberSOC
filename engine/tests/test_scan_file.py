@@ -30,7 +30,7 @@ def test_handler_success_and_contract(tmp_path):
     assert result.evidence == []
     assert "error" not in response
     assert "error" not in response["result"]
-    assert "verdict" not in response["result"]
+    assert response["result"]["verdict"] == "CLEAN"
 
 
 def test_file_error_stays_inside_result(tmp_path):

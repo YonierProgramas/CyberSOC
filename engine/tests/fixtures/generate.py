@@ -1,11 +1,27 @@
+import hashlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 
+def generate_signature_fixtures(root: Path) -> dict[str, str]:
+    """Escribe cinco TEXTOS de prueba en el directorio temporal del llamador."""
+    # Dict id -> hash: claves únicas; inserción O(1) promedio, O(n) para n fixtures.
+    hashes: dict[str, str] = {}
+    for index in range(1, 6):
+        signature_id = f"CSD-TEST-{index:03}"
+        content = f"CyberSOC Defender | {signature_id} | texto inofensivo de prueba.\n".encode()
+        path = root / f"{signature_id}.txt"
+        path.write_bytes(content)
+        hashes[signature_id] = hashlib.sha256(content).hexdigest()
+    return hashes
+
+
 @contextmanager
-def generate_fixtures(*, include_filetype: bool = False) -> Iterator[Path]:
+def generate_fixtures(
+    *, include_filetype: bool = False, include_signatures: bool = False
+) -> Iterator[Path]:
     """25 textos S1; include_filetype agrega las 3 muestras inofensivas de T2.2."""
     with TemporaryDirectory(prefix="cybersoc-fixtures-") as temporary:
         root = Path(temporary)
@@ -20,4 +36,6 @@ def generate_fixtures(*, include_filetype: bool = False) -> Iterator[Path]:
             (root / "pe_disfrazado.pdf").write_bytes(b"MZ" + b"Relleno inofensivo.\n" * 3)
             (root / "factura.pdf.exe").write_bytes(b"Documento benigno de doble extension.\n")
             (root / "informe_\u202e.pdf").write_bytes(b"Documento benigno con RLO en el nombre.\n")
+        if include_signatures:
+            generate_signature_fixtures(root)
         yield root

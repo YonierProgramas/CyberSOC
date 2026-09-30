@@ -12,7 +12,7 @@ def test_hello_matches_the_sprint_protocol():
         "protocol": "1",
         "engineVersion": "0.0.1",
         "python": ".".join(str(part) for part in sys.version_info[:3]),
-        "capabilities": [],
+        "capabilities": ["scan.file", "engine.stats"],
     }
 
 

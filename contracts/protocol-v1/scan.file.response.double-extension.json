@@ -53,6 +53,9 @@
       }
     ],
     "durationMs": 4,
-    "engineVersion": "0.2.0"
+    "engineVersion": "0.2.0",
+    "verdict": "CLEAN",
+    "score": 25,
+    "riskLevel": "BAJO"
   }
 }

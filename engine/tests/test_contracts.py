@@ -103,7 +103,7 @@ def test_required_fields_reject_mutations(name, path, change):
     if change == "delete":
         del parent[path[-1]]
     else:
-        parent[path[-1]] = True if path[-1] in ("id", "extension") else None
+        parent[path[-1]] = True if path[-1] in ("id", "extension", "score", "riskLevel") else None
     with pytest.raises(ValidationError):
         MODELS[name].model_validate(value)
     with pytest.raises(ValidationError):
@@ -231,7 +231,7 @@ def test_scan_correlation_unicode_and_evidence():
     assert "ñ" in response.result.file.name and "ó" in response.result.file.name
     assert request.params.path.endswith(response.result.file.name)
     assert response.result.evidence == []
-    assert "verdict" not in response.result.model_dump()
+    assert "verdict" not in response.result.model_dump(exclude_unset=True)
     task = FileTask.model_validate(
         {
             "jobId": request.params.jobId,
@@ -504,7 +504,7 @@ def test_decisive_signature_and_non_decisive_heuristic():
     assert signature.result.evidence[0].source == "SIGNATURES"
     assert heuristic.result.evidence[0].decisive is False
     assert heuristic.result.evidence[0].points == 25
-    assert "verdict" not in heuristic.result.model_dump()
+    assert heuristic.result.verdict == "CLEAN"
 
 
 @pytest.mark.parametrize("scenario", ["scanned", "skipped", "missing", "read_error"])
@@ -528,7 +528,7 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
         )
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [layer.layer for layer in result.layers] == ["HASH", "FILETYPE"]
+    assert [layer.layer for layer in result.layers] == ["HASH", "SIGNATURES", "FILETYPE"]
     trace = result.layers[0]
     assert trace.layer == "HASH"
     assert (
@@ -552,3 +552,65 @@ def test_json_integer_representations(count):
     response["result"]["evidence"][0]["points"] = count
     response["result"]["layers"][2].update(hits=count, points=count)
     ScanFileResponse.model_validate_json(json.dumps(response))
+
+
+@pytest.mark.parametrize(
+    "verdict,score,level",
+    [
+        ("CLEAN", 0, "BAJO"),
+        ("CLEAN", 29, "BAJO"),
+        ("SUSPICIOUS", 30, "MEDIO"),
+        ("SUSPICIOUS", 59, "MEDIO"),
+        ("SUSPICIOUS", 60, "ALTO"),
+        ("SUSPICIOUS", 84, "ALTO"),
+        ("SUSPICIOUS", 85, "CRÍTICO"),
+        ("DETECTED", 85, "CRÍTICO"),
+        ("DETECTED", 100, "CRÍTICO"),
+        ("ERROR", None, None),
+        ("NOT_ANALYZED", None, None),
+    ],
+)
+def test_valid_risk_assessment_contract(verdict, score, level):
+    value = load("scan.file.response.scanned.json")["result"]
+    value.update(verdict=verdict, score=score, riskLevel=level)
+    assert EngineResult.model_validate(value).model_dump(exclude_unset=True) == value
+    EngineResult.model_validate_json(json.dumps(value))
+
+
+@pytest.mark.parametrize(
+    "verdict,score,level",
+    [
+        ("CLEAN", None, None),
+        ("CLEAN", 30, "MEDIO"),
+        ("SUSPICIOUS", 29, "BAJO"),
+        ("DETECTED", 84, "ALTO"),
+        ("CLEAN", 0, "MEDIO"),
+        ("DETECTED", 85, "ALTO"),
+        ("ERROR", 0, "BAJO"),
+        ("NOT_ANALYZED", 0, "BAJO"),
+        ("CLEAN", 1.5, "BAJO"),
+        ("CLEAN", -1, "BAJO"),
+        ("DETECTED", 101, "CRÍTICO"),
+        ("CLEAN", True, "BAJO"),
+        ("CLEAN", "0", "BAJO"),
+        ("CLEAN", float("inf"), "BAJO"),
+        (None, None, None),
+        ("UNKNOWN", 0, "BAJO"),
+        ("DETECTED", 85, "CRITICO"),
+    ],
+)
+def test_invalid_risk_assessment_contract(verdict, score, level):
+    value = load("scan.file.response.scanned.json")["result"]
+    value.update(verdict=verdict, score=score, riskLevel=level)
+    with pytest.raises(ValidationError):
+        EngineResult.model_validate(value)
+    with pytest.raises(ValidationError):
+        EngineResult.model_validate_json(json.dumps(value))
+
+
+@pytest.mark.parametrize("field", ["verdict", "score", "riskLevel"])
+def test_partial_risk_assessment_rejected(field):
+    value = load("scan.file.response.double-extension.json")["result"]
+    del value[field]
+    with pytest.raises(ValidationError):
+        EngineResult.model_validate(value)

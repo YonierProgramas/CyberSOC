@@ -24,11 +24,11 @@ def inspect(path, max_bytes=1024 * 1024):
     wire = result.model_dump(mode="json", exclude_unset=True)
     assert EngineResult.model_validate(wire).model_dump(exclude_unset=True) == wire
     assert result.evidence == []
-    assert [trace.layer for trace in result.layers] == ["HASH", "FILETYPE"]
+    assert [trace.layer for trace in result.layers] == ["HASH", "SIGNATURES", "FILETYPE"]
     assert all(trace.ms >= 0 for trace in result.layers)
     assert all(trace.reason for trace in result.layers if trace.status == "SKIPPED")
     assert result.durationMs >= 0
-    assert "verdict" not in wire
+    assert result.verdict in ("CLEAN", "ERROR", "NOT_ANALYZED")
     return result
 
 

@@ -180,7 +180,8 @@ it('los ejemplos distinguen firma decisiva de una heurística sin decidir el ver
   expect(signature.result.evidence[0]!.source).toBe('SIGNATURES');
   expect(evidence.decisive).toBe(false);
   expect(evidence.points).toBe(25);
-  expect(scan.result).not.toHaveProperty('verdict');
+  expect(scan.result.verdict).toBe('CLEAN');
+  expect(scan.result.score).toBe(25);
 });
 
 it.each([0, 1.0, Number.MAX_SAFE_INTEGER])(

@@ -7,11 +7,11 @@
     "file": {
       "name": "CSD-TEST-001.txt",
       "extension": ".txt",
-      "sizeBytes": 46,
+      "sizeBytes": 63,
       "modifiedAt": "2026-09-30T14:03:11Z"
     },
     "hashes": {
-      "sha256": "cfb53ff460ad6d4106e374d04707b8830d6e7ef61f4949fccf04b863e52925d9"
+      "sha256": "36e834c158255b064df10679eec89de928cc729fb5d8cabd837119e491f1ee07"
     },
     "evidence": [
       {
@@ -53,6 +53,9 @@
       }
     ],
     "durationMs": 4,
-    "engineVersion": "0.2.0"
+    "engineVersion": "0.2.0",
+    "verdict": "DETECTED",
+    "score": 85,
+    "riskLevel": "CRÍTICO"
   }
 }

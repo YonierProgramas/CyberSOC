@@ -132,6 +132,44 @@ class EngineResult(ContractModel):
     durationMs: float
     engineVersion: str
 
+    # Grupo opcional por compatibilidad con S1/T2.1: si aparece, debe estar completo.
+    verdict: Literal["CLEAN", "SUSPICIOUS", "DETECTED", "ERROR", "NOT_ANALYZED"] | None = None
+    score: Annotated[NonNegativeInt, Field(le=100)] | None = None
+    riskLevel: Literal["BAJO", "MEDIO", "ALTO", "CRÍTICO"] | None = None
+
+    @model_validator(mode="after")
+    def validate_assessment(self) -> "EngineResult":
+        fields = ("verdict", "score", "riskLevel")
+        present = [field in self.model_fields_set for field in fields]
+        if not any(present):
+            return self
+        if not all(present) or self.verdict is None:
+            raise ValueError("La evaluación debe incluir verdict, score y riskLevel")
+        if self.verdict in ("ERROR", "NOT_ANALYZED"):
+            if self.score is not None or self.riskLevel is not None:
+                raise ValueError("Sin análisis no hay puntuación ni nivel")
+        else:
+            if self.score is None or self.riskLevel is None:
+                raise ValueError("Un veredicto de riesgo requiere puntuación y nivel")
+            expected = (
+                "BAJO"
+                if self.score < 30
+                else "MEDIO"
+                if self.score < 60
+                else "ALTO"
+                if self.score < 85
+                else "CRÍTICO"
+            )
+            if self.riskLevel != expected:
+                raise ValueError("Nivel incompatible con puntuación")
+            if (
+                (self.verdict == "CLEAN" and self.score >= 30)
+                or (self.verdict == "SUSPICIOUS" and self.score < 30)
+                or (self.verdict == "DETECTED" and self.score < 85)
+            ):
+                raise ValueError("Veredicto incompatible con puntuación")
+        return self
+
     @field_validator("layers")
     @classmethod
     def unique_layers(cls, layers: list[LayerTrace]) -> list[LayerTrace]:

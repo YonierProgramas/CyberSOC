@@ -1,0 +1,42 @@
+{
+  "version": "csd-test-v1",
+  "signatures": [
+    {
+      "id": "CSD-TEST-001",
+      "title": "Firma de prueba inofensiva CSD-TEST-001",
+      "sha256": "36e834c158255b064df10679eec89de928cc729fb5d8cabd837119e491f1ee07",
+      "testOnly": true
+    },
+    {
+      "id": "CSD-TEST-002",
+      "title": "Firma de prueba inofensiva CSD-TEST-002",
+      "sha256": "90addb35b05d3afd6f47741b6a72e3846a60c24a38112faa1a42cea809d636a8",
+      "testOnly": true
+    },
+    {
+      "id": "CSD-TEST-003",
+      "title": "Firma de prueba inofensiva CSD-TEST-003",
+      "sha256": "eb7827360d1529c8697b1009761ee784899686d01f78653a0c0436ecf6c06b65",
+      "testOnly": true
+    },
+    {
+      "id": "CSD-TEST-004",
+      "title": "Firma de prueba inofensiva CSD-TEST-004",
+      "sha256": "ac2820fb0bfb00dc9fed5f0d0b923d635b67756ceea3492c36ccf24b92640923",
+      "testOnly": true
+    },
+    {
+      "id": "CSD-TEST-005",
+      "title": "Firma de prueba inofensiva CSD-TEST-005",
+      "sha256": "9faf3da2df59226f198effe67a2d167e83afc958655e09b5eb58c5c62421c1a3",
+      "testOnly": true
+    },
+    {
+      "id": "EICAR-STANDARD",
+      "title": "Firma del archivo de prueba antivirus EICAR",
+      "sha256": "275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f",
+      "testOnly": true,
+      "sourceUrl": "https://knowledge.broadcom.com/external/article/285988/create-a-malicious-test-file-eicar.html"
+    }
+  ]
+}

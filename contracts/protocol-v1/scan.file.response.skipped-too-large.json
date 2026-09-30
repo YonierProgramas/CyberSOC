@@ -20,6 +20,9 @@
         "ms": 0,
         "reason": "TOO_LARGE"
       }
-    ]
+    ],
+    "verdict": "NOT_ANALYZED",
+    "score": null,
+    "riskLevel": null
   }
 }

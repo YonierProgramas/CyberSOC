@@ -14,6 +14,7 @@ from cybersoc_engine.models import (
     ScanFileOptions,
 )
 from cybersoc_engine.pipeline import AnalysisPipeline
+from cybersoc_engine.scoring.risk_scorer import RiskScorer
 from cybersoc_engine.version import ENGINE_VERSION
 
 # Windows file attributes not exposed by Python 3.12's stat module.
@@ -96,5 +97,9 @@ class FileInspector:
             )
         finally:
             self.pipeline.complete_skipped(result)
+            assessment = RiskScorer().evaluate(result)
+            result.verdict = assessment.verdict
+            result.score = assessment.score
+            result.riskLevel = assessment.riskLevel
             result.durationMs = (perf_counter() - started) * 1000
         return result

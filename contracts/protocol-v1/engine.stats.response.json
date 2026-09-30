@@ -2,8 +2,8 @@
   "jsonrpc": "2.0",
   "id": 46,
   "result": {
-    "engineVersion": "0.2.0",
-    "signaturesVersion": "csd-test-v1",
-    "signaturesCount": 5
+    "engineVersion": "0.0.1",
+    "signaturesVersion": "sha256:73743f1461e7b9527563e4a71fade1163adf0ed42d714d54affed676d9bee6cb",
+    "signaturesCount": 6
   }
 }

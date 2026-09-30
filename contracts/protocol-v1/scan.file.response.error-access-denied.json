@@ -20,6 +20,9 @@
         "ms": 0,
         "reason": "ACCESS_DENIED"
       }
-    ]
+    ],
+    "verdict": "ERROR",
+    "score": null,
+    "riskLevel": null
   }
 }

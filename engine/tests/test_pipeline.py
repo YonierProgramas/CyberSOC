@@ -28,7 +28,7 @@ def result_for(name="factura.pdf.exe"):
 def assert_trace(result):
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [trace.layer for trace in result.layers] == ["HASH", "FILETYPE"]
+    assert [trace.layer for trace in result.layers] == ["HASH", "SIGNATURES", "FILETYPE"]
     assert all(trace.ms >= 0 for trace in result.layers)
     assert all(trace.reason for trace in result.layers if trace.status == "SKIPPED")
     assert [item.id for item in result.evidence] == [
@@ -49,8 +49,8 @@ def test_pipeline_hash_findings_points_and_no_stale_state():
             "DOUBLE_EXTENSION",
             "RLO_IN_NAME",
         ]
-        assert result.layers[1].hits == 3
-        assert result.layers[1].points == 65
+        assert result.layers[2].hits == 3
+        assert result.layers[2].points == 65
         assert result.layers[0].points == result.layers[0].hits == 0
     clean = result_for("archivo.exe")
     pipeline.analyze(BytesIO(b"Texto benigno"), clean)
@@ -67,8 +67,8 @@ def test_filetype_failure_preserves_hash_and_marks_error():
     assert result.hashes.sha256 == hashlib.sha256(b"texto").hexdigest()
     assert result.evidence == []
     assert result.layers[0].status == "RAN"
-    assert result.layers[1].status == "ERROR"
-    assert result.layers[1].reason == "ANALYSIS_ERROR"
+    assert result.layers[2].status == "ERROR"
+    assert result.layers[2].reason == "ANALYSIS_ERROR"
     assert "ruta privada" not in result.model_dump_json()
 
 
@@ -81,7 +81,7 @@ def test_filetype_read_failure_keeps_successful_hash():
     AnalysisPipeline().analyze(CannotRewind(b"texto"), result)
     assert_trace(result)
     assert result.layers[0].status == "RAN"
-    assert result.layers[1].status == "ERROR"
+    assert result.layers[2].status == "ERROR"
     assert result.status == "ERROR"
 
 
@@ -167,8 +167,8 @@ def test_every_implemented_layer_is_traced_when_analysis_cannot_run(tmp_path, sc
     assert_trace(result)
     filetype.assert_not_called()
     assert result.layers[0].status == ("ERROR" if scenario == "hash_error" else "SKIPPED")
-    assert result.layers[1].status == "SKIPPED"
-    assert result.layers[1].reason == result.error.code
+    assert result.layers[2].status == "SKIPPED"
+    assert result.layers[2].reason == result.error.code
     assert result.evidence == []
 
 
@@ -204,8 +204,8 @@ def test_generated_fixtures_through_rpc_are_safe_and_unchanged():
             assert_trace(result)
             assert result.status == "SCANNED"
             assert [item.code for item in result.evidence] == [code]
-            assert result.layers[1].hits == 1
-            assert result.layers[1].points == 25
+            assert result.layers[2].hits == 1
+            assert result.layers[2].points == 25
             assert path.read_bytes() == before
             assert path.stat().st_mtime_ns == modified
     assert not root.exists()

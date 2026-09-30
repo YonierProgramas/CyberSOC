@@ -11,7 +11,7 @@ const python = resolve(
 );
 
 it.skipIf(!existsSync(python))(
-  'motor real: hello, ping, scan.file con HASH y FILETYPE, reconexion y shutdown',
+  'motor real: hello, ping, scan.file con HASH, SIGNATURES y FILETYPE, reconexion y shutdown',
   async () => {
     const messages: string[] = [];
     const engine = new EngineProcess({
@@ -44,9 +44,19 @@ it.skipIf(!existsSync(python))(
       );
       expect(result.status).toBe('SCANNED');
       expect(result.evidence).toEqual([]);
+      expect(result.verdict).toBe('CLEAN');
+      expect(result.score).toBe(0);
+      expect(result.riskLevel).toBe('BAJO');
       expect(result.layers).toEqual([
         {
           layer: 'HASH',
+          status: 'RAN',
+          hits: 0,
+          points: 0,
+          ms: expect.any(Number),
+        },
+        {
+          layer: 'SIGNATURES',
           status: 'RAN',
           hits: 0,
           points: 0,

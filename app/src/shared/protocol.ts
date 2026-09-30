@@ -172,47 +172,91 @@ export type Evidence = z.infer<typeof evidenceSchema>;
 export type LayerTrace = z.infer<typeof layerTraceSchema>;
 
 // File, hashes and error retain their S1 optionality; evidence and layers are required.
-export const engineResultSchema = z.strictObject({
-  taskId: z.string(),
-  status: fileScanStatusSchema,
-  file: z
-    .strictObject({
-      name: z.string(),
-      extension: z.string().nullable(),
-      sizeBytes: z.number(),
-      modifiedAt: z.string(),
-    })
-    .optional(),
-  hashes: z
-    .strictObject({
-      sha256: z
-        .string()
-        .length(64)
-        .regex(/^[a-fA-F0-9]{64}$/),
-    })
-    .optional(),
-  evidence: z.array(evidenceSchema),
-  layers: z.array(layerTraceSchema).superRefine((layers, context) => {
-    // Invariante: el Set contiene solo capas ya vistas, sin repetidas.
-    // has/add cuestan O(1) promedio; recorrer n capas cuesta O(n) tiempo y espacio.
-    const seen = new Set<string>();
-    layers.forEach((trace, index) => {
-      if (seen.has(trace.layer)) {
-        context.addIssue({
-          code: 'custom',
-          path: [index, 'layer'],
-          message: 'Capa repetida',
-        });
-      }
-      seen.add(trace.layer);
-    });
-  }),
-  error: z
-    .strictObject({ code: fileErrorCodeSchema, message: z.string() })
-    .optional(),
-  durationMs: z.number(),
-  engineVersion: z.string(),
-});
+export const engineResultSchema = z
+  .strictObject({
+    taskId: z.string(),
+    status: fileScanStatusSchema,
+    file: z
+      .strictObject({
+        name: z.string(),
+        extension: z.string().nullable(),
+        sizeBytes: z.number(),
+        modifiedAt: z.string(),
+      })
+      .optional(),
+    hashes: z
+      .strictObject({
+        sha256: z
+          .string()
+          .length(64)
+          .regex(/^[a-fA-F0-9]{64}$/),
+      })
+      .optional(),
+    evidence: z.array(evidenceSchema),
+    layers: z.array(layerTraceSchema).superRefine((layers, context) => {
+      // Invariante: el Set contiene solo capas ya vistas, sin repetidas.
+      // has/add cuestan O(1) promedio; recorrer n capas cuesta O(n) tiempo y espacio.
+      const seen = new Set<string>();
+      layers.forEach((trace, index) => {
+        if (seen.has(trace.layer)) {
+          context.addIssue({
+            code: 'custom',
+            path: [index, 'layer'],
+            message: 'Capa repetida',
+          });
+        }
+        seen.add(trace.layer);
+      });
+    }),
+    error: z
+      .strictObject({ code: fileErrorCodeSchema, message: z.string() })
+      .optional(),
+    durationMs: z.number(),
+    engineVersion: z.string(),
+    verdict: z
+      .enum(['CLEAN', 'SUSPICIOUS', 'DETECTED', 'ERROR', 'NOT_ANALYZED'])
+      .optional(),
+    score: z.number().int().min(0).max(100).nullable().optional(),
+    riskLevel: z
+      .enum(['BAJO', 'MEDIO', 'ALTO', 'CRÍTICO'])
+      .nullable()
+      .optional(),
+  })
+  .superRefine((result, context) => {
+    const values = [result.verdict, result.score, result.riskLevel];
+    if (values.every((value) => value === undefined)) return;
+    const reject = (message: string) =>
+      context.addIssue({ code: 'custom', message });
+    if (values.some((value) => value === undefined)) {
+      reject('La evaluación debe incluir verdict, score y riskLevel');
+      return;
+    }
+    if (result.verdict === 'ERROR' || result.verdict === 'NOT_ANALYZED') {
+      if (result.score !== null || result.riskLevel !== null)
+        reject('Sin análisis no hay puntuación ni nivel');
+      return;
+    }
+    if (result.score == null || result.riskLevel == null) {
+      reject('Un veredicto de riesgo requiere puntuación y nivel');
+      return;
+    }
+    const expected =
+      result.score < 30
+        ? 'BAJO'
+        : result.score < 60
+          ? 'MEDIO'
+          : result.score < 85
+            ? 'ALTO'
+            : 'CRÍTICO';
+    if (result.riskLevel !== expected)
+      reject('Nivel incompatible con puntuación');
+    if (
+      (result.verdict === 'CLEAN' && result.score >= 30) ||
+      (result.verdict === 'SUSPICIOUS' && result.score < 30) ||
+      (result.verdict === 'DETECTED' && result.score < 85)
+    )
+      reject('Veredicto incompatible con puntuación');
+  });
 
 export const scanFileRequestSchema = z.strictObject({
   ...envelope,

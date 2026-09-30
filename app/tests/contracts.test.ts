@@ -79,7 +79,10 @@ function mutate(
     copy,
   );
   if (change === 'delete') delete parent[key];
-  else parent[key] = key === 'id' || key === 'extension' ? true : null;
+  else
+    parent[key] = ['id', 'extension', 'score', 'riskLevel'].includes(key)
+      ? true
+      : null;
   return copy;
 }
 
