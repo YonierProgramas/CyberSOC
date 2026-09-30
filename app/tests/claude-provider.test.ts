@@ -254,15 +254,21 @@ describe('ClaudeProvider.generateStructured', () => {
     },
   );
 
-  it('HTTP 400 → PROVIDER_DOWN no reintentable', async () => {
-    const { claude } = provider(() => apiError(400, 'invalid_request_error'));
+  it('HTTP 400 → PROVIDER_DOWN no reintentable, con el detalle de la API', async () => {
+    const { claude } = provider(() =>
+      json(400, {
+        type: 'error',
+        error: { type: 'invalid_request_error', message: 'schema: detalle' },
+      }),
+    );
     const result = await claude.generateStructured(request);
     expect(result).toEqual({
       ok: false,
       error: {
         kind: 'PROVIDER_DOWN',
         retryable: false,
-        message: expect.stringContaining('invalid_request_error'),
+        message:
+          'La API de Claude rechazó la petición (HTTP 400, invalid_request_error): schema: detalle',
       },
     });
   });
