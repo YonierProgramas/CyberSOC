@@ -16,14 +16,40 @@ vi.mock('electron', () => ({
   },
 }));
 
-it('expone solo system, dialog y scan con métodos y canales fijos', async () => {
+it('expone system, dialog, scan y settings.ai con métodos y canales fijos', async () => {
   await import('../src/preload/index');
   expect(electron.expose).toHaveBeenCalledExactlyOnceWith(
     'cybersoc',
     expect.any(Object),
   );
   const api = electron.expose.mock.calls[0]![1] as CyberSocApi;
-  expect(Object.keys(api).sort()).toEqual(['dialog', 'scan', 'system']);
+  expect(Object.keys(api).sort()).toEqual([
+    'dialog',
+    'scan',
+    'settings',
+    'system',
+  ]);
+  expect(Object.keys(api.settings)).toEqual(['ai']);
+  expect(Object.keys(api.settings.ai)).toEqual([
+    'setApiKey',
+    'clearApiKey',
+    'getStatus',
+    'testConnection',
+  ]);
+  await api.settings.ai.setApiKey('unit-test-placeholder');
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'settings.ai:setApiKey',
+    'unit-test-placeholder',
+  );
+  await api.settings.ai.clearApiKey();
+  expect(electron.invoke).toHaveBeenLastCalledWith('settings.ai:clearApiKey');
+  await api.settings.ai.getStatus();
+  expect(electron.invoke).toHaveBeenLastCalledWith('settings.ai:getStatus');
+  await api.settings.ai.testConnection();
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'settings.ai:testConnection',
+  );
+  electron.invoke.mockClear();
   expect(Object.keys(api.dialog)).toEqual(['selectFolder', 'selectFile']);
   expect(Object.keys(api.scan)).toEqual([
     'start',

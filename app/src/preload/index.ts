@@ -15,6 +15,10 @@ import {
   SCAN_FINISHED,
   type ScanProgress,
   type ScanJobDTO,
+  SETTINGS_AI_SET_API_KEY,
+  SETTINGS_AI_CLEAR_API_KEY,
+  SETTINGS_AI_GET_STATUS,
+  SETTINGS_AI_TEST_CONNECTION,
 } from '../shared/ipc';
 
 function subscribe<T>(
@@ -36,6 +40,14 @@ function subscribe<T>(
 }
 
 const api: CyberSocApi = {
+  settings: {
+    ai: {
+      setApiKey: (key) => ipcRenderer.invoke(SETTINGS_AI_SET_API_KEY, key),
+      clearApiKey: () => ipcRenderer.invoke(SETTINGS_AI_CLEAR_API_KEY),
+      getStatus: () => ipcRenderer.invoke(SETTINGS_AI_GET_STATUS),
+      testConnection: () => ipcRenderer.invoke(SETTINGS_AI_TEST_CONNECTION),
+    },
+  },
   dialog: {
     selectFolder: () => ipcRenderer.invoke(DIALOG_SELECT_FOLDER),
     selectFile: () => ipcRenderer.invoke(DIALOG_SELECT_FILE),

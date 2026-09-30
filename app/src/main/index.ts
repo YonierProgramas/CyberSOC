@@ -4,11 +4,13 @@ import { pathToFileURL } from 'node:url';
 import { registerSystemIpc } from './ipc/system.ipc';
 import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerScanIpc } from './ipc/scan.ipc';
+import { registerSettingsIpc } from './ipc/settings.ipc';
 import { createMainWindow } from './window';
 import {
   createDatabase,
   createEngine,
   createScanOrchestrator,
+  createAISettings,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
 
@@ -18,6 +20,7 @@ const engine = createEngine(app.getAppPath());
 let database: Database | null = null;
 let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
+let stopSettingsIpc: (() => void) | null = null;
 let readyToQuit = false;
 let quitting = false;
 
@@ -31,6 +34,8 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
+  stopSettingsIpc?.();
+  stopSettingsIpc = null;
   stopDialogIpc?.();
   stopDialogIpc = null;
   void (stopScanIpc?.() ?? Promise.resolve())
@@ -60,6 +65,11 @@ app
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
     const trustedRendererUrl = pathToFileURL(rendererPath).href;
+    stopSettingsIpc = registerSettingsIpc(
+      () => mainWindow,
+      trustedRendererUrl,
+      createAISettings(database),
+    );
     const scan = createScanOrchestrator(database, engine);
     stopDialogIpc = registerDialogIpc(() => mainWindow, trustedRendererUrl);
     stopScanIpc = registerScanIpc(

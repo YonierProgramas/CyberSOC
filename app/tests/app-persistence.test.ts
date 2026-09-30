@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   registerScanIpc: vi.fn(),
   stopDialogIpc: vi.fn(),
   stopScanIpc: vi.fn(),
+  createAISettings: vi.fn(),
+  registerSettingsIpc: vi.fn(),
+  stopSettingsIpc: vi.fn(),
 }));
 vi.mock('electron', () => ({
   app: {
@@ -28,6 +31,7 @@ vi.mock('electron', () => ({
 vi.mock('../src/main/composition-root', () => ({
   createDatabase: mocks.createDatabase,
   createScanOrchestrator: mocks.createScanOrchestrator,
+  createAISettings: mocks.createAISettings,
   createEngine: () => ({
     close: mocks.closeEngine,
     reconnect: mocks.reconnect,
@@ -45,12 +49,17 @@ vi.mock('../src/main/ipc/dialog.ipc', () => ({
 vi.mock('../src/main/ipc/scan.ipc', () => ({
   registerScanIpc: mocks.registerScanIpc,
 }));
+vi.mock('../src/main/ipc/settings.ipc', () => ({
+  registerSettingsIpc: mocks.registerSettingsIpc,
+}));
 
 beforeEach(() => {
   vi.resetModules();
   mocks.createDatabase.mockReturnValue({ close: mocks.closeDatabase });
   mocks.createScanOrchestrator.mockReturnValue({ marker: 'scan' });
   mocks.registerDialogIpc.mockReturnValue(mocks.stopDialogIpc);
+  mocks.createAISettings.mockReturnValue({ marker: 'settings' });
+  mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
   mocks.createMainWindow.mockReturnValue({
@@ -73,6 +82,11 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     { close: mocks.closeDatabase },
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.registerSettingsIpc).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Function),
+    expect.stringContaining('index.html'),
+    { marker: 'settings' },
+  );
   expect(mocks.registerScanIpc.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.createMainWindow.mock.invocationCallOrder[0]!,
   );
@@ -85,6 +99,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.closeDatabase).not.toHaveBeenCalled();
   expect(mocks.stopScanIpc).toHaveBeenCalledOnce();
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
   handler('will-quit')();
   expect(mocks.closeDatabase).toHaveBeenCalledOnce();

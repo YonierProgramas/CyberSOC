@@ -84,6 +84,42 @@ export const SCAN_LIST_JOBS = 'scan:listJobs';
 export const SCAN_LIST_RESULTS = 'scan:listResults';
 export const SCAN_PROGRESS = 'scan:progress';
 export const SCAN_FINISHED = 'scan:finished';
+export const SETTINGS_AI_SET_API_KEY = 'settings.ai:setApiKey';
+export const SETTINGS_AI_CLEAR_API_KEY = 'settings.ai:clearApiKey';
+export const SETTINGS_AI_GET_STATUS = 'settings.ai:getStatus';
+export const SETTINGS_AI_TEST_CONNECTION = 'settings.ai:testConnection';
+
+export interface AISettingsStatus {
+  configured: boolean;
+  last4: string | null;
+  model: string;
+}
+
+export type AIHealthCheck =
+  | {
+      ok: true;
+      value: { model: string };
+      model: string;
+      usage: { inputTokens: number; outputTokens: number };
+      latencyMs: number;
+    }
+  | {
+      ok: false;
+      error: {
+        kind:
+          | 'OFFLINE'
+          | 'TIMEOUT'
+          | 'RATE_LIMIT'
+          | 'AUTH'
+          | 'PROVIDER_DOWN'
+          | 'INVALID_OUTPUT'
+          | 'INCOMPLETE'
+          | 'UNSAFE';
+        retryable: boolean;
+        retryAfterMs?: number;
+        message: string;
+      };
+    };
 
 export type EngineState =
   | { status: 'connected'; engineVersion: string; protocol: '1' }
@@ -101,6 +137,14 @@ export interface SystemStatus {
 }
 
 export interface CyberSocApi {
+  readonly settings: {
+    readonly ai: {
+      readonly setApiKey: (key: string) => Promise<void>;
+      readonly clearApiKey: () => Promise<void>;
+      readonly getStatus: () => Promise<AISettingsStatus>;
+      readonly testConnection: () => Promise<AIHealthCheck>;
+    };
+  };
   readonly dialog: {
     readonly selectFolder: () => Promise<string | null>;
     readonly selectFile: () => Promise<string | null>;
