@@ -8,6 +8,24 @@ import {
   parseEngineCommand,
 } from '../core/engine/EngineProcess';
 import { createLogger } from '../core/logging/logger';
+import { AppConfigStore } from '../core/config/AppConfig';
+import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
+import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
+import { ScanOrchestrator } from '../core/scan/ScanOrchestrator';
+
+export function createScanOrchestrator(
+  database: Database,
+  engine: EngineProcess,
+): ScanOrchestrator {
+  const config = new AppConfigStore(database);
+  return new ScanOrchestrator({
+    config: () => config.load(),
+    engine,
+    jobs: new ScanJobRepository(database),
+    results: new ScanResultRepository(database),
+    onError: (error) => console.error('Error de escaneo:', error),
+  });
+}
 
 export function createDatabase(userDataPath: string): Database {
   const database = new Database(join(userDataPath, 'cybersoc.db'));

@@ -3,8 +3,15 @@ import { createInterface, type Interface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import {
+  engineResultSchema,
+  scanFileParamsSchema,
+  type EngineResult,
+  type ScanFileParams,
+} from '../../shared/protocol';
+import {
   IncompatibleEngineError,
   RpcRemoteError,
+  RpcTimeoutError,
   type EngineClient,
   type EngineInfo,
 } from './EngineClient';
@@ -99,6 +106,29 @@ export class JsonRpcEngineClient implements EngineClient {
     );
   }
 
+  async scanFile(
+    params: ScanFileParams,
+    timeoutMs: number,
+  ): Promise<EngineResult> {
+    if (
+      !Number.isFinite(timeoutMs) ||
+      timeoutMs <= 0 ||
+      timeoutMs > 2_147_483_647
+    ) {
+      throw new RangeError('Timeout de archivo inválido.');
+    }
+    const result = engineResultSchema.parse(
+      await this.request(
+        'scan.file',
+        scanFileParamsSchema.parse(params),
+        timeoutMs,
+      ),
+    );
+    if (result.taskId !== params.taskId)
+      throw new RpcRemoteError(-32603, 'Respuesta para otra tarea de escaneo.');
+    return result;
+  }
+
   request(
     method: string,
     params: Record<string, unknown>,
@@ -109,7 +139,7 @@ export class JsonRpcEngineClient implements EngineClient {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`Timeout de ${method} (${timeoutMs} ms).`));
+        reject(new RpcTimeoutError(method, timeoutMs));
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
       try {

@@ -14,6 +14,7 @@ function fixture(
     hangShutdown?: boolean;
     stayAfterShutdown?: boolean;
     failSpawn?: boolean;
+    hangScan?: boolean;
   } = {},
 ) {
   const child = Object.assign(new EventEmitter(), {
@@ -31,6 +32,22 @@ function fixture(
       const request = JSON.parse(chunk.toString());
       done();
       queueMicrotask(() => {
+        if (request.method === 'scan.file' && !options.hangScan) {
+          child.stdout.write(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: request.id,
+              result: {
+                taskId: request.params.taskId,
+                status: 'SKIPPED',
+                evidence: [],
+                durationMs: 0,
+                engineVersion: '0.1.0',
+                error: { code: 'TOO_LARGE', message: 'grande' },
+              },
+            }) + '\n',
+          );
+        }
         if (
           request.method === 'engine.hello' &&
           !options.hangHello &&
@@ -84,6 +101,54 @@ function fixture(
 afterEach(() => vi.useRealTimers());
 
 describe('EngineProcess', () => {
+  it('expone scanFile validado cuando está conectado', async () => {
+    const { engine } = fixture();
+    const params = {
+      jobId: 'j1',
+      taskId: 't1',
+      path: 'C:\\ñ.txt',
+      options: { maxBytes: 100 },
+    };
+    await expect(engine.scanFile(params, 100)).rejects.toThrow('desconectado');
+    await engine.reconnect();
+    await expect(engine.scanFile(params, 100)).resolves.toMatchObject({
+      taskId: 't1',
+      status: 'SKIPPED',
+    });
+    await engine.close();
+  });
+
+  it('reconnect mata el proceso atascado tras timeout y crea uno nuevo', async () => {
+    vi.useFakeTimers();
+    const { engine, child, spawnProcess } = fixture({
+      hangScan: true,
+      hangShutdown: true,
+    });
+    await engine.reconnect();
+    const check = expect(
+      engine.scanFile(
+        {
+          jobId: 'j1',
+          taskId: 't1',
+          path: 'C:\\ñ.txt',
+          options: { maxBytes: 100 },
+        },
+        100,
+      ),
+    ).rejects.toThrow('Timeout');
+    await vi.advanceTimersByTimeAsync(100);
+    await check;
+    const reconnect = engine.reconnect();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(child.kill).toHaveBeenCalledWith('SIGKILL');
+    expect((await reconnect).status).toBe('connected');
+    expect(spawnProcess).toHaveBeenCalledTimes(2);
+    const closing = engine.close();
+    await vi.advanceTimersByTimeAsync(2_000);
+    await closing;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('conecta, reenvia stderr y cierra limpiamente', async () => {
     const { engine, child, spawnProcess, logger } = fixture();
     expect(await engine.reconnect()).toEqual({

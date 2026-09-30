@@ -114,4 +114,66 @@ describe('JsonRpcEngineClient', () => {
     await check;
     input.emit('error', new Error('late EPIPE'));
   });
+
+  it('scanFile transmite el contrato y usa su timeout por archivo', async () => {
+    const params = {
+      jobId: 'j1',
+      taskId: 't1',
+      path: 'C:\\niño.txt',
+      options: { maxBytes: 100 },
+    };
+    const check = expect(client.scanFile(params, 250)).rejects.toMatchObject({
+      message: 'Timeout de scan.file (250 ms).',
+    });
+    expect(requests[0]).toMatchObject({ method: 'scan.file', params });
+    await vi.advanceTimersByTimeAsync(249);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    await check;
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['valid', 'wrong-task', 'invalid-result'])(
+    'scanFile valida respuesta %s',
+    async (mode) => {
+      const pending = client.scanFile(
+        {
+          jobId: 'j1',
+          taskId: 't1',
+          path: 'C:\\ñ.txt',
+          options: { maxBytes: 100 },
+        },
+        250,
+      );
+      const result = {
+        taskId: mode === 'wrong-task' ? 't2' : 't1',
+        status: 'ERROR',
+        evidence: [],
+        error: { code: 'ACCESS_DENIED', message: 'denegado' },
+        durationMs: 1,
+        engineVersion: '0.1.0',
+      };
+      const check =
+        mode === 'valid'
+          ? expect(pending).resolves.toEqual(result)
+          : expect(pending).rejects.toThrow();
+      respond(requests[0]!.id, mode === 'invalid-result' ? {} : result);
+      await check;
+    },
+  );
+
+  it('scanFile rechaza timeout inválido antes de escribir al motor', async () => {
+    await expect(
+      client.scanFile(
+        {
+          jobId: 'j1',
+          taskId: 't1',
+          path: 'C:\\ñ.txt',
+          options: { maxBytes: 100 },
+        },
+        0,
+      ),
+    ).rejects.toThrow(RangeError);
+    expect(requests).toEqual([]);
+  });
 });
