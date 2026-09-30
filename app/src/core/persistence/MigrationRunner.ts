@@ -1,6 +1,7 @@
 import type { Database } from './Database';
 import { initialMigration } from './migrations/001_init';
 import { scansMigration } from './migrations/002_scans';
+import { evidenceAiMigration } from './migrations/003_evidence_ai';
 
 export interface Migration {
   readonly version: number;
@@ -14,6 +15,7 @@ export class MigrationRunner {
     private readonly migrations: readonly Migration[] = [
       initialMigration,
       scansMigration,
+      evidenceAiMigration,
     ],
   ) {}
 

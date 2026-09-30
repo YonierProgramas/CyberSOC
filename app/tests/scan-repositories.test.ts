@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Database } from '../src/core/persistence/Database';
 import { MigrationRunner } from '../src/core/persistence/MigrationRunner';
 import { initialMigration } from '../src/core/persistence/migrations/001_init';
+import { scansMigration } from '../src/core/persistence/migrations/002_scans';
 import {
   ScanJobRepository,
   type ScanJobCounters,
@@ -80,7 +81,9 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     database
       .prepare('INSERT INTO settings VALUES (?, ?, ?)')
       .run('tema', '"oscuro"', createdAt);
-    expect(new MigrationRunner(database).run()).toEqual([2]);
+    expect(
+      new MigrationRunner(database, [initialMigration, scansMigration]).run(),
+    ).toEqual([2]);
     const historyV2 = database
       .prepare('SELECT * FROM schema_migrations ORDER BY version')
       .all();
@@ -97,7 +100,9 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     ).toEqual([{ name: 'idx_results_job' }, { name: 'idx_results_sha256' }]);
     database.close();
     database = new Database(database.path);
-    expect(new MigrationRunner(database).run()).toEqual([]);
+    expect(
+      new MigrationRunner(database, [initialMigration, scansMigration]).run(),
+    ).toEqual([]);
     expect(
       database
         .prepare('SELECT * FROM schema_migrations ORDER BY version')
@@ -274,6 +279,10 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
       verdict: 'NOT_EVALUATED',
       errorCode: null,
       errorMessage: null,
+      detectedType: null,
+      engineScore: null,
+      riskLevel: null,
+      aiStatus: 'NOT_REQUIRED',
     });
     database.close();
     database = new Database(database.path);
