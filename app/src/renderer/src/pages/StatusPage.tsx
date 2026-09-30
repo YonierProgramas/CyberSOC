@@ -50,7 +50,7 @@ export function StatusPage() {
 
   const engine = status?.engine;
   return (
-    <main>
+    <main className="narrow">
       <p className="eyebrow">Estado de la aplicación</p>
       <h1>{status?.app ?? 'CyberSOC Defender'}</h1>
       {status && <p>Versión {status.version}</p>}
