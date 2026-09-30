@@ -41,6 +41,7 @@ function fixture(
                 taskId: request.params.taskId,
                 status: 'SKIPPED',
                 evidence: [],
+                layers: [],
                 durationMs: 0,
                 engineVersion: '0.1.0',
                 error: { code: 'TOO_LARGE', message: 'grande' },

@@ -15,6 +15,15 @@
     },
     "evidence": [],
     "durationMs": 4,
-    "engineVersion": "0.1.0"
+    "engineVersion": "0.1.0",
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0,
+        "points": 0,
+        "ms": 3
+      }
+    ]
   }
 }

@@ -28,6 +28,7 @@ input.on('line', (line) => {
             taskId: request.params.taskId,
             status: 'SCANNED',
             evidence: [],
+            layers: [],
             durationMs: 1_500,
             engineVersion: 'ipc-smoke-fake',
             file: {

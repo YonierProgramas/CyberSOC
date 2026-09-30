@@ -11,7 +11,7 @@ const python = resolve(
 );
 
 it.skipIf(!existsSync(python))(
-  'motor real: hello, ping, reconexion y shutdown',
+  'motor real: hello, ping, scan.file con traza HASH, reconexion y shutdown',
   async () => {
     const messages: string[] = [];
     const engine = new EngineProcess({
@@ -28,6 +28,32 @@ it.skipIf(!existsSync(python))(
         protocol: '1',
       });
       expect(await engine.ping()).toHaveProperty('ts');
+      const result = await engine.scanFile(
+        {
+          jobId: 'j_contract',
+          taskId: 't_contract',
+          path: resolve(
+            '..',
+            'contracts',
+            'protocol-v1',
+            'scan.file.request.json',
+          ),
+          options: { maxBytes: 1024 * 1024 },
+        },
+        5_000,
+      );
+      expect(result.status).toBe('SCANNED');
+      expect(result.evidence).toEqual([]);
+      expect(result.layers).toEqual([
+        {
+          layer: 'HASH',
+          status: 'RAN',
+          hits: 0,
+          points: 0,
+          ms: expect.any(Number),
+        },
+      ]);
+      expect(result.layers[0]!.ms).toBeGreaterThanOrEqual(0);
       expect((await engine.reconnect()).status).toBe('connected');
     } finally {
       await engine.close();

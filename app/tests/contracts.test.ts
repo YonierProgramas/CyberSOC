@@ -12,6 +12,8 @@ import {
   parseErrorResponseSchema,
   scanFileRequestSchema,
   scanFileResponseSchema,
+  statsRequestSchema,
+  statsResponseSchema,
 } from '../src/shared/protocol';
 
 const directory = fileURLToPath(
@@ -31,6 +33,10 @@ const schemas = {
   'scan.file.response.error-access-denied.json': scanFileResponseSchema,
   'scan.file.response.skipped-cloud.json': scanFileResponseSchema,
   'scan.file.response.skipped-too-large.json': scanFileResponseSchema,
+  'scan.file.response.detected-signature.json': scanFileResponseSchema,
+  'scan.file.response.double-extension.json': scanFileResponseSchema,
+  'engine.stats.request.json': statsRequestSchema,
+  'engine.stats.response.json': statsResponseSchema,
 };
 
 function load(name: string): Record<string, unknown> {
@@ -43,11 +49,19 @@ function fieldPaths(
 ): string[][] {
   return Object.entries(object).flatMap(([key, value]) => {
     const path = [...prefix, key];
+    // facts es un diccionario abierto: sus claves particulares no son obligatorias.
+    if (key === 'facts') return [path];
     return [
       path,
-      ...(value !== null && typeof value === 'object' && !Array.isArray(value)
-        ? fieldPaths(value as Record<string, unknown>, path)
-        : []),
+      ...(Array.isArray(value)
+        ? value.flatMap((item, index) =>
+            item !== null && typeof item === 'object'
+              ? fieldPaths(item, [...path, String(index)])
+              : [],
+          )
+        : value !== null && typeof value === 'object'
+          ? fieldPaths(value as Record<string, unknown>, path)
+          : []),
     ];
   });
 }
@@ -69,7 +83,7 @@ function mutate(
   return copy;
 }
 
-it('valida exactamente los trece archivos compartidos', () => {
+it('valida todos los archivos compartidos sin dejar ejemplos sin esquema', () => {
   expect(readdirSync(directory).sort()).toEqual(Object.keys(schemas).sort());
 });
 
@@ -115,14 +129,16 @@ for (const [name, schema] of Object.entries(schemas)) {
   });
 }
 
-it.each(['engine.hello', 'engine.ping', 'engine.shutdown'] as const)(
-  '%s conserva el id de la peticion',
-  (method) => {
-    expect(load(`${method}.response.json`).id).toEqual(
-      load(`${method}.request.json`).id,
-    );
-  },
-);
+it.each([
+  'engine.hello',
+  'engine.ping',
+  'engine.shutdown',
+  'engine.stats',
+] as const)('%s conserva el id de la peticion', (method) => {
+  expect(load(`${method}.response.json`).id).toEqual(
+    load(`${method}.request.json`).id,
+  );
+});
 
 it.each([1, '2', 2])('rechaza protocolo incompatible %s', (protocol) => {
   expect(

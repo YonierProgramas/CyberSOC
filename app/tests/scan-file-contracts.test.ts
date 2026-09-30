@@ -86,6 +86,7 @@ it.each(statuses)(
       taskId: 't_1',
       status,
       evidence: [],
+      layers: [],
       durationMs: 0,
       engineVersion: '0.1.0',
     };

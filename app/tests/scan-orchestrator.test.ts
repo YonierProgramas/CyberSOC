@@ -261,6 +261,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       taskId: params.taskId,
       status: 'ERROR',
       evidence: [],
+      layers: [],
       durationMs: 0,
       engineVersion: '0.1.0',
       error: { code: 'FILE_NOT_FOUND', message: 'no existe' },

@@ -1,0 +1,58 @@
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": {
+    "taskId": "t_12",
+    "status": "SCANNED",
+    "file": {
+      "name": "CSD-TEST-001.txt",
+      "extension": ".txt",
+      "sizeBytes": 46,
+      "modifiedAt": "2026-09-30T14:03:11Z"
+    },
+    "hashes": {
+      "sha256": "cfb53ff460ad6d4106e374d04707b8830d6e7ef61f4949fccf04b863e52925d9"
+    },
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "SIGNATURES",
+        "code": "SIGNATURE_MATCH",
+        "title": "Coincidencia con firma de prueba inofensiva",
+        "severity": "CRITICAL",
+        "points": 40,
+        "decisive": true,
+        "confidence": 1,
+        "facts": {
+          "signatureId": "CSD-TEST-001",
+          "testOnly": true
+        }
+      }
+    ],
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0,
+        "points": 0,
+        "ms": 1
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 1,
+        "points": 40,
+        "ms": 1
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "RAN",
+        "hits": 0,
+        "points": 0,
+        "ms": 1
+      }
+    ],
+    "durationMs": 4,
+    "engineVersion": "0.2.0"
+  }
+}

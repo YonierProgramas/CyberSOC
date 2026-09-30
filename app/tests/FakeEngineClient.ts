@@ -7,6 +7,7 @@ export function scanned(params: ScanFileParams): EngineResult {
     taskId: params.taskId,
     status: 'SCANNED',
     evidence: [],
+    layers: [],
     durationMs: 1,
     engineVersion: '0.1.0',
     file: {

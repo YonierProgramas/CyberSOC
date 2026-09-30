@@ -1,0 +1,9 @@
+{
+  "jsonrpc": "2.0",
+  "id": 46,
+  "result": {
+    "engineVersion": "0.2.0",
+    "signaturesVersion": "csd-test-v1",
+    "signaturesCount": 5
+  }
+}

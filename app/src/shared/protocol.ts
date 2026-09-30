@@ -20,6 +20,23 @@ export const shutdownRequestSchema = z.strictObject({
   method: z.literal('engine.shutdown'),
   params: emptyParamsSchema,
 });
+export const statsRequestSchema = z.strictObject({
+  ...envelope,
+  method: z.literal('engine.stats'),
+  params: emptyParamsSchema,
+});
+export const statsResultSchema = z.strictObject({
+  engineVersion: z.string().min(1),
+  signaturesVersion: z.string().min(1),
+  signaturesCount: z.number().int().nonnegative(),
+});
+export const statsResponseSchema = z.strictObject({
+  ...envelope,
+  result: statsResultSchema,
+});
+export type StatsRequest = z.infer<typeof statsRequestSchema>;
+export type StatsResult = z.infer<typeof statsResultSchema>;
+export type StatsResponse = z.infer<typeof statsResponseSchema>;
 
 export const helloResultSchema = z.strictObject({
   protocol: z.literal('1'),
@@ -95,7 +112,66 @@ export const scanFileParamsSchema = z.strictObject({
   options: z.strictObject({ maxBytes: z.number() }),
 });
 
-// Optional fields follow the S1 interface; their presence is not tied to status.
+export const evidenceSourceSchema = z.enum([
+  'SIGNATURES',
+  'FILETYPE',
+  'RULES',
+  'HEURISTICS',
+  'PE',
+  'SCRIPTS',
+  'ENGINE',
+]);
+export const layerSchema = z.enum([
+  'HASH',
+  'SIGNATURES',
+  'FILETYPE',
+  'RULES',
+  'HEURISTICS',
+  'PE',
+  'SCRIPTS',
+]);
+export const evidenceSchema = z.strictObject({
+  // Fin absoluto: impide aceptar un salto de línea después del identificador.
+  id: z.string().regex(/^ev[1-9][0-9]*(?![\s\S])/),
+  source: evidenceSourceSchema,
+  code: z.string().min(1),
+  title: z.string().min(1),
+  severity: z.enum(['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  points: z.number().int().nonnegative(),
+  decisive: z.boolean(),
+  confidence: z.number().min(0).max(1),
+  // Diccionario de hechos: claves únicas; acceso promedio O(1), validación O(n).
+  facts: z.record(z.string(), z.json()),
+});
+export const layerTraceSchema = z
+  .strictObject({
+    layer: layerSchema,
+    status: z.enum(['RAN', 'SKIPPED', 'DISABLED', 'ERROR']),
+    reason: z.string().regex(/\S/).optional(),
+    hits: z.number().int().nonnegative(),
+    points: z.number().int().nonnegative(),
+    ms: z.number().nonnegative(),
+  })
+  .superRefine((trace, context) => {
+    if (trace.status === 'SKIPPED' && trace.reason === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['reason'],
+        message: 'SKIPPED requiere reason',
+      });
+    }
+    if (trace.layer === 'HASH' && trace.status === 'DISABLED') {
+      context.addIssue({
+        code: 'custom',
+        path: ['status'],
+        message: 'HASH no se puede desactivar',
+      });
+    }
+  });
+export type Evidence = z.infer<typeof evidenceSchema>;
+export type LayerTrace = z.infer<typeof layerTraceSchema>;
+
+// File, hashes and error retain their S1 optionality; evidence and layers are required.
 export const engineResultSchema = z.strictObject({
   taskId: z.string(),
   status: fileScanStatusSchema,
@@ -115,7 +191,22 @@ export const engineResultSchema = z.strictObject({
         .regex(/^[a-fA-F0-9]{64}$/),
     })
     .optional(),
-  evidence: z.array(z.unknown()),
+  evidence: z.array(evidenceSchema),
+  layers: z.array(layerTraceSchema).superRefine((layers, context) => {
+    // Invariante: el Set contiene solo capas ya vistas, sin repetidas.
+    // has/add cuestan O(1) promedio; recorrer n capas cuesta O(n) tiempo y espacio.
+    const seen = new Set<string>();
+    layers.forEach((trace, index) => {
+      if (seen.has(trace.layer)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'layer'],
+          message: 'Capa repetida',
+        });
+      }
+      seen.add(trace.layer);
+    });
+  }),
   error: z
     .strictObject({ code: fileErrorCodeSchema, message: z.string() })
     .optional(),

@@ -11,6 +11,8 @@ from cybersoc_engine.models import (
     ScanFileParams,
     ScanFileRequest,
     ScanFileResponse,
+    StatsRequest,
+    StatsResponse,
 )
 from cybersoc_engine.rpc.protocol import (
     HelloRequest,
@@ -39,6 +41,10 @@ MODELS = {
     "scan.file.response.error-access-denied.json": ScanFileResponse,
     "scan.file.response.skipped-cloud.json": ScanFileResponse,
     "scan.file.response.skipped-too-large.json": ScanFileResponse,
+    "scan.file.response.detected-signature.json": ScanFileResponse,
+    "scan.file.response.double-extension.json": ScanFileResponse,
+    "engine.stats.request.json": StatsRequest,
+    "engine.stats.response.json": StatsResponse,
 }
 
 
@@ -50,8 +56,15 @@ def field_paths(value, prefix=()):
     for key, child in value.items():
         path = (*prefix, key)
         yield path
+        # facts es un diccionario abierto: sus claves particulares no son obligatorias.
+        if key == "facts":
+            continue
         if isinstance(child, dict):
             yield from field_paths(child, path)
+        elif isinstance(child, list):
+            for index, item in enumerate(child):
+                if isinstance(item, dict):
+                    yield from field_paths(item, (*path, index))
 
 
 FIELDS = [(name, path) for name in MODELS for path in field_paths(load(name))]
@@ -67,7 +80,7 @@ MUTATIONS = [
 ]
 
 
-def test_exactly_thirteen_shared_files():
+def test_all_shared_files_have_a_model():
     assert sorted(path.name for path in CONTRACTS.iterdir()) == sorted(MODELS)
 
 
@@ -253,6 +266,7 @@ def test_optional_result_fields(status):
         "taskId": "t_1",
         "status": status,
         "evidence": [],
+        "layers": [],
         "durationMs": 0,
         "engineVersion": "0.1.0",
     }
@@ -332,3 +346,209 @@ def test_unknown_scan_properties_and_method():
     result["file"]["extra"] = True
     with pytest.raises(ValidationError):
         EngineResult.model_validate(result)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("id", "ev0"),
+        ("id", "ev1\n"),
+        ("source", "HASH"),
+        ("source", "UNKNOWN"),
+        ("severity", "SEVERE"),
+        ("code", ""),
+        ("title", ""),
+        ("points", -1),
+        ("points", 1.5),
+        ("points", "25"),
+        ("points", True),
+        ("points", 9007199254740992),
+        ("confidence", -0.01),
+        ("confidence", 1.01),
+        ("confidence", "0.8"),
+        ("confidence", True),
+        ("confidence", float("inf")),
+        ("decisive", 1),
+        ("decisive", "false"),
+        ("facts", []),
+        ("facts", "text"),
+        ("extra", 1),
+    ],
+)
+def test_invalid_evidence(field, value):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["evidence"][0][field] = value
+    with pytest.raises(ValidationError):
+        ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize(
+    "source", ["SIGNATURES", "FILETYPE", "RULES", "HEURISTICS", "PE", "SCRIPTS", "ENGINE"]
+)
+def test_evidence_sources(source):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["evidence"][0]["source"] = source
+    ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize("severity", ["INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"])
+def test_evidence_severities(severity):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["evidence"][0]["severity"] = severity
+    ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize("confidence", [0, 1])
+@pytest.mark.parametrize("facts", [{}, {"nested": {"values": [None, True, 2, "texto"]}}])
+def test_json_facts_and_confidence_boundaries(confidence, facts):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["evidence"][0].update(confidence=confidence, facts=facts)
+    assert ScanFileResponse.model_validate(response).model_dump(exclude_unset=True) == response
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("layer", "ENGINE"),
+        ("layer", "UNKNOWN"),
+        ("status", "DONE"),
+        ("hits", -1),
+        ("hits", 0.5),
+        ("hits", True),
+        ("hits", "1"),
+        ("points", -1),
+        ("points", 0.5),
+        ("points", True),
+        ("points", "25"),
+        ("ms", -1),
+        ("ms", True),
+        ("ms", "1"),
+        ("ms", float("inf")),
+        ("reason", None),
+        ("reason", ""),
+        ("reason", "   "),
+        ("extra", 1),
+    ],
+)
+def test_invalid_layer(field, value):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["layers"][2][field] = value
+    with pytest.raises(ValidationError):
+        ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize(
+    "layer", ["HASH", "SIGNATURES", "FILETYPE", "RULES", "HEURISTICS", "PE", "SCRIPTS"]
+)
+def test_all_layer_names(layer):
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["layers"] = [dict(layer=layer, status="RAN", hits=0, points=0, ms=0)]
+    ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize("status", ["RAN", "SKIPPED", "DISABLED", "ERROR"])
+def test_layer_status_and_optional_reason(status):
+    response = load("scan.file.response.double-extension.json")
+    trace = response["result"]["layers"][2]
+    trace.update(status=status, reason="NOT_APPLICABLE", ms=0.25)
+    ScanFileResponse.model_validate(response)
+    del trace["reason"]
+    if status == "SKIPPED":
+        with pytest.raises(ValidationError):
+            ScanFileResponse.model_validate(response)
+    else:
+        ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize("mutation", ["duplicate", "disable_hash"])
+def test_layer_invariants(mutation):
+    response = load("scan.file.response.double-extension.json")
+    layers = response["result"]["layers"]
+    if mutation == "duplicate":
+        layers.append(deepcopy(layers[0]))
+    else:
+        layers[0]["status"] = "DISABLED"
+    with pytest.raises(ValidationError):
+        ScanFileResponse.model_validate(response)
+
+
+@pytest.mark.parametrize("count", [-1, 1.5, True, "5", None, 9007199254740992])
+def test_invalid_signatures_count(count):
+    value = load("engine.stats.response.json")
+    value["result"]["signaturesCount"] = count
+    with pytest.raises(ValidationError):
+        StatsResponse.model_validate(value)
+
+
+def test_stats_zero_versions_method_and_params():
+    value = load("engine.stats.response.json")
+    value["result"]["signaturesCount"] = 0
+    StatsResponse.model_validate(value)
+    for field in ("engineVersion", "signaturesVersion"):
+        invalid = deepcopy(value)
+        invalid["result"][field] = ""
+        with pytest.raises(ValidationError):
+            StatsResponse.model_validate(invalid)
+    request = load("engine.stats.request.json")
+    assert request["id"] == value["id"]
+    with pytest.raises(ValidationError):
+        StatsRequest.model_validate({**request, "method": "stats"})
+    with pytest.raises(ValidationError):
+        StatsRequest.model_validate({**request, "params": {"extra": True}})
+
+
+def test_decisive_signature_and_non_decisive_heuristic():
+    signature = ScanFileResponse.model_validate(load("scan.file.response.detected-signature.json"))
+    heuristic = ScanFileResponse.model_validate(load("scan.file.response.double-extension.json"))
+    assert signature.result.evidence[0].decisive is True
+    assert signature.result.evidence[0].source == "SIGNATURES"
+    assert heuristic.result.evidence[0].decisive is False
+    assert heuristic.result.evidence[0].points == 25
+    assert "verdict" not in heuristic.result.model_dump()
+
+
+@pytest.mark.parametrize("scenario", ["scanned", "skipped", "missing", "read_error"])
+def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
+    from unittest.mock import patch
+
+    from cybersoc_engine.analysis.file_inspector import FileInspector
+    from cybersoc_engine.models import ScanFileOptions
+
+    path = tmp_path / "inofensivo.txt"
+    if scenario != "missing":
+        path.write_text("Texto inofensivo de prueba.", encoding="utf-8")
+    with patch("cybersoc_engine.analysis.file_inspector.sha256_stream") as hashing:
+        hashing.return_value = "a" * 64
+        if scenario == "read_error":
+            hashing.side_effect = OSError("read failed")
+        result = FileInspector().inspect(
+            str(path),
+            ScanFileOptions(maxBytes=0 if scenario == "skipped" else 1024),
+            task_id="t_trace",
+        )
+    wire = result.model_dump(exclude_unset=True)
+    EngineResult.model_validate(wire)
+    assert len(result.layers) == 1
+    trace = result.layers[0]
+    assert trace.layer == "HASH"
+    assert (
+        trace.status
+        == {"scanned": "RAN", "skipped": "SKIPPED", "missing": "SKIPPED", "read_error": "ERROR"}[
+            scenario
+        ]
+    )
+    assert trace.ms >= 0
+    if trace.status != "RAN":
+        assert trace.reason == result.error.code
+
+
+@pytest.mark.parametrize("count", [0, 1.0, 9007199254740991])
+def test_json_integer_representations(count):
+    value = load("engine.stats.response.json")
+    value["result"]["signaturesCount"] = count
+    assert StatsResponse.model_validate(value).result.signaturesCount == count
+    assert StatsResponse.model_validate_json(json.dumps(value)).result.signaturesCount == count
+    response = load("scan.file.response.double-extension.json")
+    response["result"]["evidence"][0]["points"] = count
+    response["result"]["layers"][2].update(hits=count, points=count)
+    ScanFileResponse.model_validate_json(json.dumps(response))

@@ -326,6 +326,8 @@ export class ScanOrchestrator extends EventEmitter<{
             taskId: task.taskId,
             status: 'ERROR',
             evidence: [],
+            // Sin respuesta del motor no hay una traza de capas verificable.
+            layers: [],
             error: {
               code:
                 error instanceof RpcTimeoutError ? 'TIMEOUT' : 'ENGINE_CRASHED',

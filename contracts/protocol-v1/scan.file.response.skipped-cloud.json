@@ -10,6 +10,16 @@
     },
     "evidence": [],
     "durationMs": 0,
-    "engineVersion": "0.1.0"
+    "engineVersion": "0.1.0",
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "SKIPPED",
+        "hits": 0,
+        "points": 0,
+        "ms": 0,
+        "reason": "CLOUD_PLACEHOLDER"
+      }
+    ]
   }
 }

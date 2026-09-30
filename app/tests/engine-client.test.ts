@@ -149,6 +149,7 @@ describe('JsonRpcEngineClient', () => {
         taskId: mode === 'wrong-task' ? 't2' : 't1',
         status: 'ERROR',
         evidence: [],
+        layers: [],
         error: { code: 'ACCESS_DENIED', message: 'denegado' },
         durationMs: 1,
         engineVersion: '0.1.0',
