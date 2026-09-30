@@ -7,7 +7,7 @@ vi.mock('electron', () => ({
   ipcRenderer: { invoke: electron.invoke },
 }));
 
-it('expone solo system.getStatus y usa un canal IPC fijo', async () => {
+it('expone solo getStatus y reconnectEngine con canales IPC fijos', async () => {
   await import('../src/preload/index');
   expect(electron.expose).toHaveBeenCalledExactlyOnceWith(
     'cybersoc',
@@ -15,10 +15,12 @@ it('expone solo system.getStatus y usa un canal IPC fijo', async () => {
   );
   const api = electron.expose.mock.calls[0]![1] as CyberSocApi;
   expect(Object.keys(api)).toEqual(['system']);
-  expect(Object.keys(api.system)).toEqual(['getStatus']);
+  expect(Object.keys(api.system)).toEqual(['getStatus', 'reconnectEngine']);
 
   const status = { app: 'CyberSOC Defender', version: '0.0.1' };
   electron.invoke.mockResolvedValue(status);
   await expect(api.system.getStatus()).resolves.toEqual(status);
-  expect(electron.invoke).toHaveBeenCalledExactlyOnceWith('system:get-status');
+  expect(electron.invoke).toHaveBeenCalledExactlyOnceWith('system:getStatus');
+  await expect(api.system.reconnectEngine()).resolves.toEqual(status);
+  expect(electron.invoke).toHaveBeenLastCalledWith('system:reconnectEngine');
 });

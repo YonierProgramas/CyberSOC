@@ -1,11 +1,31 @@
-import { app, ipcMain, type BrowserWindow } from 'electron';
-import { SYSTEM_GET_STATUS, type SystemStatus } from '../../shared/ipc';
+import {
+  app,
+  ipcMain,
+  type BrowserWindow,
+  type IpcMainInvokeEvent,
+} from 'electron';
+import {
+  SYSTEM_GET_STATUS,
+  SYSTEM_RECONNECT_ENGINE,
+  type SystemStatus,
+  type EngineState,
+} from '../../shared/ipc';
+import {
+  systemArgumentsSchema,
+  systemStatusSchema,
+} from '../../shared/system-schemas';
+
+export interface EngineController {
+  getState(): EngineState;
+  reconnect(): Promise<EngineState>;
+}
 
 export function registerSystemIpc(
   getWindow: () => BrowserWindow | null,
   trustedRendererUrl: string,
+  engine: EngineController,
 ): void {
-  ipcMain.handle(SYSTEM_GET_STATUS, (event): SystemStatus => {
+  function validate(event: IpcMainInvokeEvent, args: unknown[]): void {
     const window = getWindow();
     if (
       !window ||
@@ -15,7 +35,30 @@ export function registerSystemIpc(
     ) {
       throw new Error('Origen IPC no autorizado.');
     }
+    systemArgumentsSchema.parse(args);
+  }
 
-    return { app: 'CyberSOC Defender', version: app.getVersion() };
-  });
+  function status(): SystemStatus {
+    return systemStatusSchema.parse({
+      app: 'CyberSOC Defender',
+      version: app.getVersion(),
+      engine: engine.getState(),
+    });
+  }
+
+  ipcMain.handle(
+    SYSTEM_GET_STATUS,
+    (event, ...args: unknown[]): SystemStatus => {
+      validate(event, args);
+      return status();
+    },
+  );
+  ipcMain.handle(
+    SYSTEM_RECONNECT_ENGINE,
+    async (event, ...args: unknown[]): Promise<SystemStatus> => {
+      validate(event, args);
+      await engine.reconnect();
+      return status();
+    },
+  );
 }
