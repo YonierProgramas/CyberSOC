@@ -3,13 +3,20 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { registerSystemIpc } from './ipc/system.ipc';
 import { createMainWindow } from './window';
-import { createEngine } from './composition-root';
+import { createDatabase, createEngine } from './composition-root';
+import type { Database } from '../core/persistence/Database';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
 const engine = createEngine(app.getAppPath());
+let database: Database | null = null;
 let readyToQuit = false;
 let quitting = false;
+
+app.on('will-quit', () => {
+  database?.close();
+  database = null;
+});
 
 app.on('before-quit', (event) => {
   if (readyToQuit) return;
@@ -38,6 +45,7 @@ async function openMainWindow(): Promise<void> {
 app
   .whenReady()
   .then(async () => {
+    database = createDatabase(app.getPath('userData'));
     registerSystemIpc(
       () => mainWindow,
       pathToFileURL(rendererPath).href,
