@@ -1,26 +1,39 @@
-# Dependencies
+# Node / Electron
 node_modules/
-
-# NPM cache
+.npm/
 .npm-cache/
-**/.npm-cache/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-venv/
-
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Build
+.cache/
+.vite/
+out/
 dist/
 build/
 .next/
 
-# Logs
+# Python / uv
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Logs y cobertura
+logs/
 *.log
 npm-debug.log*
+coverage/
+.coverage
+.coverage.*
+htmlcov/
