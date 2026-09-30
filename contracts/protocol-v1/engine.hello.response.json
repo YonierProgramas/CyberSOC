@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "protocol": "1",
+    "engineVersion": "0.0.1",
+    "python": "3.12.x",
+    "capabilities": []
+  }
+}

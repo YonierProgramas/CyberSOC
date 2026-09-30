@@ -1,0 +1,6 @@
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "engine.hello",
+  "params": { "protocol": "1", "client": "cybersoc-core/0.0.1" }
+}

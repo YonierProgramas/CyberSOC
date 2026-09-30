@@ -1,8 +1,10 @@
 import json
 import math
+import re
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, ValidationError, field_validator
 
 type RequestId = str | int | float | None
 
@@ -32,6 +34,109 @@ class Request(BaseModel):
     @property
     def is_notification(self) -> bool:
         return "id" not in self.model_fields_set
+
+
+class ContractModel(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid", allow_inf_nan=False)
+
+
+class ContractEnvelope(ContractModel):
+    jsonrpc: Literal["2.0"]
+    id: RequestId
+
+
+# Canonical exchanges are stricter than Request: id and params must be present.
+class HelloContractParams(ContractModel):
+    protocol: Literal["1"]
+    client: str
+
+
+class EmptyParams(ContractModel):
+    pass
+
+
+class HelloRequest(ContractEnvelope):
+    method: Literal["engine.hello"]
+    params: HelloContractParams
+
+
+class PingRequest(ContractEnvelope):
+    method: Literal["engine.ping"]
+    params: EmptyParams
+
+
+class ShutdownRequest(ContractEnvelope):
+    method: Literal["engine.shutdown"]
+    params: EmptyParams
+
+
+class HelloResult(ContractModel):
+    protocol: Literal["1"]
+    engineVersion: str
+    python: str
+    capabilities: list[str]
+
+
+class PingResult(ContractModel):
+    ts: str
+
+    @field_validator("ts")
+    @classmethod
+    def validate_timestamp(cls, value: str) -> str:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", value):
+            raise ValueError("Expected a UTC ISO-8601 timestamp with seconds")
+        datetime.fromisoformat(value)
+        return value
+
+
+class ShutdownResult(ContractModel):
+    ok: Literal[True]
+
+    @field_validator("ok", mode="before")
+    @classmethod
+    def validate_ok(cls, value: object) -> object:
+        # Literal[True] alone also accepts 1 in Pydantic.
+        if value is not True:
+            raise ValueError("Expected boolean true")
+        return value
+
+
+class HelloResponse(ContractEnvelope):
+    result: HelloResult
+
+
+class PingResponse(ContractEnvelope):
+    result: PingResult
+
+
+class ShutdownResponse(ContractEnvelope):
+    result: ShutdownResult
+
+
+class ErrorBody(ContractModel):
+    code: Literal[-32700, -32600, -32601, -32602, -32603]
+    message: str
+
+
+class ErrorResponse(ContractEnvelope):
+    error: ErrorBody
+
+
+class MethodNotFoundError(ErrorBody):
+    code: Literal[-32601]
+
+
+class MethodNotFoundResponse(ErrorResponse):
+    error: MethodNotFoundError
+
+
+class ParseError(ErrorBody):
+    code: Literal[-32700]
+
+
+class ParseErrorResponse(ErrorResponse):
+    id: None
+    error: ParseError
 
 
 def _reject_constant(value: str) -> None:
