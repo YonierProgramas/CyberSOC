@@ -1,0 +1,86 @@
+[
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "rule_downloader.ps1" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "evidence-panel",
+    "parametros": { "texto": "R-TEST-DOWNLOADER" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "evidence-panel",
+    "archivo": "01-regla-marcador.png"
+  },
+  {
+    "accion": "esperar",
+    "selector": "ai-escalation",
+    "parametros": { "texto": "Escalado por IA" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "decision-panel",
+    "parametros": { "texto": "Regla CLEAN" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "decision-panel",
+    "archivo": "02-como-se-decidio.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "result-summary",
+    "archivo": "04-escalado-por-ia.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "job-summary",
+    "archivo": "06-resumen-escaneo.png"
+  },
+  {
+    "accion": "perfil",
+    "parametros": {
+      "modo": "CUSTOM",
+      "capas": "HASH,SIGNATURES,FILETYPE"
+    }
+  },
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "rule_downloader.ps1" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "layers-applied",
+    "parametros": { "texto": "desactivada por el perfil" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "result-detail",
+    "archivo": "09-zona-perfil-capas.png"
+  },
+  { "accion": "perfil", "parametros": { "modo": "AUTO" } },
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "sistema", "tipo": "FOLDER" }
+  },
+  { "accion": "seleccionar", "parametros": { "texto": "hosts" } },
+  {
+    "accion": "esperar",
+    "selector": "result-zone",
+    "parametros": { "texto": "Sistema" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "result-summary",
+    "archivo": "10-perfil-sistema.png"
+  }
+]

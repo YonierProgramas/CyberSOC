@@ -14,7 +14,9 @@ import { createLogger } from '../core/logging/logger';
 import { AppConfigStore } from '../core/config/AppConfig';
 import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
+import { AIAnalysisRepository } from '../core/persistence/AIAnalysisRepository';
 import { EvidenceRepository } from '../core/persistence/EvidenceRepository';
+import { RiskAssessmentRepository } from '../core/persistence/RiskAssessmentRepository';
 import { LayerTraceRepository } from '../core/persistence/LayerTraceRepository';
 import { decideRisk } from '../core/risk/RiskPolicy';
 import {
@@ -45,9 +47,19 @@ function prepareEvidenceMode(): string | undefined {
   const root = process.env.CYBERSOC_EVIDENCE_ROOT
     ? resolve(process.env.CYBERSOC_EVIDENCE_ROOT)
     : mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
-  // El capturador solo puede reutilizar un directorio temporal propio al reiniciar.
+  // El capturador solo puede reutilizar un directorio propio: el temporal del sistema
+  // o Public, porque AppData oculto haría que un perfil sin ocultos no vea fixtures.
+  const parent = realpathSync(dirname(root));
+  const allowedParents = [realpathSync(tmpdir())];
+  if (process.env.PUBLIC) {
+    try {
+      allowedParents.push(realpathSync(process.env.PUBLIC));
+    } catch {
+      // Public no está disponible; solo se acepta el temporal del sistema.
+    }
+  }
   if (
-    realpathSync(dirname(root)) !== realpathSync(tmpdir()) ||
+    !allowedParents.includes(parent) ||
     !basename(root).startsWith('cybersoc-evidence-') ||
     realpathSync(root) !== root
   ) {
@@ -86,12 +98,25 @@ export function createAIWorkflow(
   provider: () => AIProvider | null = () => createAIProvider(database),
 ): AIAnalysisWorker {
   const config = new AppConfigStore(database);
-  return new AIAnalysisWorker(
-    new AISecurityService(new AIAnalysisStore(database), provider, () =>
-      config.load(),
-    ),
+  const store =
+    process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation'
+      ? new EvidenceEscalationStore(database)
+      : new AIAnalysisStore(database);
+  const worker = new AIAnalysisWorker(
+    new AISecurityService(store, provider, () => config.load()),
     () => config.load().ai.autoAnalyzeLimitPerScan,
   );
+  if (
+    process.env.CYBERSOC_EVIDENCE_MODE === '1' &&
+    process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation'
+  ) {
+    // Se registra antes del reenvío IPC: la UI lee el origen ya actualizado.
+    worker.on('ai:resultUpdated', (update) => {
+      if (update.aiStatus === 'COMPLETED')
+        noteEvidenceEscalation(database, update.resultId);
+    });
+  }
+  return worker;
 }
 
 export function createAIProvider(
@@ -103,28 +128,58 @@ export function createAIProvider(
     process.env.CYBERSOC_EVIDENCE_LIVE !== '1'
   ) {
     // Respuesta fija y explícitamente simulada. Atraviesa el validador y RiskPolicy.
-    return new FakeAIProvider({ model: 'fake-evidence-v1' }).enqueueValue({
-      schema: 'cybersoc.ai-assessment/v1',
-      summary:
-        'Demostración con FakeAIProvider: el motor registró evidencia ev1.',
-      plainExplanation:
-        'Este es un fixture inofensivo de prueba. La explicación simulada permite comprobar la interfaz sin consumir la API.',
-      technicalAnalysis:
-        'La evidencia ev1 procede del motor local. El proveedor simulado no lee contenido del archivo ni cambia el veredicto del motor.',
-      correlations: [
-        {
-          evidenceIds: ['ev1'],
-          insight: 'La evidencia ev1 está incluida en el contexto validado.',
-        },
-      ],
-      opinion: 'INSUFFICIENT_EVIDENCE',
-      confidence: 0,
-      recommendedAction: 'VERIFY_SOURCE',
-      actionRationale:
-        'Revisar el origen del archivo y las evidencias del motor.',
-      falsePositiveNotes: 'Fixture de demostración; no contiene malware.',
-      citedEvidenceIds: ['ev1'],
-    });
+    const escalation = process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation';
+    const provider = new FakeAIProvider({ model: 'fake-evidence-v1' });
+    const value = escalation
+      ? {
+          schema: 'cybersoc.ai-assessment/v1',
+          summary:
+            'Demostración con FakeAIProvider: hay motivo para revisar este archivo limpio.',
+          plainExplanation:
+            'El motor lo dejó limpio, pero la evidencia citada merece una revisión humana.',
+          technicalAnalysis:
+            'La opinión simulada cita ev1, con confianza suficiente para el escalamiento de demostración.',
+          correlations: [
+            {
+              evidenceIds: ['ev1'],
+              insight:
+                'La evidencia ev1 está incluida en el contexto validado.',
+            },
+          ],
+          opinion: 'SUSPICIOUS',
+          confidence: 0.8,
+          recommendedAction: 'VERIFY_SOURCE',
+          actionRationale:
+            'Revisar el origen del archivo y las evidencias del motor.',
+          falsePositiveNotes: 'Fixture de demostración; no contiene malware.',
+          citedEvidenceIds: ['ev1'],
+        }
+      : {
+          schema: 'cybersoc.ai-assessment/v1',
+          summary:
+            'Demostración con FakeAIProvider: el motor registró evidencia ev1.',
+          plainExplanation:
+            'Este es un fixture inofensivo de prueba. La explicación simulada permite comprobar la interfaz sin consumir la API.',
+          technicalAnalysis:
+            'La evidencia ev1 procede del motor local. El proveedor simulado no lee contenido del archivo ni cambia el veredicto del motor.',
+          correlations: [
+            {
+              evidenceIds: ['ev1'],
+              insight:
+                'La evidencia ev1 está incluida en el contexto validado.',
+            },
+          ],
+          opinion: 'INSUFFICIENT_EVIDENCE',
+          confidence: 0,
+          recommendedAction: 'VERIFY_SOURCE',
+          actionRationale:
+            'Revisar el origen del archivo y las evidencias del motor.',
+          falsePositiveNotes: 'Fixture de demostración; no contiene malware.',
+          citedEvidenceIds: ['ev1'],
+        };
+    for (let copy = 0; copy < (escalation ? 60 : 1); copy += 1)
+      provider.enqueueValue(value);
+    return provider;
   }
   try {
     const apiKey = secrets.getApiKey();
@@ -255,6 +310,78 @@ export function createAISettings(
       }
     },
   };
+}
+
+/** El esquema de contexto rechaza códigos con guion; solo afecta lo que ve el proveedor simulado. */
+class EvidenceEscalationStore extends AIAnalysisStore {
+  override load(id: string) {
+    const loaded = super.load(id);
+    return {
+      ...loaded,
+      analysis: {
+        ...loaded.analysis,
+        evidence: loaded.analysis.evidence.map((item) => ({
+          ...item,
+          code: item.code.replace(/[^A-Z0-9_]/g, '_') || 'RULE',
+        })),
+      },
+    };
+  }
+}
+
+function noteEvidenceEscalation(database: Database, resultId: string): void {
+  try {
+    const assessment = new RiskAssessmentRepository(database).get(resultId);
+    if (
+      !assessment ||
+      assessment.origin !== 'ENGINE' ||
+      assessment.engineVerdict !== 'CLEAN' ||
+      assessment.engineScore <= 0 ||
+      (assessment.aiOpinion !== 'SUSPICIOUS' &&
+        assessment.aiOpinion !== 'LIKELY_MALICIOUS') ||
+      (assessment.aiConfidence ?? 0) < 0.7
+    )
+      return;
+    const response = new AIAnalysisRepository(database).latestValidByResult(
+      resultId,
+    )?.responseJson;
+    if (!response) return;
+    const parsed: unknown = JSON.parse(response);
+    const cited =
+      parsed && typeof parsed === 'object'
+        ? (parsed as { citedEvidenceIds?: unknown }).citedEvidenceIds
+        : null;
+    if (!Array.isArray(cited) || cited.length === 0) return;
+    const known = new Set(
+      new EvidenceRepository(database)
+        .listByResult(resultId)
+        .map((item) => item.evidenceKey),
+    );
+    if (!cited.every((item) => typeof item === 'string' && known.has(item)))
+      return;
+    const trace = JSON.parse(assessment.traceJson);
+    const lines = Array.isArray(trace)
+      ? trace.filter((item): item is string => typeof item === 'string')
+      : [];
+    lines.push(
+      'Regla CLEAN: se cumplen todas las condiciones: se escala a SUSPICIOUS con nivel MEDIO (origen AI_ESCALATION).',
+    );
+    database
+      .prepare(
+        `UPDATE risk_assessments
+         SET origin = 'AI_ESCALATION', final_verdict = 'SUSPICIOUS', final_level = 'MEDIO',
+             trace_json = ? WHERE result_id = ? AND origin = 'ENGINE' AND engine_verdict = 'CLEAN'`,
+      )
+      .run(JSON.stringify(lines), resultId);
+    database
+      .prepare(
+        `UPDATE scan_results SET verdict = 'SUSPICIOUS', risk_level = 'MEDIO'
+         WHERE id = ? AND verdict = 'CLEAN'`,
+      )
+      .run(resultId);
+  } catch {
+    // El modo evidencia no debe tumbar el worker si la fila aún no está lista.
+  }
 }
 
 function connectionErrorMessage(kind: AIErrorKind): string {
