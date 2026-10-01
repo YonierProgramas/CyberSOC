@@ -85,13 +85,19 @@ afterEach(async () => {
 });
 function seed(
   seq = 0,
-  options: { jobId?: string; clean?: boolean; evidence?: Evidence[] } = {},
+  options: {
+    jobId?: string;
+    clean?: boolean;
+    evidence?: Evidence[];
+    verdict?: 'CLEAN' | 'SUSPICIOUS' | 'DETECTED';
+    score?: number;
+  } = {},
 ) {
   const jobId = options.jobId ?? 'job';
   const id = `${jobId}-${seq}`;
   const decision = decideRisk({
-    verdict: options.clean ? 'CLEAN' : 'SUSPICIOUS',
-    score: options.clean ? 0 : 40,
+    verdict: options.verdict ?? (options.clean ? 'CLEAN' : 'SUSPICIOUS'),
+    score: options.score ?? (options.clean ? 0 : 40),
   });
   new ScanResultRepository(db).insertComplete({
     result: {
@@ -335,7 +341,7 @@ it('rollback del intento y estado si falla el guardado de la evaluación', async
   expect(new RiskAssessmentRepository(db).get(id)?.aiOpinion).toBeNull();
 });
 
-it('FIFO, sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async () => {
+it('sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async () => {
   const first = seed();
   const second = seed(1, { clean: true });
   fake.enqueueValue(valid).enqueueValue({
@@ -513,4 +519,121 @@ it('corregir la credencial recupera NOT_CONFIGURED incluso después de reiniciar
   worker.resume();
   await flush();
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
+});
+
+it.each(['manual', 'reinicio'] as const)(
+  'prioridad: tres pendientes, primero el mayor riesgo (%s)',
+  async (mode) => {
+    const low = seed(0, { score: 40 });
+    const high = seed(1, { score: 90 });
+    const detected = seed(2, { verdict: 'DETECTED', score: 85 });
+    fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+    if (mode === 'manual') {
+      for (const id of [low, high, detected]) worker.analyzeNow(id);
+    } else {
+      store.setStatus(low, 'PENDING');
+      store.setStatus(high, 'RETRY_WAIT');
+      store.setStatus(detected, 'PENDING');
+      await worker.stop();
+      worker = new AIAnalysisWorker(service);
+    }
+    worker.start();
+    await flush();
+    const order = rows().map((row) => row.result_id);
+    expect(order).toEqual([detected, high, low]);
+    expect(fake.requests).toHaveLength(3);
+    expect(worker.state.pending).toBe(0);
+    console.log(
+      'AI_PRIORITY_ORDER',
+      JSON.stringify({ mode, priorities: [185, 90, 40], resultIds: order }),
+    );
+  },
+);
+
+it('empates usan llegada al worker, no el seq del resultado en SQLite', async () => {
+  const first = seed(2);
+  const second = seed(0);
+  const third = seed(1);
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  for (const id of [first, second, third]) worker.analyzeNow(id);
+  worker.start();
+  await flush();
+  expect(rows().map((row) => row.result_id)).toEqual([first, second, third]);
+});
+
+it('una llegada prioritaria durante RUNNING no duplica ni retira el análisis equivocado', async () => {
+  const current = seed(0);
+  const low = seed(1);
+  const high = seed(2, { verdict: 'DETECTED', score: 85 });
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  worker.analyzeNow(current);
+  let observedPending = 0;
+  worker.once('ai:resultUpdated', () => {
+    worker.analyzeNow(low);
+    worker.analyzeNow(high);
+    worker.analyzeNow(current); // Sigue deduplicado mientras está en vuelo.
+    observedPending = worker.state.pending;
+  });
+  worker.start();
+  await flush();
+  expect(observedPending).toBe(3);
+  expect(rows().map((row) => row.result_id)).toEqual([current, high, low]);
+  expect(fake.requests).toHaveLength(3);
+  expect(worker.state.pending).toBe(0);
+});
+
+it('una prioridad nueva no evita Retry-After y se atiende después del reintento', async () => {
+  const current = seed(0);
+  const low = seed(1);
+  const high = seed(2, { verdict: 'DETECTED', score: 85 });
+  fake.enqueueError('RATE_LIMIT', { retryAfterMs: 5000 });
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  worker.analyzeNow(current);
+  worker.start();
+  await flush();
+  worker.analyzeNow(low);
+  worker.analyzeNow(high);
+  await vi.advanceTimersByTimeAsync(4999);
+  expect(fake.requests).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(rows().map((row) => row.result_id)).toEqual([
+    current,
+    current,
+    high,
+    low,
+  ]);
+  expect(worker.state.pending).toBe(0);
+});
+
+it('parar en vuelo conserva el trabajo aunque llegue uno más prioritario', async () => {
+  const current = seed(0);
+  const high = seed(1, { verdict: 'DETECTED', score: 85 });
+  const original = fake.generateStructured.bind(fake);
+  const request = vi
+    .spyOn(fake, 'generateStructured')
+    .mockImplementationOnce(
+      (req) =>
+        new Promise<AIResult<never>>((resolve) => {
+          req.signal!.addEventListener('abort', () =>
+            resolve({
+              ok: false,
+              error: { kind: 'TIMEOUT', retryable: true, message: 'cancelado' },
+            }),
+          );
+        }),
+    )
+    .mockImplementation(original);
+  worker.analyzeNow(current);
+  worker.start();
+  await flush();
+  worker.analyzeNow(high);
+  await worker.stop();
+  expect(store.results.get(current)?.aiStatus).toBe('PENDING');
+  expect(worker.state.pending).toBe(2);
+  request.mockRestore();
+  fake.enqueueValue(valid).enqueueValue(valid);
+  worker.start();
+  await flush();
+  expect(rows().map((row) => row.result_id)).toEqual([current, high]);
+  expect(worker.state.pending).toBe(0);
 });

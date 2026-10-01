@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { Queue } from '../structures/Queue';
+import { PriorityQueue } from '../structures/PriorityQueue';
 import type { AIStatus } from '../persistence/assessmentTypes';
 import { AISecurityService } from './AISecurityService';
 
@@ -15,10 +15,12 @@ export interface AIResultUpdated {
 }
 
 export class AIAnalysisWorker extends EventEmitter {
-  // Invariante FIFO: el frente conserva su turno durante reintentos. enqueue es
-  // O(1) amortizado, peek/dequeue O(1); memoria O(n) para n resultados pendientes.
-  private readonly queue = new Queue<Pending>();
-  // El Set contiene exactamente los IDs en cola, incluido el que está en vuelo.
+  // El heap elige mayor riesgo; su seq interno desempata por llegada (FIFO).
+  // push/pop O(log n), peek O(1), memoria O(n). El trabajo en curso queda fuera:
+  // nuevas prioridades no lo sustituyen ni se saltan su backoff/Retry-After.
+  private readonly queue = new PriorityQueue<Pending>();
+  private current: Pending | undefined;
+  // El Set contiene exactamente los IDs del heap y del trabajo current.
   // has/add/delete O(1) promedio: evita doble envío automático/manual del mismo ID.
   private readonly scheduled = new Set<string>();
   private active = false;
@@ -68,7 +70,7 @@ export class AIAnalysisWorker extends EventEmitter {
       this.paused = false;
       this.failures = 0;
       this.openUntil = 0;
-      const head = this.queue.peek();
+      const head = this.current;
       if (head) {
         head.retries = 0;
         head.due = 0;
@@ -91,14 +93,14 @@ export class AIAnalysisWorker extends EventEmitter {
     this.timer = undefined;
     this.controller?.abort();
     await this.running;
-    const head = this.queue.peek();
+    const head = this.current;
     if (head && this.service.store.results.get(head.id)?.aiStatus === 'RUNNING')
       this.status(head.id, 'PENDING');
   }
 
   get state() {
     return {
-      pending: this.queue.size,
+      pending: this.queue.size + (this.current ? 1 : 0),
       paused: this.paused,
       openUntil: this.openUntil,
     };
@@ -106,8 +108,12 @@ export class AIAnalysisWorker extends EventEmitter {
 
   private schedule(id: string): void {
     if (this.scheduled.has(id)) return;
+    const { result, analysis } = this.service.store.load(id);
+    // Se usa el score y el veredicto del motor, no la opinión de la IA.
+    const priority =
+      (analysis.score ?? 0) + (result.verdict === 'DETECTED' ? 100 : 0);
+    this.queue.push({ id, retries: 0, due: 0 }, priority);
     this.scheduled.add(id);
-    this.queue.enqueue({ id, retries: 0, due: 0 });
   }
   private updated(resultId: string, aiStatus: AIStatus): void {
     this.publish('ai:resultUpdated', { resultId, aiStatus });
@@ -129,15 +135,17 @@ export class AIAnalysisWorker extends EventEmitter {
     this.updated(id, status);
   }
   private finish(): void {
-    const item = this.queue.dequeue();
+    const item = this.current;
+    this.current = undefined;
     if (item) this.scheduled.delete(item.id);
   }
 
   private kick(): void {
-    if (!this.active || this.paused || this.running || this.queue.isEmpty())
-      return;
+    if (!this.active || this.paused || this.running) return;
+    this.current ??= this.queue.pop();
+    if (!this.current) return;
     clearTimeout(this.timer);
-    const due = Math.max(this.queue.peek()!.due, this.openUntil);
+    const due = Math.max(this.current.due, this.openUntil);
     if (due > Date.now()) {
       this.timer = setTimeout(
         () => {
@@ -148,7 +156,9 @@ export class AIAnalysisWorker extends EventEmitter {
       );
       return;
     }
-    this.running = this.process()
+    // Asignar running antes de publicar RUNNING evita reentrada desde eventos.
+    this.running = Promise.resolve()
+      .then(() => this.process())
       .catch(() => {
         if (this.active) {
           this.paused = true;
@@ -162,7 +172,8 @@ export class AIAnalysisWorker extends EventEmitter {
   }
 
   private async process(): Promise<void> {
-    const item = this.queue.peek()!;
+    if (!this.active) return;
+    const item = this.current!;
     this.controller = new AbortController();
     const outcome = await this.service.analyze(
       item.id,
