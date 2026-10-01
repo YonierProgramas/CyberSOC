@@ -179,6 +179,45 @@ export interface AIResultUpdated {
   resultId: string;
   aiStatus: AIStatus;
 }
+export const ASSISTANT_ASK = 'assistant:ask';
+export const ASSISTANT_RESET = 'assistant:reset';
+/** Longitud máxima de la pregunta del usuario al Copilot. */
+export const ASSISTANT_MESSAGE_MAX_CHARS = 2_000;
+
+export interface AssistantAskQuery {
+  message: string;
+  /** Resultado o escaneo seleccionado (solo uno). Sin foco, responde en términos generales. */
+  focus?: { resultId?: string; jobId?: string };
+}
+
+export interface AssistantFocusDTO {
+  kind: 'NONE' | 'RESULT' | 'JOB';
+  id: string | null;
+  /** Nombre del archivo o ruta del escaneo, para "Hablando de: …". */
+  label: string | null;
+}
+
+export interface AssistantReplyDTO {
+  /** ANSWERED: respuesta de la IA. UNAVAILABLE: la IA falló o no está configurada. CANCELLED: hubo "Nueva conversación". */
+  status: 'ANSWERED' | 'UNAVAILABLE' | 'CANCELLED';
+  /** Respuesta o mensaje claro para el usuario. Siempre se muestra como texto plano. */
+  text: string;
+  errorKind:
+    | 'NOT_CONFIGURED'
+    | 'OFFLINE'
+    | 'TIMEOUT'
+    | 'RATE_LIMIT'
+    | 'AUTH'
+    | 'PROVIDER_DOWN'
+    | 'INVALID_OUTPUT'
+    | 'INCOMPLETE'
+    | 'UNSAFE'
+    | null;
+  focus: AssistantFocusDTO;
+  /** Turnos guardados en la ventana del historial después de esta pregunta (máximo 10). */
+  historyTurns: number;
+}
+
 export const SETTINGS_AI_SET_API_KEY = 'settings.ai:setApiKey';
 export const SETTINGS_AI_CLEAR_API_KEY = 'settings.ai:clearApiKey';
 export const SETTINGS_AI_GET_STATUS = 'settings.ai:getStatus';
@@ -266,5 +305,9 @@ export interface CyberSocApi {
   readonly system: {
     readonly getStatus: () => Promise<SystemStatus>;
     readonly reconnectEngine: () => Promise<SystemStatus>;
+  };
+  readonly assistant: {
+    readonly ask: (query: AssistantAskQuery) => Promise<AssistantReplyDTO>;
+    readonly reset: () => Promise<void>;
   };
 }

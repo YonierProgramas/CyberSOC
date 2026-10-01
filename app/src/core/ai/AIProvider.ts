@@ -12,13 +12,31 @@ export interface StructuredRequest<T> {
   signal?: AbortSignal;
 }
 
+/** Un mensaje de la conversación del asistente, en el formato de la Messages API. */
+export interface AssistantMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** Turno del Copilot (S4): conversación de texto, sin herramientas. */
+export interface AssistantTurnRequest {
+  system: string;
+  /** Alternan usuario/asistente, empiezan y terminan con un mensaje del usuario. */
+  messages: readonly AssistantMessage[];
+  maxTokens: number;
+  /** Modelo de `ai.assistantModel`; si falta, el del proveedor. */
+  model?: string;
+  signal?: AbortSignal;
+}
+
 export type AIProviderId = 'claude' | 'openai' | 'local' | 'fake';
 
 export interface AIProvider {
   readonly id: AIProviderId;
   healthCheck(): Promise<AIResult<{ model: string }>>;
   generateStructured<T>(req: StructuredRequest<T>): Promise<AIResult<T>>;
-  // runAssistantTurn(...) se añade en S4/S5
+  /** Devuelve el texto de la respuesta. Las herramientas (tool use) llegan en S5. */
+  runAssistantTurn(req: AssistantTurnRequest): Promise<AIResult<string>>;
 }
 
 export interface AIUsage {

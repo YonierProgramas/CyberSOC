@@ -493,3 +493,132 @@ describe('toClaudeJsonSchema', () => {
     });
   });
 });
+
+describe('ClaudeProvider.runAssistantTurn', () => {
+  const turn = {
+    system: 'reglas del copilot',
+    messages: [
+      { role: 'user' as const, content: 'pregunta 1' },
+      { role: 'assistant' as const, content: 'respuesta 1' },
+      { role: 'user' as const, content: 'pregunta 2' },
+    ],
+    maxTokens: 512,
+  };
+
+  it('envía system y mensajes sin herramientas ni salida estructurada, y devuelve el texto', async () => {
+    const { claude, calls } = provider(() => message('Fue marcado por ev1.'));
+    const result = await claude.runAssistantTurn({
+      ...turn,
+      model: 'claude-modelo-asistente',
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: 'Fue marcado por ev1.',
+      usage: { inputTokens: 21, outputTokens: 9 },
+    });
+    expect(calls).toHaveLength(1);
+    const body = calls[0]!.body as Record<string, unknown>;
+    expect(body).toEqual({
+      model: 'claude-modelo-asistente',
+      max_tokens: 512,
+      system: 'reglas del copilot',
+      messages: turn.messages,
+    });
+    expect(body).not.toHaveProperty('tools');
+    expect(body).not.toHaveProperty('output_config');
+  });
+
+  it('usa el modelo del proveedor si el turno no indica otro', async () => {
+    const { claude, calls } = provider(() => message('ok'));
+    await claude.runAssistantTurn(turn);
+    expect((calls[0]!.body as { model: string }).model).toBe(MODEL);
+  });
+
+  it('copia solo role y content de cada mensaje', async () => {
+    const { claude, calls } = provider(() => message('ok'));
+    const extra = { role: 'user' as const, content: 'hola', secreto: 'x' };
+    await claude.runAssistantTurn({ ...turn, messages: [extra] });
+    expect((calls[0]!.body as { messages: unknown }).messages).toEqual([
+      { role: 'user', content: 'hola' },
+    ]);
+  });
+
+  it('rechaza una conversación vacía o que no termina en el usuario', async () => {
+    const { claude, fetch } = provider(() => message('ok'));
+    await expect(
+      claude.runAssistantTurn({ ...turn, messages: [] }),
+    ).rejects.toThrow(TypeError);
+    await expect(
+      claude.runAssistantTurn({
+        ...turn,
+        messages: [{ role: 'assistant', content: 'x' }],
+      }),
+    ).rejects.toThrow(TypeError);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [500, 'api_error', 'PROVIDER_DOWN', true],
+    [529, 'overloaded_error', 'PROVIDER_DOWN', true],
+    [401, 'authentication_error', 'AUTH', false],
+    [429, 'rate_limit_error', 'RATE_LIMIT', true],
+  ] as const)('HTTP %i → %s', async (status, type, kind, retryable) => {
+    const { claude } = provider(() => apiError(status, type));
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({ ok: false, error: { kind, retryable } });
+    expect(JSON.stringify(result)).not.toContain(API_KEY);
+  });
+
+  it('error de red → OFFLINE', async () => {
+    const { claude } = provider(() => {
+      throw new TypeError('fetch failed');
+    });
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({ ok: false, error: { kind: 'OFFLINE' } });
+  });
+
+  it('max_tokens → INCOMPLETE conservando el texto cortado', async () => {
+    const { claude } = provider(() => message('Respuesta a me', 'max_tokens'));
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'INCOMPLETE', rawText: 'Respuesta a me' },
+    });
+  });
+
+  it('refusal → UNSAFE', async () => {
+    const { claude } = provider(() => message('', 'refusal'));
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({ ok: false, error: { kind: 'UNSAFE' } });
+  });
+
+  it('texto vacío → INVALID_OUTPUT', async () => {
+    const { claude } = provider(() => message('   '));
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'INVALID_OUTPUT' },
+    });
+  });
+
+  it('cancelación del llamador → TIMEOUT no reintentable', async () => {
+    const controller = new AbortController();
+    const { claude } = provider(
+      (_call, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () =>
+            reject(new DOMException('aborted', 'AbortError')),
+          );
+          controller.abort();
+        }),
+    );
+    const result = await claude.runAssistantTurn({
+      ...turn,
+      signal: controller.signal,
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'TIMEOUT', retryable: false },
+    });
+  });
+});

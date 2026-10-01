@@ -184,3 +184,48 @@ describe('FakeAIProvider', () => {
     expect((await fake.healthCheck()).ok).toBe(true);
   });
 });
+
+describe('FakeAIProvider.runAssistantTurn', () => {
+  const turn = {
+    system: 'reglas',
+    messages: [{ role: 'user' as const, content: 'hola' }],
+    maxTokens: 100,
+  };
+
+  it('usa una cola propia, separada de la del análisis estructurado', async () => {
+    const fake = new FakeAIProvider()
+      .enqueueValue({ status: 'ok', model: 'a' })
+      .enqueueReply('respuesta 1', {
+        usage: { inputTokens: 3, outputTokens: 2 },
+      })
+      .enqueueReplyError('OFFLINE');
+
+    await expect(fake.runAssistantTurn(turn)).resolves.toMatchObject({
+      ok: true,
+      value: 'respuesta 1',
+      usage: { inputTokens: 3, outputTokens: 2 },
+    });
+    await expect(fake.runAssistantTurn(turn)).resolves.toMatchObject({
+      ok: false,
+      error: { kind: 'OFFLINE', retryable: true },
+    });
+    // La respuesta estructurada sigue intacta.
+    expect(fake.pending).toBe(1);
+    await expect(fake.generateStructured(request)).resolves.toMatchObject({
+      ok: true,
+    });
+    expect(fake.assistantRequests).toEqual([turn, turn]);
+    await expect(fake.runAssistantTurn(turn)).rejects.toThrow(
+      'no hay respuestas del asistente programadas',
+    );
+  });
+
+  it('respeta la cancelación', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fake = new FakeAIProvider().enqueueReply('no se usa');
+    await expect(
+      fake.runAssistantTurn({ ...turn, signal: controller.signal }),
+    ).resolves.toMatchObject({ ok: false, error: { kind: 'TIMEOUT' } });
+  });
+});

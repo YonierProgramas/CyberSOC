@@ -5,6 +5,7 @@ import { registerSystemIpc } from './ipc/system.ipc';
 import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerScanIpc } from './ipc/scan.ipc';
 import { registerSettingsIpc } from './ipc/settings.ipc';
+import { registerAssistantIpc } from './ipc/assistant.ipc';
 import { createMainWindow } from './window';
 import {
   createDatabase,
@@ -12,9 +13,12 @@ import {
   createScanOrchestrator,
   createAISettings,
   createAIWorkflow,
+  createAIProvider,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
 import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
+import { AssistantOrchestrator } from '../core/ai/AssistantOrchestrator';
+import { AppConfigStore } from '../core/config/AppConfig';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -23,6 +27,7 @@ let database: Database | null = null;
 let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
+let stopAssistantIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
 let readyToQuit = false;
 let quitting = false;
@@ -39,6 +44,8 @@ app.on('before-quit', (event) => {
   quitting = true;
   stopSettingsIpc?.();
   stopSettingsIpc = null;
+  stopAssistantIpc?.();
+  stopAssistantIpc = null;
   stopDialogIpc?.();
   stopDialogIpc = null;
   void Promise.allSettled([
@@ -81,6 +88,17 @@ app
       () => mainWindow,
       trustedRendererUrl,
       createAISettings(database, { onReady: () => aiWorker?.resume() }),
+    );
+    const db = database;
+    stopAssistantIpc = registerAssistantIpc(
+      () => mainWindow,
+      trustedRendererUrl,
+      new AssistantOrchestrator({
+        db,
+        // Por pregunta: usa siempre la API key y la configuración vigentes.
+        provider: () => createAIProvider(db),
+        readConfig: () => new AppConfigStore(db).load(),
+      }),
     );
     const scan = createScanOrchestrator(database, engine, aiWorker);
     stopDialogIpc = registerDialogIpc(() => mainWindow, trustedRendererUrl);

@@ -40,6 +40,10 @@ export interface AnalysisFacts {
   riskLevel: AIContext['engine']['riskLevel'];
   detectedType: string | null;
   timesSeenBefore: number;
+  /** Zona del archivo (D15). Hoy solo la añade el foco del Copilot (S4). */
+  zone?: NonNullable<AIContext['file']['zone']> | null;
+  /** Perfil de capas aplicado (D15). Hoy solo lo añade el foco del Copilot (S4). */
+  profile?: AIContext['profile'] | null;
 }
 
 const ELLIPSIS = '…';
@@ -179,6 +183,7 @@ export class AIContextBuilder {
         sizeBytes: result.sizeBytes,
         location,
         sha256: result.sha256?.toLowerCase() ?? null,
+        ...(analysis?.zone ? { zone: analysis.zone } : {}),
       },
       engine: {
         engineVersion:
@@ -200,6 +205,14 @@ export class AIContextBuilder {
       evidence,
       ...(analysis
         ? { layers, history: { timesSeenBefore: analysis.timesSeenBefore } }
+        : {}),
+      ...(analysis?.profile
+        ? {
+            profile: {
+              name: limit(analysis.profile.name, L.profileName),
+              layers: [...analysis.profile.layers],
+            },
+          }
         : {}),
       constraints: {
         evidenceTruncated: (analysis?.evidence.length ?? 0) > L.maxEvidence,

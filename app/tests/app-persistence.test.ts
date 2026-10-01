@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   createAISettings: vi.fn(),
   registerSettingsIpc: vi.fn(),
   stopSettingsIpc: vi.fn(),
+  registerAssistantIpc: vi.fn(),
+  stopAssistantIpc: vi.fn(),
+  createAIProvider: vi.fn(),
   createAIWorkflow: vi.fn(),
   startAI: vi.fn(),
   stopAI: vi.fn(),
@@ -37,6 +40,7 @@ vi.mock('../src/main/composition-root', () => ({
   createScanOrchestrator: mocks.createScanOrchestrator,
   createAISettings: mocks.createAISettings,
   createAIWorkflow: mocks.createAIWorkflow,
+  createAIProvider: mocks.createAIProvider,
   createEngine: () => ({
     close: mocks.closeEngine,
     reconnect: mocks.reconnect,
@@ -57,6 +61,9 @@ vi.mock('../src/main/ipc/scan.ipc', () => ({
 vi.mock('../src/main/ipc/settings.ipc', () => ({
   registerSettingsIpc: mocks.registerSettingsIpc,
 }));
+vi.mock('../src/main/ipc/assistant.ipc', () => ({
+  registerAssistantIpc: mocks.registerAssistantIpc,
+}));
 
 beforeEach(() => {
   vi.resetModules();
@@ -72,6 +79,7 @@ beforeEach(() => {
   mocks.registerDialogIpc.mockReturnValue(mocks.stopDialogIpc);
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
   mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
+  mocks.registerAssistantIpc.mockReturnValue(mocks.stopAssistantIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
   mocks.createMainWindow.mockReturnValue({
@@ -109,6 +117,19 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     expect.stringContaining('index.html'),
     { marker: 'settings' },
   );
+  // T4.6: el SOC Copilot se registra antes de abrir la ventana con el orquestador del core.
+  expect(mocks.registerAssistantIpc).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Function),
+    expect.stringContaining('index.html'),
+    expect.objectContaining({
+      ask: expect.any(Function),
+      reset: expect.any(Function),
+    }),
+  );
+  expect(mocks.registerAssistantIpc.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.createMainWindow.mock.invocationCallOrder[0]!,
+  );
+  expect(mocks.createAIProvider).not.toHaveBeenCalled(); // solo se crea al preguntar
   expect(mocks.registerScanIpc.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.createMainWindow.mock.invocationCallOrder[0]!,
   );
@@ -122,6 +143,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.stopScanIpc).toHaveBeenCalledOnce();
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopAssistantIpc).toHaveBeenCalledOnce();
   expect(mocks.stopAI).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
   handler('will-quit')();

@@ -24,6 +24,8 @@ import {
   SETTINGS_AI_CLEAR_API_KEY,
   SETTINGS_AI_GET_STATUS,
   SETTINGS_AI_TEST_CONNECTION,
+  ASSISTANT_ASK,
+  ASSISTANT_RESET,
 } from '../shared/ipc';
 
 function subscribe<T>(
@@ -80,6 +82,10 @@ const api: CyberSocApi = {
       ipcRenderer.invoke(SYSTEM_GET_STATUS),
     reconnectEngine: (): Promise<SystemStatus> =>
       ipcRenderer.invoke(SYSTEM_RECONNECT_ENGINE),
+  },
+  assistant: {
+    ask: (query) => ipcRenderer.invoke(ASSISTANT_ASK, query),
+    reset: () => ipcRenderer.invoke(ASSISTANT_RESET),
   },
 };
 

@@ -16,7 +16,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-it('expone system, dialog, scan y settings.ai con métodos y canales fijos', async () => {
+it('expone system, dialog, scan, settings.ai y assistant con métodos y canales fijos', async () => {
   await import('../src/preload/index');
   expect(electron.expose).toHaveBeenCalledExactlyOnceWith(
     'cybersoc',
@@ -24,6 +24,7 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   );
   const api = electron.expose.mock.calls[0]![1] as CyberSocApi;
   expect(Object.keys(api).sort()).toEqual([
+    'assistant',
     'dialog',
     'scan',
     'settings',
@@ -96,6 +97,15 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:getJobSummary', 'j1');
   await api.scan.analyzeNow('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
+  expect(Object.keys(api.assistant)).toEqual(['ask', 'reset']);
+  const question = {
+    message: '¿Por qué fue marcado?',
+    focus: { resultId: 'r1' },
+  };
+  await api.assistant.ask(question);
+  expect(electron.invoke).toHaveBeenLastCalledWith('assistant:ask', question);
+  await api.assistant.reset();
+  expect(electron.invoke).toHaveBeenLastCalledWith('assistant:reset');
 
   for (const [subscribe, channel] of [
     [api.scan.onProgress, 'scan:progress'],

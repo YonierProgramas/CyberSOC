@@ -4,6 +4,7 @@ import type {
   AIProvider,
   AIResult,
   AIUsage,
+  AssistantTurnRequest,
   StructuredRequest,
 } from '../AIProvider';
 
@@ -43,6 +44,10 @@ type Scripted =
   | { kind: 'raw'; text: string; options: RawOptions }
   | { kind: 'error'; error: AIError };
 
+type ScriptedReply =
+  | { kind: 'reply'; text: string; options: ValueOptions }
+  | { kind: 'error'; error: AIError };
+
 export interface FakeAIProviderOptions {
   model?: string;
 }
@@ -50,13 +55,17 @@ export interface FakeAIProviderOptions {
 /**
  * Proveedor de IA programable para pruebas: nunca usa la red.
  * Cada llamada a `generateStructured` consume la siguiente respuesta de la cola (FIFO).
+ * `runAssistantTurn` tiene su propia cola, para que el chat no consuma respuestas del análisis.
  */
 export class FakeAIProvider implements AIProvider {
   readonly id = 'fake';
   readonly model: string;
   /** Peticiones recibidas, en orden, para inspeccionarlas desde las pruebas. */
   readonly requests: StructuredRequest<unknown>[] = [];
+  /** Turnos del asistente recibidos, en orden. */
+  readonly assistantRequests: AssistantTurnRequest[] = [];
   private readonly script: Scripted[] = [];
+  private readonly replies: ScriptedReply[] = [];
   private healthError: AIError | null = null;
 
   constructor(options: FakeAIProviderOptions = {}) {
@@ -81,15 +90,19 @@ export class FakeAIProvider implements AIProvider {
 
   /** Programa un error simulado. `retryable` toma el valor por defecto del tipo si no se indica. */
   enqueueError(kind: AIErrorKind, options: ErrorOptions = {}): this {
-    const error: AIError = {
-      kind,
-      retryable: options.retryable ?? DEFAULT_RETRYABLE[kind],
-      message: options.message ?? `Error simulado: ${kind}.`,
-    };
-    if (kind === 'RATE_LIMIT' || options.retryAfterMs !== undefined) {
-      error.retryAfterMs = options.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS;
-    }
-    this.script.push({ kind: 'error', error });
+    this.script.push({ kind: 'error', error: simulatedError(kind, options) });
+    return this;
+  }
+
+  /** Programa la respuesta de texto del siguiente turno del asistente. */
+  enqueueReply(text: string, options: ValueOptions = {}): this {
+    this.replies.push({ kind: 'reply', text, options });
+    return this;
+  }
+
+  /** Programa un error para el siguiente turno del asistente. */
+  enqueueReplyError(kind: AIErrorKind, options: ErrorOptions = {}): this {
+    this.replies.push({ kind: 'error', error: simulatedError(kind, options) });
     return this;
   }
 
@@ -191,4 +204,45 @@ export class FakeAIProvider implements AIProvider {
       rawText,
     };
   }
+
+  async runAssistantTurn(req: AssistantTurnRequest): Promise<AIResult<string>> {
+    this.assistantRequests.push(req);
+    if (req.signal?.aborted) {
+      return {
+        ok: false,
+        error: {
+          kind: 'TIMEOUT',
+          retryable: false,
+          message: 'Solicitud cancelada.',
+        },
+      };
+    }
+    const next = this.replies.shift();
+    if (!next) {
+      throw new Error(
+        'FakeAIProvider: no hay respuestas del asistente programadas.',
+      );
+    }
+    if (next.kind === 'error') return { ok: false, error: { ...next.error } };
+    return {
+      ok: true,
+      value: next.text,
+      model: next.options.model ?? req.model ?? this.model,
+      usage: { ...(next.options.usage ?? { inputTokens: 0, outputTokens: 0 }) },
+      latencyMs: next.options.latencyMs ?? 0,
+      rawText: next.text,
+    };
+  }
+}
+
+function simulatedError(kind: AIErrorKind, options: ErrorOptions): AIError {
+  const error: AIError = {
+    kind,
+    retryable: options.retryable ?? DEFAULT_RETRYABLE[kind],
+    message: options.message ?? `Error simulado: ${kind}.`,
+  };
+  if (kind === 'RATE_LIMIT' || options.retryAfterMs !== undefined) {
+    error.retryAfterMs = options.retryAfterMs ?? DEFAULT_RETRY_AFTER_MS;
+  }
+  return error;
 }

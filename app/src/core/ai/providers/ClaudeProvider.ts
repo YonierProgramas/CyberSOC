@@ -14,6 +14,7 @@ import type {
   AIError,
   AIProvider,
   AIResult,
+  AssistantTurnRequest,
   StructuredRequest,
 } from '../AIProvider';
 
@@ -152,6 +153,69 @@ export class ClaudeProvider implements AIProvider {
       usage,
       latencyMs: elapsed(started),
       rawText,
+    };
+  }
+
+  /**
+   * Turno del Copilot: system prompt + conversación, respuesta de texto libre (sin herramientas
+   * ni salidas estructuradas). Los errores se mapean igual que en `generateStructured`.
+   */
+  async runAssistantTurn(req: AssistantTurnRequest): Promise<AIResult<string>> {
+    if (req.messages.length === 0 || req.messages.at(-1)!.role !== 'user') {
+      throw new TypeError(
+        'ClaudeProvider: la conversación debe terminar con un mensaje del usuario.',
+      );
+    }
+    const started = performance.now();
+    const signals = this.createSignal(req.signal);
+    let response: Anthropic.Message;
+    try {
+      response = await this.#client.messages.create(
+        {
+          model: req.model ?? this.model,
+          max_tokens: req.maxTokens,
+          system: req.system,
+          // Copia de solo los dos campos: ningún dato extra del llamador llega a la API.
+          messages: req.messages.map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        },
+        { signal: signals.signal },
+      );
+    } catch (error) {
+      return { ok: false, error: this.mapError(error, signals) };
+    }
+
+    const text = response.content
+      .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+      .map((block) => block.text)
+      .join('');
+    const usage = {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
+    const failure = (error: AIError): { ok: false; error: AIError } => ({
+      ok: false,
+      error: {
+        ...error,
+        rawText: text,
+        usage,
+        model: response.model,
+        latencyMs: elapsed(started),
+      },
+    });
+    const stopError = mapStopReason(response.stop_reason);
+    if (stopError) return failure(stopError);
+    if (text.trim() === '')
+      return failure(invalidOutput('La respuesta llegó vacía.').error);
+    return {
+      ok: true,
+      value: text,
+      model: response.model,
+      usage,
+      latencyMs: elapsed(started),
+      rawText: text,
     };
   }
 
