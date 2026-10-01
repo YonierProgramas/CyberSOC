@@ -1,5 +1,6 @@
 import type { StatementSync } from 'node:sqlite';
 import type { Evidence, LayerTrace } from '../../shared/protocol';
+import { zoneSchema, type Zone } from '../../shared/protocol';
 import type { FileErrorCode, FileScanStatus } from '../domain/types';
 import type { Database } from './Database';
 import { requireNonNegativeInteger } from './validation';
@@ -38,6 +39,7 @@ export interface ScanResultRecord {
   engineScore: number | null;
   riskLevel: RiskLevel | null;
   aiStatus: AIStatus;
+  zone: Zone | null;
 }
 
 export interface InsertScanResult {
@@ -60,6 +62,7 @@ export interface InsertScanResult {
   engineScore?: number | null;
   riskLevel?: RiskLevel | null;
   aiStatus?: AIStatus;
+  zone?: Zone | null;
 }
 
 export interface InsertCompleteResult {
@@ -76,7 +79,7 @@ const selectResult = `SELECT
   error_code AS errorCode, error_message AS errorMessage,
   duration_ms AS durationMs, scanned_at AS scannedAt,
   detected_type AS detectedType, engine_score AS engineScore,
-  risk_level AS riskLevel, ai_status AS aiStatus
+  risk_level AS riskLevel, ai_status AS aiStatus, zone
 FROM scan_results`;
 
 export class ScanResultRepository {
@@ -89,8 +92,8 @@ export class ScanResultRepository {
     this.insert = database.prepare(`INSERT INTO scan_results
       (id, job_id, seq, path, file_name, extension, size_bytes, modified_at, status,
        sha256, error_code, error_message, duration_ms, scanned_at,
-       verdict, detected_type, engine_score, risk_level, ai_status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+       verdict, detected_type, engine_score, risk_level, ai_status, zone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     this.find = database.prepare(`${selectResult} WHERE id = ?`);
     this.byJob = database.prepare(
       `${selectResult} WHERE job_id = ? ORDER BY seq ASC LIMIT ? OFFSET ?`,
@@ -102,6 +105,7 @@ export class ScanResultRepository {
     if (input.engineScore != null) scoreSchema.parse(input.engineScore);
     if (input.riskLevel != null) riskLevelSchema.parse(input.riskLevel);
     const aiStatus = aiStatusSchema.parse(input.aiStatus ?? 'NOT_REQUIRED');
+    const zone = zoneSchema.nullable().parse(input.zone ?? null);
     return this.database.transaction(() => {
       this.insert.run(
         input.id,
@@ -123,6 +127,7 @@ export class ScanResultRepository {
         input.engineScore ?? null,
         input.riskLevel ?? null,
         aiStatus,
+        zone,
       );
       return this.find.get(input.id) as unknown as ScanResultRecord;
     });

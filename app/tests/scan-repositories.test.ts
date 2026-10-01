@@ -144,6 +144,9 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
       bytesProcessed: 0,
       engineVersion: null,
       protocolVersion: null,
+      rulesetVersion: null,
+      signaturesVersion: null,
+      profileJson: null,
       metricsJson: null,
       errorMessage: null,
       createdAt,
@@ -277,6 +280,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(rows[0]).toEqual({
       ...resultInput(0),
       verdict: 'NOT_EVALUATED',
+      zone: null,
       errorCode: null,
       errorMessage: null,
       detectedType: null,

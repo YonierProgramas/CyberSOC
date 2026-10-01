@@ -1,4 +1,5 @@
-import type { EngineResult } from './protocol';
+import type { EngineResult, Zone } from './protocol';
+import type { ScanProfileChoice } from './scan-profile';
 
 // Serializable boundary types intentionally do not import the Node/Electron core.
 export type ScanJobStatus =
@@ -12,6 +13,7 @@ export type ScanJobStatus =
 export interface ScanTarget {
   kind: 'FILE' | 'FOLDER';
   path: string;
+  profile?: ScanProfileChoice;
 }
 export interface ScanJobDTO {
   id: string;
@@ -25,6 +27,9 @@ export interface ScanJobDTO {
   bytesProcessed: number;
   engineVersion: string | null;
   protocolVersion: string | null;
+  rulesetVersion: string | null;
+  signaturesVersion: string | null;
+  profileJson: string | null;
   metricsJson: string | null;
   errorMessage: string | null;
   createdAt: string;
@@ -51,6 +56,7 @@ export interface ScanResultDTO {
   engineScore: number | null;
   riskLevel: 'BAJO' | 'MEDIO' | 'ALTO' | 'CRÍTICO' | null;
   aiStatus: AIStatus;
+  zone: Zone | null;
 }
 export interface ScanProgress {
   jobId: string;

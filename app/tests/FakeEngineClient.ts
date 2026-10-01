@@ -51,4 +51,15 @@ export class FakeEngineClient implements ScanEngine {
   async ping(): Promise<{ ts: string }> {
     return { ts: new Date().toISOString() };
   }
+  async driveInfo() {
+    return { driveType: 'FIXED' as const };
+  }
+  async stats() {
+    return {
+      engineVersion: '0.1.0',
+      rulesetVersion: 'test-rules',
+      signaturesVersion: 'test-signatures',
+      signaturesCount: 5,
+    };
+  }
 }

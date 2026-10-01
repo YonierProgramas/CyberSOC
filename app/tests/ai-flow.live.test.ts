@@ -3,7 +3,10 @@ import { AIAnalysisRepository } from '../src/core/persistence/AIAnalysisReposito
 import { ScanResultRepository } from '../src/core/persistence/ScanResultRepository';
 import { ClaudeProvider } from '../src/core/ai/providers/ClaudeProvider';
 import { appConfigSchema } from '../src/core/config/AppConfig';
-vi.mock('electron', () => ({ app: {}, safeStorage: {} }));
+vi.mock('electron', async () => ({
+  app: { getPath: (await import('node:os')).tmpdir },
+  safeStorage: {},
+}));
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
 
 // CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.

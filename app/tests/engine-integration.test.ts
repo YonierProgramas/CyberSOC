@@ -28,6 +28,12 @@ it.skipIf(!existsSync(python))(
         protocol: '1',
       });
       expect(await engine.ping()).toHaveProperty('ts');
+      expect(await engine.stats()).toMatchObject({
+        rulesetVersion: expect.any(String),
+        signaturesVersion: expect.any(String),
+        signaturesCount: expect.any(Number),
+      });
+      expect(await engine.driveInfo(process.cwd())).toHaveProperty('driveType');
       const result = await engine.scanFile(
         {
           jobId: 'j_contract',
@@ -78,6 +84,33 @@ it.skipIf(!existsSync(python))(
         },
       ]);
       expect(result.layers[0]!.ms).toBeGreaterThanOrEqual(0);
+      const system = await engine.scanFile(
+        {
+          jobId: 'j_zones',
+          taskId: 't_system',
+          path: resolve('tests', 'engine-integration.test.ts'),
+          options: {
+            maxBytes: 1024 * 1024,
+            zone: 'SISTEMA',
+            layers: ['HASH', 'SIGNATURES', 'FILETYPE'],
+          },
+        },
+        5_000,
+      );
+      expect(system.status).toBe('SCANNED');
+      expect(
+        system.layers.find((layer) => layer.layer === 'RULES'),
+      ).toMatchObject({
+        status: 'DISABLED',
+        reason: 'PROFILE_DISABLED',
+        hits: 0,
+        points: 0,
+      });
+      expect(
+        system.layers
+          .filter((layer) => ['HASH', 'SIGNATURES'].includes(layer.layer))
+          .every((layer) => layer.status === 'RAN'),
+      ).toBe(true);
       expect((await engine.reconnect()).status).toBe('connected');
     } finally {
       await engine.close();

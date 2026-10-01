@@ -8,6 +8,7 @@ import { Database } from '../src/core/persistence/Database';
 import { MigrationRunner } from '../src/core/persistence/MigrationRunner';
 import { initialMigration } from '../src/core/persistence/migrations/001_init';
 import { scansMigration } from '../src/core/persistence/migrations/002_scans';
+import { evidenceAiMigration } from '../src/core/persistence/migrations/003_evidence_ai';
 import { EvidenceRepository } from '../src/core/persistence/EvidenceRepository';
 import { LayerTraceRepository } from '../src/core/persistence/LayerTraceRepository';
 import { RiskAssessmentRepository } from '../src/core/persistence/RiskAssessmentRepository';
@@ -138,11 +139,13 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     const old = new Database(join(directory, 'v2.db'));
     try {
       new MigrationRunner(old, [initialMigration, scansMigration]).run();
-      new ScanJobRepository(old).create({
-        id: 'legacy',
-        targetPath: 'C:\\á',
-        targetKind: 'FILE',
-      });
+      // Datos v2 mediante SQL histórico: el repositorio actual requiere 004.
+      old
+        .prepare(
+          `INSERT INTO scan_jobs (id, target_path, target_kind, status, created_at)
+        VALUES ('legacy', ?, 'FILE', 'CREATED', ?)`,
+        )
+        .run('C:\\á', date);
       old
         .prepare(
           `INSERT INTO scan_results (id, job_id, seq, path, file_name, status, scanned_at)
@@ -150,7 +153,12 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
         )
         .run(date);
       const before = old.prepare('SELECT * FROM scan_results').get();
-      expect(new MigrationRunner(old).run()).toEqual([3]);
+      const v3 = new MigrationRunner(old, [
+        initialMigration,
+        scansMigration,
+        evidenceAiMigration,
+      ]);
+      expect(v3.run()).toEqual([3]);
       expect(old.prepare('SELECT * FROM scan_results').get()).toEqual({
         ...before,
         detected_type: null,
@@ -158,7 +166,8 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
         risk_level: null,
         ai_status: 'NOT_REQUIRED',
       });
-      expect(new MigrationRunner(old).run()).toEqual([]);
+      expect(v3.run()).toEqual([]);
+      expect(new MigrationRunner(old).run()).toEqual([4]);
     } finally {
       old.close();
     }

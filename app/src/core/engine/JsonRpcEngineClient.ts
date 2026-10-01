@@ -4,6 +4,11 @@ import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 import {
   engineResultSchema,
+  driveInfoParamsSchema,
+  driveInfoResultSchema,
+  statsResultSchema,
+  type DriveInfoResult,
+  type StatsResult,
   scanFileParamsSchema,
   type EngineResult,
   type ScanFileParams,
@@ -98,6 +103,16 @@ export class JsonRpcEngineClient implements EngineClient {
     return z
       .object({ ts: z.iso.datetime() })
       .parse(await this.request('engine.ping', {}));
+  }
+
+  async driveInfo(path: string): Promise<DriveInfoResult> {
+    return driveInfoResultSchema.parse(
+      await this.request('fs.driveInfo', driveInfoParamsSchema.parse({ path })),
+    );
+  }
+
+  async stats(): Promise<StatsResult> {
+    return statsResultSchema.parse(await this.request('engine.stats', {}));
   }
 
   async shutdown(): Promise<void> {

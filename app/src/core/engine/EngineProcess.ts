@@ -2,7 +2,12 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { z } from 'zod';
 import type { EngineState } from '../../shared/ipc';
-import type { EngineResult, ScanFileParams } from '../../shared/protocol';
+import type {
+  EngineResult,
+  ScanFileParams,
+  DriveInfoResult,
+  StatsResult,
+} from '../../shared/protocol';
 import { IncompatibleEngineError, RpcRemoteError } from './EngineClient';
 import { JsonRpcEngineClient } from './JsonRpcEngineClient';
 
@@ -136,6 +141,18 @@ export class EngineProcess {
     if (!this.run || this.state.status !== 'connected')
       return Promise.reject(new Error('Motor desconectado.'));
     return this.run.client.scanFile(params, timeoutMs);
+  }
+
+  driveInfo(path: string): Promise<DriveInfoResult> {
+    if (!this.run || this.state.status !== 'connected')
+      return Promise.reject(new Error('Motor desconectado.'));
+    return this.run.client.driveInfo(path);
+  }
+
+  stats(): Promise<StatsResult> {
+    if (!this.run || this.state.status !== 'connected')
+      return Promise.reject(new Error('Motor desconectado.'));
+    return this.run.client.stats();
   }
 
   async close(): Promise<void> {

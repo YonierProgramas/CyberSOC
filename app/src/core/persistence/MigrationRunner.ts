@@ -2,6 +2,7 @@ import type { Database } from './Database';
 import { initialMigration } from './migrations/001_init';
 import { scansMigration } from './migrations/002_scans';
 import { evidenceAiMigration } from './migrations/003_evidence_ai';
+import { zonesMigration } from './migrations/004_zones';
 
 export interface Migration {
   readonly version: number;
@@ -16,6 +17,7 @@ export class MigrationRunner {
       initialMigration,
       scansMigration,
       evidenceAiMigration,
+      zonesMigration,
     ],
   ) {}
 

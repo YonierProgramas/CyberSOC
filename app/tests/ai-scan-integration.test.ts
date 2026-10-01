@@ -13,7 +13,10 @@ import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
 import type { AIAnalysisWorker } from '../src/core/ai/AIAnalysisWorker';
 import type { EngineResult } from '../src/shared/protocol';
 import { FakeEngineClient, scanned } from './FakeEngineClient';
-vi.mock('electron', () => ({ app: {}, safeStorage: {} }));
+vi.mock('electron', () => ({
+  app: { getPath: () => tmpdir() },
+  safeStorage: {},
+}));
 import {
   createAIWorkflow,
   createScanOrchestrator,

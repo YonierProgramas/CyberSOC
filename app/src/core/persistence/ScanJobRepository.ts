@@ -26,6 +26,9 @@ export interface ScanJobRecord extends ScanJobCounters {
   status: ScanJobStatus;
   engineVersion: string | null;
   protocolVersion: string | null;
+  rulesetVersion: string | null;
+  signaturesVersion: string | null;
+  profileJson: string | null;
   metricsJson: string | null;
   errorMessage: string | null;
   createdAt: string;
@@ -39,6 +42,9 @@ export interface CreateScanJob {
   targetKind: ScanJobRecord['targetKind'];
   engineVersion?: string | null;
   protocolVersion?: string | null;
+  rulesetVersion?: string | null;
+  signaturesVersion?: string | null;
+  profileJson?: string | null;
   createdAt?: string;
 }
 
@@ -51,6 +57,8 @@ const selectJob = `SELECT
   files_discovered AS filesDiscovered, files_processed AS filesProcessed,
   files_error AS filesError, files_skipped AS filesSkipped, bytes_processed AS bytesProcessed,
   engine_version AS engineVersion, protocol_version AS protocolVersion,
+  ruleset_version AS rulesetVersion, signatures_version AS signaturesVersion,
+  profile_json AS profileJson,
   metrics_json AS metricsJson, error_message AS errorMessage,
   created_at AS createdAt, started_at AS startedAt, finished_at AS finishedAt
 FROM scan_jobs`;
@@ -62,10 +70,11 @@ export class ScanJobRepository {
   private readonly find: StatementSync;
   private readonly recent: StatementSync;
 
-  constructor(database: Database) {
+  constructor(private readonly database: Database) {
     this.insert = database.prepare(`INSERT INTO scan_jobs
-      (id, target_path, target_kind, status, engine_version, protocol_version, created_at)
-      VALUES (?, ?, ?, 'CREATED', ?, ?, ?)`);
+      (id, target_path, target_kind, status, engine_version, protocol_version, created_at,
+       ruleset_version, signatures_version, profile_json)
+      VALUES (?, ?, ?, 'CREATED', ?, ?, ?, ?, ?, ?)`);
     this.setStatus = database.prepare(`UPDATE scan_jobs SET
       status = ?,
       started_at = CASE WHEN ? THEN ? ELSE started_at END,
@@ -90,6 +99,9 @@ export class ScanJobRepository {
       input.engineVersion ?? null,
       input.protocolVersion ?? null,
       input.createdAt ?? new Date().toISOString(),
+      input.rulesetVersion ?? null,
+      input.signaturesVersion ?? null,
+      input.profileJson ?? null,
     );
     return this.get(input.id)!;
   }
@@ -142,6 +154,19 @@ export class ScanJobRepository {
 
   get(id: string): ScanJobRecord | undefined {
     return this.find.get(id) as unknown as ScanJobRecord | undefined;
+  }
+
+  updateVersions(
+    id: string,
+    versions: { rulesetVersion: string; signaturesVersion: string },
+  ): void {
+    const { changes } = this.database
+      .prepare(
+        `UPDATE scan_jobs SET
+      ruleset_version = ?, signatures_version = ? WHERE id = ?`,
+      )
+      .run(versions.rulesetVersion, versions.signaturesVersion, id);
+    if (changes === 0) throw new Error(`No existe el trabajo ${id}.`);
   }
 
   listRecent(limit = 20): ScanJobRecord[] {

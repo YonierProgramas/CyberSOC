@@ -5,7 +5,10 @@ import { RiskAssessmentRepository } from '../src/core/persistence/RiskAssessment
 import { EvidenceRepository } from '../src/core/persistence/EvidenceRepository';
 import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
 import type { AIAssessment } from '../src/core/ai/schemas';
-vi.mock('electron', () => ({ app: {}, safeStorage: {} }));
+vi.mock('electron', async () => ({
+  app: { getPath: (await import('node:os')).tmpdir },
+  safeStorage: {},
+}));
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
 
 function answer(

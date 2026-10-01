@@ -31,6 +31,38 @@ describe('JsonRpcEngineClient', () => {
     output.write(JSON.stringify({ jsonrpc: '2.0', id, result }) + '\n');
   }
 
+  it('valida driveInfo y stats antes de entregar datos al core', async () => {
+    const drive = client.driveInfo('E:\\file.txt');
+    expect(requests.at(-1)).toMatchObject({
+      method: 'fs.driveInfo',
+      params: { path: 'E:\\file.txt' },
+    });
+    respond(requests.at(-1)!.id, { driveType: 'REMOVABLE' });
+    await expect(drive).resolves.toEqual({ driveType: 'REMOVABLE' });
+    const stats = client.stats();
+    expect(requests.at(-1)).toMatchObject({
+      method: 'engine.stats',
+      params: {},
+    });
+    const result = {
+      engineVersion: '1',
+      signaturesVersion: '2',
+      signaturesCount: 5,
+      rulesetVersion: '3',
+    };
+    respond(requests.at(-1)!.id, result);
+    await expect(stats).resolves.toEqual(result);
+    const invalid = client.stats();
+    respond(requests.at(-1)!.id, { ...result, rulesetVersion: undefined });
+    await expect(invalid).rejects.toThrow();
+    const invalidDrive = client.driveInfo('E:\\a');
+    respond(requests.at(-1)!.id, { driveType: 'INVENTADO' });
+    await expect(invalidDrive).rejects.toThrow();
+    const count = requests.length;
+    await expect(client.driveInfo('')).rejects.toThrow();
+    expect(requests).toHaveLength(count);
+  });
+
   it('correlaciona respuestas fuera de orden y fragmentadas por id', async () => {
     const first = client.ping();
     const second = client.ping();

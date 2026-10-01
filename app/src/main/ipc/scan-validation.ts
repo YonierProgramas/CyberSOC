@@ -2,9 +2,11 @@ import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import { lstat } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
+import { scanProfileChoiceSchema } from '../../shared/scan-profile';
 
 export const noArguments = z.tuple([]);
 export const scanTargetSchema = z.strictObject({
+  profile: scanProfileChoiceSchema.optional(),
   kind: z.enum(['FILE', 'FOLDER']),
   path: z
     .string()

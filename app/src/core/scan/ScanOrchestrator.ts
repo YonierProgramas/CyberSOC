@@ -15,7 +15,18 @@ import type {
   ScanResultRepository,
   InsertScanResult,
 } from '../persistence/ScanResultRepository';
-import { engineResultSchema, type EngineResult } from '../../shared/protocol';
+import {
+  engineResultSchema,
+  type EngineResult,
+  type StatsResult,
+  type Zone,
+} from '../../shared/protocol';
+import {
+  scanProfileChoiceSchema,
+  type ScanProfile,
+  type ScanProfileChoice,
+} from '../../shared/scan-profile';
+import { ScanProfiles } from '../zones/ScanProfiles';
 import { FileDiscovery } from './FileDiscovery';
 import { ProgressThrottle } from './ProgressThrottle';
 import { ScanQueue } from './ScanQueue';
@@ -23,6 +34,7 @@ import { ScanQueue } from './ScanQueue';
 export interface ScanTarget {
   kind: 'FILE' | 'FOLDER';
   path: string;
+  profile?: ScanProfileChoice;
 }
 export interface ScanProgress {
   jobId: string;
@@ -46,9 +58,17 @@ export type ScanDiscovery = Pick<
   'discover' | 'peakStackSize' | 'dirsVisited' | 'skippedLinks'
 >;
 export interface ScanDependencies {
+  profiles?: ScanProfiles;
+  createZoneSession?: () => {
+    classify(path: string): Promise<Zone>;
+    isHidden(path: string): Promise<boolean>;
+    close(): void;
+  };
+  stats?: () => Promise<StatsResult>;
   config: () => AppConfig;
   engine: ScanEngine;
-  jobs: Pick<ScanJobRepository, 'create' | 'updateStatus' | 'updateCounters'>;
+  jobs: Pick<ScanJobRepository, 'create' | 'updateStatus' | 'updateCounters'> &
+    Partial<Pick<ScanJobRepository, 'updateVersions'>>;
   results: Pick<ScanResultRepository, 'insertResult'>;
   /** Persistencia completa S2; el adaptador recibe también los hechos del motor. */
   persistResult?: (
@@ -64,8 +84,13 @@ interface Task {
   taskId: string;
   seq: number;
   path: string;
+  zone: Zone;
+  profile: ScanProfile;
 }
 interface Run {
+  profiles: Record<Zone, ScanProfile>;
+  choice: ScanProfileChoice;
+  zones?: ReturnType<NonNullable<ScanDependencies['createZoneSession']>>;
   job: ScanJob;
   record: ScanJobRecord;
   config: AppConfig;
@@ -132,6 +157,10 @@ export class ScanOrchestrator extends EventEmitter<{
     if (state.status !== 'connected')
       throw new Error('Conecta el motor antes de iniciar el escaneo.');
     const config = structuredClone(this.dependencies.config());
+    const choice = scanProfileChoiceSchema.parse(target.profile ?? 'AUTO');
+    const profiles = (
+      this.dependencies.profiles ?? new ScanProfiles()
+    ).snapshot();
     const job = new ScanJob({
       id: randomUUID(),
       targetPath: target.path,
@@ -147,11 +176,18 @@ export class ScanOrchestrator extends EventEmitter<{
       engineVersion: state.engineVersion,
       protocolVersion: state.protocol,
       createdAt: job.createdAt,
+      profileJson: JSON.stringify(
+        choice === 'AUTO'
+          ? { mode: 'AUTO', profiles }
+          : { mode: 'CUSTOM', profile: choice },
+      ),
     });
     const run: Run = {
       job,
       record,
       config,
+      profiles,
+      choice,
       discovery,
       queue,
       controller: new AbortController(),
@@ -199,6 +235,19 @@ export class ScanOrchestrator extends EventEmitter<{
     let final = run.record;
     try {
       if (run.job.status === 'CREATED') {
+        run.zones = this.dependencies.createZoneSession?.();
+        if (this.dependencies.stats) {
+          if (!this.dependencies.jobs.updateVersions)
+            throw new Error('Falta persistencia de versiones del motor.');
+          const versions = await abortable(
+            this.dependencies.stats(),
+            run.controller.signal,
+          );
+          run.controller.signal.throwIfAborted();
+          this.dependencies.jobs.updateVersions(run.job.id, versions);
+          run.record.rulesetVersion = versions.rulesetVersion;
+          run.record.signaturesVersion = versions.signaturesVersion;
+        }
         run.job.beginDiscovery();
         this.save(run);
         this.progress(run);
@@ -219,23 +268,29 @@ export class ScanOrchestrator extends EventEmitter<{
       else run.job.complete();
       final = this.save(run);
     } catch (error) {
-      this.stopProducer(run);
-      final = {
-        ...this.snapshot(run),
-        status: 'FAILED',
-        errorMessage: asError(error).message,
-        finishedAt: new Date().toISOString(),
-      };
-      try {
-        this.dependencies.jobs.updateStatus(run.job.id, 'FAILED', {
-          errorMessage: final.errorMessage,
-          finishedAt: final.finishedAt,
-        });
-      } catch (persistenceError) {
-        this.report(persistenceError);
+      if (run.job.status === 'CANCELLING' && !run.failure) {
+        run.job.markCancelled();
+        final = this.save(run);
+      } else {
+        this.stopProducer(run);
+        final = {
+          ...this.snapshot(run),
+          status: 'FAILED',
+          errorMessage: asError(error).message,
+          finishedAt: new Date().toISOString(),
+        };
+        try {
+          this.dependencies.jobs.updateStatus(run.job.id, 'FAILED', {
+            errorMessage: final.errorMessage,
+            finishedAt: final.finishedAt,
+          });
+        } catch (persistenceError) {
+          this.report(persistenceError);
+        }
+        this.report(error);
       }
-      this.report(error);
     } finally {
+      run.zones?.close();
       clearInterval(heartbeat);
       run.queue.close();
       run.queue.drain();
@@ -260,13 +315,27 @@ export class ScanOrchestrator extends EventEmitter<{
         const next = await abortable(iterator.next(), run.controller.signal);
         run.controller.signal.throwIfAborted();
         if (next.done) break;
+        const path = next.value.path;
+        const zone = run.zones
+          ? await abortable(run.zones.classify(path), run.controller.signal)
+          : 'OTRA';
+        const profile = run.choice === 'AUTO' ? run.profiles[zone] : run.choice;
+        // Se filtra por archivo: podar AppData impediría llegar al TEMP anidado,
+        // cuyo perfil sí incluye ocultos. La consulta considera sus antecesores.
+        if (
+          !profile.includeHidden &&
+          run.zones &&
+          (await abortable(run.zones.isHidden(path), run.controller.signal))
+        )
+          continue;
+        run.controller.signal.throwIfAborted();
         run.job.updateCounters({
           ...run.job.counters,
           filesDiscovered: run.job.counters.filesDiscovered + 1,
         });
         this.progress(run);
         await run.queue.put(
-          { path: next.value.path, seq: seq++, taskId: randomUUID() },
+          { path, seq: seq++, taskId: randomUUID(), zone, profile },
           run.controller.signal,
         );
       }
@@ -319,7 +388,9 @@ export class ScanOrchestrator extends EventEmitter<{
                 taskId: task.taskId,
                 path: task.path,
                 options: {
-                  maxBytes: run.config.scan.maxFileSizeMB * 1_048_576,
+                  maxBytes: task.profile.maxFileSizeMB * 1_048_576,
+                  zone: task.zone,
+                  layers: [...task.profile.layers],
                 },
               },
               timeoutMs,
@@ -353,6 +424,7 @@ export class ScanOrchestrator extends EventEmitter<{
           id: task.taskId,
           jobId: run.job.id,
           seq: task.seq,
+          zone: task.zone,
           path: task.path,
           fileName: result.file?.name ?? basename(task.path),
           extension: result.file?.extension,

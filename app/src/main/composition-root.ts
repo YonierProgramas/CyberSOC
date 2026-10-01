@@ -31,6 +31,10 @@ import type { AIHealthCheck } from '../shared/ipc';
 import type { AppLogger } from '../core/logging/logger';
 import { SecretStore } from './SecretStore';
 import type { AISettingsService } from './ipc/settings.ipc';
+import { ZoneClassifier } from '../core/zones/ZoneClassifier';
+import { ScanProfiles } from '../core/zones/ScanProfiles';
+import { resolveZoneRoots } from './zone-paths';
+import { HiddenPathReader } from './HiddenPathReader';
 
 let evidenceRoot: string | undefined;
 
@@ -270,12 +274,29 @@ function connectionErrorMessage(kind: AIErrorKind): string {
 
 export function createScanOrchestrator(
   database: Database,
-  engine: ScanEngine,
+  engine: ScanEngine & Pick<EngineProcess, 'driveInfo' | 'stats'>,
   worker?: Pick<AIAnalysisWorker, 'enqueueAutomatic'>,
 ): ScanOrchestrator {
   const config = new AppConfigStore(database);
   const results = new ScanResultRepository(database);
+  const roots = resolveZoneRoots((name) => app.getPath(name), process.env);
   return new ScanOrchestrator({
+    profiles: new ScanProfiles(database),
+    stats: () => engine.stats(),
+    createZoneSession: () => {
+      const classifier = new ZoneClassifier(roots, (path) =>
+        engine.driveInfo(path),
+      );
+      const attributes = new HiddenPathReader();
+      return {
+        classify: (path) =>
+          process.platform === 'win32'
+            ? classifier.classify(path)
+            : Promise.resolve('OTRA' as const),
+        isHidden: (path) => attributes.isHidden(path),
+        close: () => attributes.close(),
+      };
+    },
     config: () => config.load(),
     engine:
       process.env.CYBERSOC_EVIDENCE_MODE === '1'

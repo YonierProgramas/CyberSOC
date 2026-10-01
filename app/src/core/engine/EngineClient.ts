@@ -1,4 +1,9 @@
-import type { EngineResult, ScanFileParams } from '../../shared/protocol';
+import type {
+  EngineResult,
+  ScanFileParams,
+  DriveInfoResult,
+  StatsResult,
+} from '../../shared/protocol';
 
 export interface EngineInfo {
   protocol: '1';
@@ -8,6 +13,8 @@ export interface EngineInfo {
 }
 
 export interface EngineClient {
+  driveInfo(path: string): Promise<DriveInfoResult>;
+  stats(): Promise<StatsResult>;
   hello(): Promise<EngineInfo>;
   ping(): Promise<{ ts: string }>;
   shutdown(): Promise<void>;
