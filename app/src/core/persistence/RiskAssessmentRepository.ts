@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import type { Database } from './Database';
+import { decideRisk, type EngineVerdict } from '../risk/RiskPolicy';
+import { AllowlistRepository } from './AllowlistRepository';
 import {
   jsonTextSchema,
   riskLevelSchema,
@@ -35,6 +37,47 @@ export type RiskAssessmentRecord = z.output<typeof assessmentSchema>;
 
 export class RiskAssessmentRepository {
   constructor(private readonly database: Database) {}
+
+  /** Reevalúa los resultados conocidos del hash confirmado, conservando los hechos del motor. */
+  applyAllowlist(sha256: string): void {
+    if (!new AllowlistRepository(this.database).has(sha256)) return;
+    this.database.transaction(() => {
+      const rows = this.database
+        .prepare(
+          `SELECT r.result_id, r.engine_verdict, r.engine_score
+        FROM risk_assessments r JOIN scan_results s ON s.id=r.result_id WHERE s.sha256=?`,
+        )
+        .all(sha256);
+      for (const row of rows) {
+        const decision = decideRisk({
+          verdict: row.engine_verdict as EngineVerdict,
+          score: Number(row.engine_score),
+          userAllowlisted: true,
+        });
+        this.database
+          .prepare(
+            `UPDATE risk_assessments SET final_verdict=?,final_level=?,
+          review_required=0,origin=?,trace_json=?,policy_version=?,decided_at=? WHERE result_id=?`,
+          )
+          .run(
+            decision.finalVerdict,
+            decision.finalLevel,
+            decision.origin,
+            JSON.stringify(decision.trace),
+            decision.policyVersion,
+            new Date().toISOString(),
+            String(row.result_id),
+          );
+        this.database
+          .prepare('UPDATE scan_results SET verdict=?,risk_level=? WHERE id=?')
+          .run(
+            decision.finalVerdict,
+            decision.finalLevel,
+            String(row.result_id),
+          );
+      }
+    });
+  }
 
   // Guarda una decisión ya calculada por RiskPolicy; no infiere veredictos.
   insert(input: InsertRiskAssessment): RiskAssessmentRecord {

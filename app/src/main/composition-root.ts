@@ -46,6 +46,10 @@ import { ZoneClassifier } from '../core/zones/ZoneClassifier';
 import { ScanProfiles } from '../core/zones/ScanProfiles';
 import { resolveZoneRoots } from './zone-paths';
 import { HiddenPathReader } from './HiddenPathReader';
+import { AllowlistRepository } from '../core/persistence/AllowlistRepository';
+import { QuarantineManager } from '../core/quarantine/QuarantineManager';
+import { QuarantineVault } from '../core/quarantine/QuarantineVault';
+import { ProtectedPaths } from '../core/quarantine/paths';
 
 let evidenceRoot: string | undefined;
 
@@ -406,7 +410,13 @@ export function createScanOrchestrator(
         (verdict === 'CLEAN' ||
           verdict === 'SUSPICIOUS' ||
           verdict === 'DETECTED')
-          ? decideRisk({ verdict, score: result.score })
+          ? decideRisk({
+              verdict,
+              score: result.score,
+              userAllowlisted: new AllowlistRepository(database).has(
+                record.sha256,
+              ),
+            })
           : null;
       const detectedType = result.evidence.find(
         (e) => e.code === 'TYPE_MISMATCH',
@@ -481,6 +491,51 @@ export function createDatabase(userDataPath: string): Database {
     database.close();
     throw error;
   }
+}
+
+/** Main es el único adaptador que puede solicitar confirmación. No existe disparo automático. */
+export function createQuarantineManager(database: Database): QuarantineManager {
+  const userData = app.getPath('userData');
+  const local = process.env.LOCALAPPDATA;
+  const vaultPath =
+    process.env.CYBERSOC_EVIDENCE_MODE === '1'
+      ? join(userData, 'quarantine')
+      : join(
+          local ?? userData,
+          ...(local ? ['CyberSOC Defender'] : []),
+          'quarantine',
+        );
+  return new QuarantineManager({
+    database,
+    vault: new QuarantineVault(vaultPath),
+    protectedPaths: new ProtectedPaths([
+      userData,
+      vaultPath,
+      app.getAppPath(),
+      dirname(process.execPath),
+    ]),
+    async confirm(request) {
+      const labels = {
+        QUARANTINE: 'Poner en cuarentena',
+        RESTORE: 'Restaurar',
+        RESTORE_DETECTED: 'Confirmar restauración de archivo detectado',
+        DELETE: 'Eliminar definitivamente',
+      };
+      const answer = await dialog.showMessageBox({
+        type: 'warning',
+        title: labels[request.action],
+        message: `${labels[request.action]}: ${request.path}`,
+        detail:
+          `Veredicto: ${request.verdict}.` +
+          (request.trustHash ? ' También confiarás en este SHA-256.' : ''),
+        buttons: ['Cancelar', labels[request.action]],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      return answer.response === 1;
+    },
+  });
 }
 
 export function createEngine(

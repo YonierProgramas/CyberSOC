@@ -12,9 +12,11 @@ import {
   createScanOrchestrator,
   createAISettings,
   createAIWorkflow,
+  createQuarantineManager,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
 import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
+import type { QuarantineManager } from '../core/quarantine/QuarantineManager';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -24,6 +26,7 @@ let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
+let quarantine: QuarantineManager | null = null;
 let readyToQuit = false;
 let quitting = false;
 
@@ -44,6 +47,7 @@ app.on('before-quit', (event) => {
   void Promise.allSettled([
     stopScanIpc?.() ?? Promise.resolve(),
     aiWorker?.stop() ?? Promise.resolve(),
+    quarantine?.close() ?? Promise.resolve(),
   ])
     .then((results) => {
       if (results.some((result) => result.status === 'rejected'))
@@ -71,6 +75,9 @@ app
   .whenReady()
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
+    quarantine = createQuarantineManager(database);
+    await quarantine.reconcile();
+    if (quitting) return;
     aiWorker = createAIWorkflow(database);
     aiWorker.on('workerError', () =>
       console.error('El worker de IA se ha pausado.'),

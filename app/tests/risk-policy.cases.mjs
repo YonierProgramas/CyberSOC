@@ -500,6 +500,25 @@ describe('RiskPolicy v2: entradas que no evalúa', () => {
   }
 });
 
+describe('RiskPolicy v3: prioridad de la confianza humana', () => {
+  for (const verdict of ['CLEAN', 'SUSPICIOUS', 'DETECTED']) {
+    it(`allowlist sobre ${verdict} conserva hechos y decide CLEAN`, () => {
+      const result = decideRisk(
+        { verdict, score: 100, userAllowlisted: true },
+        valid('LIKELY_MALICIOUS'),
+      );
+      assert.equal(result.policyVersion, '3');
+      assert.equal(result.finalVerdict, 'CLEAN');
+      assert.equal(result.finalLevel, 'BAJO');
+      assert.equal(result.origin, 'USER_ALLOWLIST');
+      assert.equal(result.rule, 'USER_ALLOWLIST');
+      assert.equal(result.engineVerdict, verdict);
+      assert.equal(result.aiOpinion, null);
+      assert.equal(result.aiPending, false);
+    });
+  }
+});
+
 describe('levelForScore', () => {
   for (const [score, level] of [
     [0, 'BAJO'],

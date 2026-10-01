@@ -16,7 +16,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
-it('modo evidencia usa RiskPolicy v2 sin reescribir decisiones y genera JOB_SUMMARY válido', async () => {
+it('modo evidencia usa la RiskPolicy vigente sin reescribir decisiones y genera JOB_SUMMARY válido', async () => {
   vi.stubEnv('CYBERSOC_EVIDENCE_MODE', '1');
   vi.stubEnv('CYBERSOC_EVIDENCE_SCENARIO', 'escalation');
   vi.stubEnv('CYBERSOC_EVIDENCE_LIVE', '0');
@@ -41,7 +41,7 @@ it('modo evidencia usa RiskPolicy v2 sin reescribir decisiones y genera JOB_SUMM
     },
   );
   expect(risk.origin).toBe('AI_ESCALATION');
-  expect(risk.policyVersion).toBe('2');
+  expect(risk.policyVersion).toBe('3');
   expect(JSON.parse(risk.traceJson)).toEqual(expected.trace);
   const analysis = new AIAnalysisRepository(harness.db).latestValidByResult(
     result.id,

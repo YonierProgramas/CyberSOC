@@ -26,7 +26,7 @@ describe('Migración 004 y persistencia de zonas', () => {
     const db = setup();
     db.exec(`INSERT INTO scan_jobs (id, target_path, target_kind, status, created_at)
       VALUES ('old', 'C:\\Windows', 'FOLDER', 'COMPLETED', '2026-01-01');`);
-    expect(new MigrationRunner(db).run()).toEqual([4]);
+    expect(new MigrationRunner(db).run()).toEqual([4, 5]);
     expect(new MigrationRunner(db).run()).toEqual([]);
     expect(new ScanJobRepository(db).get('old')).toMatchObject({
       rulesetVersion: null,

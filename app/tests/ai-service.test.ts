@@ -214,7 +214,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
   expect(new RiskAssessmentRepository(db).get(id)).toMatchObject({
     finalVerdict: 'SUSPICIOUS',
     reviewRequired: true,
-    policyVersion: '2',
+    policyVersion: '3',
   });
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });

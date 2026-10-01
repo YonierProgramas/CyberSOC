@@ -229,7 +229,7 @@ describe('RiskPolicy v2 + RiskAssessmentRepository', () => {
         final_level: 'MEDIO',
         review_required: 0,
         origin: 'AI_ESCALATION',
-        policy_version: '2',
+        policy_version: '3',
       });
       expect(JSON.parse(String(row!.trace_json))).toEqual(decision.trace);
     } finally {
