@@ -60,10 +60,25 @@ class StatsResult(ContractModel):
     engineVersion: Annotated[str, Field(min_length=1)]
     signaturesVersion: Annotated[str, Field(min_length=1)]
     signaturesCount: NonNegativeInt
+    rulesetVersion: Annotated[str, Field(min_length=1)]
 
 
 class StatsResponse(ContractEnvelope):
     result: StatsResult
+
+
+class RulesReloadRequest(ContractEnvelope):
+    method: Literal["rules.reload"]
+    params: EmptyParams
+
+
+class RulesReloadResult(ContractModel):
+    rulesetVersion: Annotated[str, Field(min_length=1)]
+    rulesCount: NonNegativeInt
+
+
+class RulesReloadResponse(ContractEnvelope):
+    result: RulesReloadResult
 
 
 class Evidence(ContractModel):

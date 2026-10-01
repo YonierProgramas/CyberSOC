@@ -1,0 +1,10 @@
+id: R-TEST-UTF16
+name: Marcador UTF-16 de prueba
+description: Texto inofensivo codificado en UTF-16 little endian
+severity: MEDIUM
+points: 15
+decisive: false
+conditions:
+  strings:
+    any:
+      - {encoding: utf16, value: CYBERSOC_TEST_UTF16}

@@ -1,0 +1,8 @@
+{
+  "jsonrpc": "2.0",
+  "id": 80,
+  "result": {
+    "rulesetVersion": "sha256:c55597b32fd9e36dbaa94cf4bb566652cb261a2a2d7937d2e3140888c4234ef3",
+    "rulesCount": 4
+  }
+}

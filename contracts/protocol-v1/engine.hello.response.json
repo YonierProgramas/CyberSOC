@@ -5,6 +5,11 @@
     "protocol": "1",
     "engineVersion": "0.0.1",
     "python": "3.12.x",
-    "capabilities": ["scan.file", "engine.stats", "fs.driveInfo"]
+    "capabilities": [
+      "scan.file",
+      "engine.stats",
+      "fs.driveInfo",
+      "rules.reload"
+    ]
   }
 }

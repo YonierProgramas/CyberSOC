@@ -4,6 +4,7 @@
   "result": {
     "engineVersion": "0.0.1",
     "signaturesVersion": "sha256:73743f1461e7b9527563e4a71fade1163adf0ed42d714d54affed676d9bee6cb",
-    "signaturesCount": 6
+    "signaturesCount": 6,
+    "rulesetVersion": "sha256:c55597b32fd9e36dbaa94cf4bb566652cb261a2a2d7937d2e3140888c4234ef3"
   }
 }

@@ -10,6 +10,8 @@ from cybersoc_engine.models import (
     DriveInfoResponse,
     EngineResult,
     FileTask,
+    RulesReloadRequest,
+    RulesReloadResponse,
     ScanFileParams,
     ScanFileRequest,
     ScanFileResponse,
@@ -50,6 +52,8 @@ MODELS = {
     "scan.file.response.skipped-too-large.json": ScanFileResponse,
     "scan.file.response.detected-signature.json": ScanFileResponse,
     "scan.file.response.double-extension.json": ScanFileResponse,
+    "rules.reload.request.json": RulesReloadRequest,
+    "rules.reload.response.json": RulesReloadResponse,
     "engine.stats.request.json": StatsRequest,
     "engine.stats.response.json": StatsResponse,
 }
@@ -498,7 +502,7 @@ def test_stats_zero_versions_method_and_params():
     value = load("engine.stats.response.json")
     value["result"]["signaturesCount"] = 0
     StatsResponse.model_validate(value)
-    for field in ("engineVersion", "signaturesVersion"):
+    for field in ("engineVersion", "signaturesVersion", "rulesetVersion"):
         invalid = deepcopy(value)
         invalid["result"][field] = ""
         with pytest.raises(ValidationError):
@@ -531,8 +535,8 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
     path = tmp_path / "inofensivo.txt"
     if scenario != "missing":
         path.write_text("Texto inofensivo de prueba.", encoding="utf-8")
-    with patch("cybersoc_engine.pipeline.sha256_stream") as hashing:
-        hashing.return_value = "a" * 64
+    with patch("cybersoc_engine.pipeline.consume_stream") as hashing:
+        hashing.return_value = 0
         if scenario == "read_error":
             hashing.side_effect = OSError("read failed")
         result = FileInspector().inspect(
@@ -542,7 +546,7 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
         )
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [layer.layer for layer in result.layers] == ["HASH", "SIGNATURES", "FILETYPE"]
+    assert [layer.layer for layer in result.layers] == ["HASH", "SIGNATURES", "FILETYPE", "RULES"]
     trace = result.layers[0]
     assert trace.layer == "HASH"
     assert (

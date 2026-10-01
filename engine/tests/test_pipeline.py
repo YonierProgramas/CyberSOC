@@ -28,7 +28,7 @@ def result_for(name="factura.pdf.exe"):
 def assert_trace(result):
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [trace.layer for trace in result.layers] == ["HASH", "SIGNATURES", "FILETYPE"]
+    assert [trace.layer for trace in result.layers] == ["HASH", "SIGNATURES", "FILETYPE", "RULES"]
     assert all(trace.ms >= 0 for trace in result.layers)
     assert all(trace.reason for trace in result.layers if trace.status == "SKIPPED")
     assert [item.id for item in result.evidence] == [
@@ -72,7 +72,7 @@ def test_filetype_failure_preserves_hash_and_marks_error():
     assert "ruta privada" not in result.model_dump_json()
 
 
-def test_filetype_read_failure_keeps_successful_hash():
+def test_nonseekable_stream_is_analyzed_without_rereading():
     class CannotRewind(BytesIO):
         def seek(self, *args):
             raise OSError("cannot seek")
@@ -81,8 +81,8 @@ def test_filetype_read_failure_keeps_successful_hash():
     AnalysisPipeline().analyze(CannotRewind(b"texto"), result)
     assert_trace(result)
     assert result.layers[0].status == "RAN"
-    assert result.layers[2].status == "ERROR"
-    assert result.status == "ERROR"
+    assert result.layers[2].status == "RAN"
+    assert result.status == "SCANNED"
 
 
 def test_pipeline_reassigns_ids_instead_of_trusting_local_ids():
@@ -144,7 +144,7 @@ def test_sample_is_bounded_and_stream_stays_open():
     with patch.object(FileTypeEngine, "analyze", wraps=FileTypeEngine().analyze) as analyze:
         AnalysisPipeline().analyze(stream, result)
     assert len(analyze.call_args.args[0].prefix) == PREFIX_BYTES
-    assert stream.read_sizes[-1] == PREFIX_BYTES
+    assert stream.read_sizes == [1024 * 1024] * 3
     assert result.hashes.sha256 == hashlib.sha256(content).hexdigest()
     assert not stream.closed
 
@@ -157,7 +157,7 @@ def test_every_implemented_layer_is_traced_when_analysis_cannot_run(tmp_path, sc
     with patch.object(FileTypeEngine, "analyze", wraps=FileTypeEngine().analyze) as filetype:
         if scenario == "hash_error":
             with patch(
-                "cybersoc_engine.pipeline.sha256_stream", side_effect=OSError("read failed")
+                "cybersoc_engine.pipeline.consume_stream", side_effect=OSError("read failed")
             ):
                 result = FileInspector().inspect(
                     str(path), ScanFileOptions(maxBytes=100), task_id="t"

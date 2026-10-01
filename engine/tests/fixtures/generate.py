@@ -20,7 +20,7 @@ def generate_signature_fixtures(root: Path) -> dict[str, str]:
 
 @contextmanager
 def generate_fixtures(
-    *, include_filetype: bool = False, include_signatures: bool = False
+    *, include_filetype: bool = False, include_signatures: bool = False, include_rules: bool = False
 ) -> Iterator[Path]:
     """25 textos S1; include_filetype agrega las 3 muestras inofensivas de T2.2."""
     with TemporaryDirectory(prefix="cybersoc-fixtures-") as temporary:
@@ -38,4 +38,22 @@ def generate_fixtures(
             (root / "informe_\u202e.pdf").write_bytes(b"Documento benigno con RLO en el nombre.\n")
         if include_signatures:
             generate_signature_fixtures(root)
+        if include_rules:
+            generate_rule_fixtures(root)
         yield root
+
+
+def generate_rule_fixtures(root: Path) -> list[Path]:
+    """Marcadores propios sin comandos, contenido ejecutable ni muestras reales."""
+    contents = {
+        "rule_downloader.ps1": b"# CYBERSOC_TEST_RULE_DOWNLOADER\n# Texto inofensivo.\n",
+        "rule_pair.txt": b"CYBERSOC_TEST_PAIR_START\nTexto inocuo.\nCYBERSOC_TEST_PAIR_END\n",
+        "rule_utf16.txt": "CYBERSOC_TEST_UTF16\nTexto inofensivo.\n".encode("utf-16-le"),
+        "rule_hex.txt": b"CYBERSOC_TEST_HEX\nTexto inofensivo.\n",
+    }
+    paths = []
+    for name, content in contents.items():
+        path = root / name
+        path.write_bytes(content)
+        paths.append(path)
+    return paths

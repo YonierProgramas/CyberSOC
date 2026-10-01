@@ -1,0 +1,11 @@
+id: R-TEST-DOWNLOADER
+name: Marcador de prueba de descargador
+description: Regla de prueba que busca un marcador inofensivo en scripts
+severity: HIGH
+points: 25
+decisive: false
+conditions:
+  fileTypes: [SCRIPT_PS1, TEXT]
+  maxScanBytes: 4194304
+  strings:
+    any: ["CYBERSOC_TEST_RULE_DOWNLOADER"]

@@ -14,6 +14,8 @@ import {
   scanFileResponseSchema,
   driveInfoRequestSchema,
   driveInfoResponseSchema,
+  rulesReloadRequestSchema,
+  rulesReloadResponseSchema,
   statsRequestSchema,
   statsResponseSchema,
 } from '../src/shared/protocol';
@@ -42,6 +44,8 @@ const schemas = {
   'scan.file.response.skipped-too-large.json': scanFileResponseSchema,
   'scan.file.response.detected-signature.json': scanFileResponseSchema,
   'scan.file.response.double-extension.json': scanFileResponseSchema,
+  'rules.reload.request.json': rulesReloadRequestSchema,
+  'rules.reload.response.json': rulesReloadResponseSchema,
   'engine.stats.request.json': statsRequestSchema,
   'engine.stats.response.json': statsResponseSchema,
 };

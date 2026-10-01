@@ -11,7 +11,7 @@ const python = resolve(
 );
 
 it.skipIf(!existsSync(python))(
-  'motor real: hello, ping, scan.file con HASH, SIGNATURES y FILETYPE, reconexion y shutdown',
+  'motor real: hello, ping, scan.file con HASH, SIGNATURES FILETYPE y RULES, reconexion y shutdown',
   async () => {
     const messages: string[] = [];
     const engine = new EngineProcess({
@@ -64,6 +64,13 @@ it.skipIf(!existsSync(python))(
         },
         {
           layer: 'FILETYPE',
+          status: 'RAN',
+          hits: 0,
+          points: 0,
+          ms: expect.any(Number),
+        },
+        {
+          layer: 'RULES',
           status: 'RAN',
           hits: 0,
           points: 0,

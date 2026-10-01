@@ -9,6 +9,8 @@ import {
   driveInfoRequestSchema,
   driveInfoResponseSchema,
   scanFileResponseSchema,
+  statsResponseSchema,
+  rulesReloadResponseSchema,
 } from '../src/shared/protocol';
 
 const params = {
@@ -122,7 +124,7 @@ const python = resolve(
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
 );
 it.skipIf(!existsSync(python))(
-  'motor real y zod: perfil mínimo conserva HASH/SIGNATURES y fs.driveInfo responde',
+  'motor real y zod: perfil mínimo, fs.driveInfo, rules.reload y versión de reglas',
   () => {
     const messages = [
       {
@@ -144,6 +146,8 @@ it.skipIf(!existsSync(python))(
             process.platform === 'win32' ? parse(process.cwd()).root : 'C:\\',
         },
       },
+      { jsonrpc: '2.0', id: 3, method: 'rules.reload', params: {} },
+      { jsonrpc: '2.0', id: 4, method: 'engine.stats', params: {} },
     ];
     const child = spawnSync(python, ['-m', 'cybersoc_engine'], {
       input:
@@ -159,7 +163,7 @@ it.skipIf(!existsSync(python))(
       .trim()
       .split(/\r?\n/)
       .map((line) => JSON.parse(line) as unknown);
-    expect(responses).toHaveLength(2);
+    expect(responses).toHaveLength(4);
     const result = scanFileResponseSchema.parse(responses[0]);
     expect(result.id).toBe(1);
     expect(
@@ -168,6 +172,7 @@ it.skipIf(!existsSync(python))(
       ['HASH', 'RAN'],
       ['SIGNATURES', 'RAN'],
       ['FILETYPE', 'DISABLED'],
+      ['RULES', 'DISABLED'],
     ]);
     expect(result.result.hashes?.sha256).toHaveLength(64);
     const info = driveInfoResponseSchema.parse(responses[1]);
@@ -175,5 +180,11 @@ it.skipIf(!existsSync(python))(
     if (process.platform === 'win32')
       expect(info.result.driveType).not.toBe('UNKNOWN');
     else expect(info.result.driveType).toBe('UNKNOWN');
+    const reload = rulesReloadResponseSchema.parse(responses[2]);
+    const stats = statsResponseSchema.parse(responses[3]);
+    expect(reload.id).toBe(3);
+    expect(stats.id).toBe(4);
+    expect(reload.result.rulesCount).toBe(4);
+    expect(reload.result.rulesetVersion).toBe(stats.result.rulesetVersion);
   },
 );

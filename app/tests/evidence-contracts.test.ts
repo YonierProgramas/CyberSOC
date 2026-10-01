@@ -157,7 +157,11 @@ it('engine.stats acepta cero firmas y rechaza método, versiones y parámetros i
   const value = load('engine.stats.response.json');
   value.result.signaturesCount = 0;
   expect(statsResponseSchema.safeParse(value).success).toBe(true);
-  for (const field of ['engineVersion', 'signaturesVersion']) {
+  for (const field of [
+    'engineVersion',
+    'signaturesVersion',
+    'rulesetVersion',
+  ]) {
     expect(
       statsResponseSchema.safeParse({
         ...value,

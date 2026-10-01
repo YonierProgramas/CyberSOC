@@ -29,6 +29,7 @@ export const statsResultSchema = z.strictObject({
   engineVersion: z.string().min(1),
   signaturesVersion: z.string().min(1),
   signaturesCount: z.number().int().nonnegative(),
+  rulesetVersion: z.string().min(1),
 });
 export const statsResponseSchema = z.strictObject({
   ...envelope,
@@ -37,6 +38,23 @@ export const statsResponseSchema = z.strictObject({
 export type StatsRequest = z.infer<typeof statsRequestSchema>;
 export type StatsResult = z.infer<typeof statsResultSchema>;
 export type StatsResponse = z.infer<typeof statsResponseSchema>;
+
+export const rulesReloadRequestSchema = z.strictObject({
+  ...envelope,
+  method: z.literal('rules.reload'),
+  params: emptyParamsSchema,
+});
+export const rulesReloadResultSchema = z.strictObject({
+  rulesetVersion: z.string().min(1),
+  rulesCount: z.number().int().nonnegative(),
+});
+export const rulesReloadResponseSchema = z.strictObject({
+  ...envelope,
+  result: rulesReloadResultSchema,
+});
+export type RulesReloadRequest = z.infer<typeof rulesReloadRequestSchema>;
+export type RulesReloadResult = z.infer<typeof rulesReloadResultSchema>;
+export type RulesReloadResponse = z.infer<typeof rulesReloadResponseSchema>;
 
 export const helloResultSchema = z.strictObject({
   protocol: z.literal('1'),

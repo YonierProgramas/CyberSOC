@@ -1,0 +1,13 @@
+id: R-TEST-PAIR
+name: Dos marcadores de texto de prueba
+description: Ambos marcadores deben aparecer en un texto corto
+severity: HIGH
+points: 25
+decisive: false
+conditions:
+  extensions: [.txt]
+  sizeRange: {min: 1, max: 4096}
+  entropyAbove: 0
+  maxScanBytes: 4096
+  strings:
+    all: [CYBERSOC_TEST_PAIR_START, CYBERSOC_TEST_PAIR_END]
