@@ -4,14 +4,25 @@ import {
   actionLabel,
   aiStatusLabel,
   aiStatusMessage,
+  appliedCaps,
   formatContextJson,
   formatDuration,
+  layerStatusLabel,
+  policyRuleLabel,
+  profileLabel,
   severityLabel,
   verdictLabel,
+  zoneLabel,
 } from '../scan/format';
 import { PlainText } from './PlainText';
 
-export function ResultDetail({ resultId }: { resultId: string }) {
+export function ResultDetail({
+  resultId,
+  profileJson = null,
+}: {
+  resultId: string;
+  profileJson?: string | null;
+}) {
   const [detail, setDetail] = useState<ResultDetailDTO | null>(null);
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -60,7 +71,8 @@ export function ResultDetail({ resultId }: { resultId: string }) {
   if (failed) return <p role="alert">No se pudo abrir el resultado.</p>;
   if (!detail) return <p>Cargando detalle…</p>;
 
-  const { result, evidence, layers, analysis, sent } = detail;
+  const { result, evidence, layers, decision, analysis, sent } = detail;
+  const caps = appliedCaps(evidence);
   const statusMessage =
     sent?.validationStatus === 'UNSAFE'
       ? 'Análisis descartado por seguridad'
@@ -84,7 +96,66 @@ export function ResultDetail({ resultId }: { resultId: string }) {
             <dt>Nivel</dt>
             <dd>{result.riskLevel ?? '—'}</dd>
           </div>
+          <div>
+            <dt>Zona</dt>
+            <dd data-testid="result-zone">{zoneLabel(result.zone)}</dd>
+          </div>
+          <div>
+            <dt>Perfil</dt>
+            <dd data-testid="result-profile">
+              {profileLabel(profileJson, result.zone)}
+            </dd>
+          </div>
         </dl>
+        {decision?.origin === 'AI_ESCALATION' && (
+          <p data-testid="ai-escalation">Escalado por IA</p>
+        )}
+      </section>
+
+      <section className="panel" data-testid="decision-panel">
+        <h2>¿Cómo se decidió?</h2>
+        {evidence.length === 0 ? (
+          <p>Sin evidencias en la decisión.</p>
+        ) : (
+          <table data-testid="decision-evidence">
+            <thead>
+              <tr>
+                <th>Evidencia</th>
+                <th>Capa</th>
+                <th>Puntos</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidence.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.code}</td>
+                  <td>{item.source}</td>
+                  <td>{item.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <h3>Topes aplicados</h3>
+        <ul data-testid="decision-caps">
+          <li>
+            Heurísticas (FILETYPE, HEURISTICS, PE, SCRIPTS):{' '}
+            {caps.heuristicsRaw} puntos, tope 50, aplicados{' '}
+            {caps.heuristicsCapped}
+          </li>
+          <li>
+            Reglas: {caps.rulesRaw} puntos, tope 60, aplicados{' '}
+            {caps.rulesCapped}
+          </li>
+          <li>Otras capas: {caps.otherPoints} puntos</li>
+          <li>Total con tope 100: {caps.totalCapped}</li>
+        </ul>
+        <p data-testid="decision-rule">
+          Regla de la política: {policyRuleLabel(decision?.rule ?? null)}
+        </p>
+        <p data-testid="policy-version">
+          Versión de la política: {decision?.policyVersion ?? '—'}
+        </p>
       </section>
 
       <section className="panel" data-testid="evidence-panel">
@@ -132,11 +203,15 @@ export function ResultDetail({ resultId }: { resultId: string }) {
               {layers.map((layer) => (
                 <tr key={layer.layer}>
                   <td>{layer.layer}</td>
-                  <td>{layer.status}</td>
+                  <td data-testid={`layer-status-${layer.layer}`}>
+                    {layerStatusLabel(layer.status, layer.reason)}
+                  </td>
                   <td>
-                    {layer.status === 'SKIPPED' || layer.status === 'ERROR'
-                      ? (layer.reason ?? '—')
-                      : '—'}
+                    {layer.status === 'DISABLED'
+                      ? 'desactivada por el perfil'
+                      : layer.status === 'SKIPPED' || layer.status === 'ERROR'
+                        ? (layer.reason ?? '—')
+                        : '—'}
                   </td>
                 </tr>
               ))}

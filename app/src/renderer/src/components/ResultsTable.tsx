@@ -11,10 +11,14 @@ import { ResultDetail } from './ResultDetail';
 
 export function ResultsTable({
   jobId,
+  profileJson = null,
   refreshToken = 0,
+  focusResultId = null,
 }: {
   jobId: string;
+  profileJson?: string | null;
   refreshToken?: number;
+  focusResultId?: string | null;
 }) {
   const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<ScanResultDTO> | null>(null);
@@ -26,6 +30,10 @@ export function ResultsTable({
     setPage(0);
     setSelectedId(null);
   }, [jobId]);
+
+  useEffect(() => {
+    if (focusResultId) setSelectedId(focusResultId);
+  }, [focusResultId]);
 
   useEffect(() => {
     let active = true;
@@ -138,7 +146,9 @@ export function ResultsTable({
           Siguiente
         </button>
       </div>
-      {selectedId && <ResultDetail resultId={selectedId} />}
+      {selectedId && (
+        <ResultDetail resultId={selectedId} profileJson={profileJson} />
+      )}
     </section>
   );
 }

@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ScanJobDTO, ScanProgress, ScanTarget } from '../../../shared/ipc';
 import { JobDetail } from '../components/JobDetail';
+import { JobSummaryCard } from '../components/JobSummaryCard';
+import {
+  allLayers,
+  customProfile,
+  ProfileSelector,
+  toggleLayer,
+  type ProfileMode,
+} from '../components/ProfileSelector';
 import { ProgressPanel } from '../components/ProgressPanel';
 import { ResultsTable } from '../components/ResultsTable';
 
@@ -17,6 +25,9 @@ export function ScanPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [profileMode, setProfileMode] = useState<ProfileMode>('AUTO');
+  const [layers, setLayers] = useState(allLayers);
+  const [focusResultId, setFocusResultId] = useState<string | null>(null);
   const jobId = useRef<string | null>(null);
   const lastResultsRefresh = useRef(0);
 
@@ -70,7 +81,11 @@ export function ScanPage() {
           ? await window.cybersoc.dialog.selectFolder()
           : await window.cybersoc.dialog.selectFile();
       if (!path) return;
-      const started = await window.cybersoc.scan.start({ kind, path });
+      const started = await window.cybersoc.scan.start({
+        kind,
+        path,
+        profile: profileMode === 'AUTO' ? 'AUTO' : customProfile(layers),
+      });
       jobId.current = started.jobId;
       setProgress(null);
       setJob(await window.cybersoc.scan.getJob(started.jobId));
@@ -134,12 +149,30 @@ export function ScanPage() {
           {job?.status === 'CANCELLING' ? 'Cancelando…' : 'Cancelar'}
         </button>
       </div>
+      <ProfileSelector
+        mode={profileMode}
+        selected={layers}
+        onMode={setProfileMode}
+        onToggle={(layer) =>
+          setLayers((current) => toggleLayer(current, layer))
+        }
+      />
       {message && <p role="alert">{message}</p>}
       {job && (
         <>
           <ProgressPanel progress={progress} job={job} />
           <JobDetail job={job} elapsedMs={progress?.elapsedMs ?? null} />
-          <ResultsTable jobId={job.id} refreshToken={refreshToken} />
+          <JobSummaryCard
+            jobId={job.id}
+            refreshToken={refreshToken}
+            onOpenResult={setFocusResultId}
+          />
+          <ResultsTable
+            jobId={job.id}
+            profileJson={job.profileJson}
+            refreshToken={refreshToken}
+            focusResultId={focusResultId}
+          />
         </>
       )}
     </main>

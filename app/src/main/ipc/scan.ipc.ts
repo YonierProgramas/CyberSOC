@@ -5,6 +5,7 @@ import { aiAssessmentSchema } from '../../core/ai/schemas';
 import { AIAnalysisRepository } from '../../core/persistence/AIAnalysisRepository';
 import { EvidenceRepository } from '../../core/persistence/EvidenceRepository';
 import { LayerTraceRepository } from '../../core/persistence/LayerTraceRepository';
+import { RiskAssessmentRepository } from '../../core/persistence/RiskAssessmentRepository';
 import { ScanJobRepository } from '../../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../../core/persistence/ScanResultRepository';
 import type { ScanOrchestrator } from '../../core/scan/ScanOrchestrator';
@@ -14,12 +15,14 @@ import {
   SCAN_START,
   SCAN_CANCEL,
   SCAN_GET_JOB,
+  SCAN_GET_JOB_SUMMARY,
   SCAN_GET_RESULT,
   SCAN_LIST_JOBS,
   SCAN_LIST_RESULTS,
   SCAN_PROGRESS,
   SCAN_FINISHED,
   type AIResultUpdated,
+  type JobSummaryView,
   type ResultDetailDTO,
   type ScanJobDTO,
   type ScanResultDTO,
@@ -133,6 +136,15 @@ export function registerScanIpc(
       return resultDetail(database, id);
     },
   );
+  ipcMain.handle(
+    SCAN_GET_JOB_SUMMARY,
+    (event, ...args: unknown[]): JobSummaryView => {
+      validate(event);
+      const [id] = idArguments.parse(args);
+      getJob(id);
+      return jobSummary(database, id);
+    },
+  );
   ipcMain.handle(SCAN_ANALYZE_NOW, (event, ...args: unknown[]): void => {
     validate(event);
     const [id] = idArguments.parse(args);
@@ -171,6 +183,7 @@ export function registerScanIpc(
       SCAN_CANCEL,
       SCAN_GET_JOB,
       SCAN_GET_RESULT,
+      SCAN_GET_JOB_SUMMARY,
       SCAN_ANALYZE_NOW,
       SCAN_LIST_JOBS,
       SCAN_LIST_RESULTS,
@@ -204,6 +217,89 @@ function readAnalysis(
   }
 }
 
+function readDecision(
+  assessment: ReturnType<RiskAssessmentRepository['get']>,
+): ResultDetailDTO['decision'] {
+  if (!assessment) return null;
+  let trace: string[] = [];
+  let rule: string | null = null;
+  try {
+    const parsed: unknown = JSON.parse(assessment.traceJson);
+    if (Array.isArray(parsed)) {
+      trace = parsed.filter((item): item is string => typeof item === 'string');
+    } else if (parsed && typeof parsed === 'object') {
+      const record = parsed as Record<string, unknown>;
+      if (Array.isArray(record.trace)) {
+        trace = record.trace.filter(
+          (item): item is string => typeof item === 'string',
+        );
+      }
+      if (typeof record.rule === 'string') rule = record.rule;
+    }
+  } catch {
+    trace = [];
+  }
+  return {
+    origin: assessment.origin,
+    policyVersion: assessment.policyVersion,
+    rule: rule ?? trace.find((line) => line.startsWith('Regla')) ?? null,
+    trace,
+  };
+}
+
+function jobSummary(database: Database, jobId: string): JobSummaryView {
+  const empty: JobSummaryView = {
+    state: 'PENDING',
+    summary: null,
+    highlights: [],
+    recommendations: [],
+  };
+  const row = database
+    .prepare(
+      `SELECT response_json AS responseJson, validation_status AS validationStatus
+       FROM ai_analyses WHERE job_id = ? AND kind = 'JOB_SUMMARY'
+       ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+    )
+    .get(jobId) as
+    { responseJson: string | null; validationStatus: string } | undefined;
+  if (!row) return empty;
+  if (row.validationStatus !== 'VALID' || !row.responseJson) {
+    return {
+      ...empty,
+      state:
+        row.validationStatus === 'PROVIDER_ERROR' ? 'UNAVAILABLE' : 'INVALID',
+    };
+  }
+  try {
+    const parsed: unknown = JSON.parse(row.responseJson);
+    if (!parsed || typeof parsed !== 'object')
+      return { ...empty, state: 'INVALID' };
+    const record = parsed as Record<string, unknown>;
+    const summary = typeof record.summary === 'string' ? record.summary : null;
+    const highlights = Array.isArray(record.highlights)
+      ? record.highlights.flatMap((item) => {
+          if (!item || typeof item !== 'object') return [];
+          const highlight = item as Record<string, unknown>;
+          if (
+            typeof highlight.resultId !== 'string' ||
+            typeof highlight.why !== 'string'
+          )
+            return [];
+          return [{ resultId: highlight.resultId, why: highlight.why }];
+        })
+      : [];
+    const recommendations = Array.isArray(record.recommendations)
+      ? record.recommendations.filter(
+          (item): item is string => typeof item === 'string',
+        )
+      : [];
+    if (!summary) return { ...empty, state: 'INVALID' };
+    return { state: 'COMPLETED', summary, highlights, recommendations };
+  } catch {
+    return { ...empty, state: 'INVALID' };
+  }
+}
+
 function resultDetail(database: Database, id: string): ResultDetailDTO {
   const result = new ScanResultRepository(database).get(id);
   if (!result) throw new Error('No existe el resultado de escaneo.');
@@ -214,6 +310,7 @@ function resultDetail(database: Database, id: string): ResultDetailDTO {
   );
   return {
     result,
+    decision: readDecision(new RiskAssessmentRepository(database).get(id)),
     evidence: new EvidenceRepository(database).listByResult(id).map((item) => ({
       id: item.evidenceKey,
       source: item.source,

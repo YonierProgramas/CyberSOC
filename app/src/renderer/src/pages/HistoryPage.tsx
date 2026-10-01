@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { ScanJobDTO } from '../../../shared/ipc';
 import { JobDetail } from '../components/JobDetail';
+import { JobSummaryCard } from '../components/JobSummaryCard';
 import { ResultsTable } from '../components/ResultsTable';
 import { jobStatusLabel } from '../scan/format';
 
 export function HistoryPage() {
   const [jobs, setJobs] = useState<ScanJobDTO[]>([]);
   const [selected, setSelected] = useState<ScanJobDTO | null>(null);
+  const [focusResultId, setFocusResultId] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export function HistoryPage() {
   async function openJob(jobId: string) {
     setFailed(false);
     try {
+      setFocusResultId(null);
       setSelected(await window.cybersoc.scan.getJob(jobId));
     } catch {
       setFailed(true);
@@ -63,7 +66,12 @@ export function HistoryPage() {
       {selected && (
         <>
           <JobDetail job={selected} />
-          <ResultsTable jobId={selected.id} />
+          <JobSummaryCard jobId={selected.id} onOpenResult={setFocusResultId} />
+          <ResultsTable
+            jobId={selected.id}
+            profileJson={selected.profileJson}
+            focusResultId={focusResultId}
+          />
         </>
       )}
     </main>

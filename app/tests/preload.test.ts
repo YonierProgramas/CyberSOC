@@ -58,6 +58,7 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
     'listJobs',
     'listResults',
     'getResult',
+    'getJobSummary',
     'analyzeNow',
     'onProgress',
     'onFinished',
@@ -91,6 +92,8 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:listResults', query);
   await api.scan.getResult('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:getResult', 'r1');
+  await api.scan.getJobSummary('j1');
+  expect(electron.invoke).toHaveBeenLastCalledWith('scan:getJobSummary', 'j1');
   await api.scan.analyzeNow('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
 

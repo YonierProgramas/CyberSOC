@@ -165,6 +165,18 @@ tr[aria-selected='true'] {
   border-radius: 999px;
 }
 
+fieldset {
+  border: 1px solid #243140;
+  margin: 16px 0 0;
+}
+
+.layer-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .plain-text,
 .context-json {
   white-space: pre-wrap;

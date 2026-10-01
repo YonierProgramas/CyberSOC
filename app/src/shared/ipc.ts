@@ -94,6 +94,7 @@ export const SCAN_LIST_RESULTS = 'scan:listResults';
 export const SCAN_PROGRESS = 'scan:progress';
 export const SCAN_FINISHED = 'scan:finished';
 export const SCAN_GET_RESULT = 'scan:getResult';
+export const SCAN_GET_JOB_SUMMARY = 'scan:getJobSummary';
 export const SCAN_ANALYZE_NOW = 'scan:analyzeNow';
 export const AI_RESULT_UPDATED = 'ai:resultUpdated';
 
@@ -146,10 +147,30 @@ export interface AISentView {
   validationStatus: string;
 }
 
+export interface DecisionView {
+  origin: 'ENGINE' | 'AI_ESCALATION' | 'USER_ALLOWLIST';
+  policyVersion: string;
+  rule: string | null;
+  trace: string[];
+}
+
+export interface JobSummaryHighlight {
+  resultId: string;
+  why: string;
+}
+
+export interface JobSummaryView {
+  state: 'PENDING' | 'COMPLETED' | 'UNAVAILABLE' | 'INVALID';
+  summary: string | null;
+  highlights: JobSummaryHighlight[];
+  recommendations: string[];
+}
+
 export interface ResultDetailDTO {
   result: ScanResultDTO;
   evidence: EvidenceView[];
   layers: LayerView[];
+  decision: DecisionView | null;
   analysis: AIAnalysisView | null;
   sent: AISentView | null;
 }
@@ -232,6 +253,7 @@ export interface CyberSocApi {
       query: ScanResultsQuery,
     ) => Promise<Page<ScanResultDTO>>;
     readonly getResult: (resultId: string) => Promise<ResultDetailDTO>;
+    readonly getJobSummary: (jobId: string) => Promise<JobSummaryView>;
     readonly analyzeNow: (resultId: string) => Promise<void>;
     readonly onProgress: (
       callback: (progress: ScanProgress) => void,

@@ -107,10 +107,108 @@ export function layerStatusLabel(
   status: string,
   reason: string | null,
 ): string {
-  if (status === 'RAN') return 'Corrió';
-  if (status === 'SKIPPED') return reason ? `Omitida: ${reason}` : 'Omitida';
-  if (status === 'ERROR') return 'Error';
-  return 'Desactivada';
+  if (status === 'RAN') return 'RAN';
+  if (status === 'SKIPPED') return 'SKIPPED';
+  if (status === 'ERROR') return 'ERROR';
+  if (status === 'DISABLED') return 'desactivada por el perfil';
+  return reason ? `${status}: ${reason}` : status;
+}
+
+const heuristicLayers = new Set(['FILETYPE', 'HEURISTICS', 'PE', 'SCRIPTS']);
+
+export interface AppliedCaps {
+  heuristicsRaw: number;
+  heuristicsCapped: number;
+  rulesRaw: number;
+  rulesCapped: number;
+  otherPoints: number;
+  totalCapped: number;
+}
+
+export function appliedCaps(
+  evidence: readonly { source: string; points: number }[],
+): AppliedCaps {
+  let heuristicsRaw = 0;
+  let rulesRaw = 0;
+  let otherPoints = 0;
+  for (const item of evidence) {
+    if (heuristicLayers.has(item.source)) heuristicsRaw += item.points;
+    else if (item.source === 'RULES') rulesRaw += item.points;
+    else otherPoints += item.points;
+  }
+  const heuristicsCapped = Math.min(50, heuristicsRaw);
+  const rulesCapped = Math.min(60, rulesRaw);
+  return {
+    heuristicsRaw,
+    heuristicsCapped,
+    rulesRaw,
+    rulesCapped,
+    otherPoints,
+    totalCapped: Math.min(100, heuristicsCapped + rulesCapped + otherPoints),
+  };
+}
+
+export function zoneLabel(zone: string | null): string {
+  if (zone === 'DESCARGAS') return 'Descargas';
+  if (zone === 'ESCRITORIO') return 'Escritorio';
+  if (zone === 'DOCUMENTOS') return 'Documentos';
+  if (zone === 'TEMPORALES') return 'Temporales';
+  if (zone === 'DATOS_APPS') return 'Datos de aplicaciones';
+  if (zone === 'EXTRAIBLE') return 'Extraíble';
+  if (zone === 'PROGRAMAS') return 'Programas';
+  if (zone === 'SISTEMA') return 'Sistema';
+  if (zone === 'OTRA') return 'Otra';
+  return '—';
+}
+
+export function profileLabel(
+  profileJson: string | null,
+  zone: string | null,
+): string {
+  if (!profileJson) return '—';
+  try {
+    const parsed: unknown = JSON.parse(profileJson);
+    if (!parsed || typeof parsed !== 'object') return '—';
+    const record = parsed as Record<string, unknown>;
+    if (record.mode === 'CUSTOM') {
+      const profile = record.profile;
+      const layers =
+        profile && typeof profile === 'object'
+          ? (profile as { layers?: unknown }).layers
+          : null;
+      return Array.isArray(layers)
+        ? `Personalizado: ${layers.join(', ')}`
+        : 'Personalizado';
+    }
+    if (record.mode === 'AUTO') {
+      const profiles = record.profiles;
+      const chosen =
+        zone && profiles && typeof profiles === 'object'
+          ? (profiles as Record<string, { layers?: unknown }>)[zone]
+          : null;
+      const layers = chosen?.layers;
+      if (Array.isArray(layers))
+        return `Automático por zona: ${layers.join(', ')}`;
+      return 'Automático por zona';
+    }
+  } catch {
+    return '—';
+  }
+  return '—';
+}
+
+export function policyRuleLabel(rule: string | null): string {
+  if (rule === 'DETECTED_KEPT')
+    return 'DETECTED se mantiene: la IA nunca baja un veredicto.';
+  if (rule === 'SUSPICIOUS_KEPT')
+    return 'SUSPICIOUS se mantiene: la IA nunca baja un veredicto.';
+  if (rule === 'SUSPICIOUS_POSSIBLE_FALSE_POSITIVE')
+    return 'SUSPICIOUS se mantiene y se pide revisión: posible falso positivo.';
+  if (rule === 'CLEAN_ESCALATED_BY_AI')
+    return 'CLEAN escalado a SUSPICIOUS: se cumplieron todas las condiciones.';
+  if (rule === 'CLEAN_KEPT')
+    return 'CLEAN se mantiene: falta alguna condición de escalamiento.';
+  return rule ?? '—';
 }
 
 export function severityLabel(severity: string): string {
