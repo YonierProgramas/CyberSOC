@@ -85,7 +85,7 @@ class FileInspector:
                     result.error = reason
                     return result
                 result.file = _file_info(target, opened)
-                self.pipeline.analyze(fh, result)
+                self.pipeline.analyze(fh, result, opts.layers)
         except OSError as error:
             result.status = "ERROR"
             result.error = map_file_error(error)
@@ -96,7 +96,7 @@ class FileInspector:
                 code="IO_ERROR", message="Ruta o metadatos de archivo inválidos"
             )
         finally:
-            self.pipeline.complete_skipped(result)
+            self.pipeline.complete_skipped(result, opts.layers)
             assessment = RiskScorer().evaluate(result)
             result.verdict = assessment.verdict
             result.score = assessment.score

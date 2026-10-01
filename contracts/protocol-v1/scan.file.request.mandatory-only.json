@@ -1,0 +1,15 @@
+{
+  "jsonrpc": "2.0",
+  "id": 78,
+  "method": "scan.file",
+  "params": {
+    "jobId": "j_7f",
+    "taskId": "t_31",
+    "path": "E:\\instalador.exe",
+    "options": {
+      "maxBytes": 268435456,
+      "zone": "OTRA",
+      "layers": []
+    }
+  }
+}

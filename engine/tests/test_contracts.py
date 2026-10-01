@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from cybersoc_engine.models import (
+    DriveInfoRequest,
+    DriveInfoResponse,
     EngineResult,
     FileTask,
     ScanFileParams,
@@ -36,6 +38,11 @@ MODELS = {
     "engine.shutdown.response.json": ShutdownResponse,
     "error.method-not-found.json": MethodNotFoundResponse,
     "error.parse-error.json": ParseErrorResponse,
+    "scan.file.request.zone-layers.json": ScanFileRequest,
+    "scan.file.request.mandatory-only.json": ScanFileRequest,
+    "scan.file.response.disabled-layers.json": ScanFileResponse,
+    "fs.driveInfo.request.json": DriveInfoRequest,
+    "fs.driveInfo.response.json": DriveInfoResponse,
     "scan.file.request.json": ScanFileRequest,
     "scan.file.response.scanned.json": ScanFileResponse,
     "scan.file.response.error-access-denied.json": ScanFileResponse,
@@ -74,8 +81,13 @@ MUTATIONS = [
     for change in ("delete", "type")
     if not (
         change == "delete"
-        and name.startswith("scan.file.response.")
-        and path in (("result", "file"), ("result", "hashes"), ("result", "error"))
+        and (
+            (
+                name.startswith("scan.file.response.")
+                and path in (("result", "file"), ("result", "hashes"), ("result", "error"))
+            )
+            or path in (("params", "options", "zone"), ("params", "options", "layers"))
+        )
     )
 ]
 
@@ -337,7 +349,7 @@ def test_unknown_scan_properties_and_method():
     with pytest.raises(ValidationError):
         ScanFileRequest.model_validate({**request, "method": "scan.folder"})
     params = request["params"]
-    params["options"]["layers"] = []
+    params["options"]["unknownOption"] = []
     with pytest.raises(ValidationError):
         ScanFileParams.model_validate(params)
     result = load("scan.file.response.scanned.json")["result"]
@@ -450,10 +462,12 @@ def test_all_layer_names(layer):
 def test_layer_status_and_optional_reason(status):
     response = load("scan.file.response.double-extension.json")
     trace = response["result"]["layers"][2]
-    trace.update(status=status, reason="NOT_APPLICABLE", ms=0.25)
+    trace.update(status=status, reason="NOT_APPLICABLE", ms=0 if status == "DISABLED" else 0.25)
+    if status == "DISABLED":
+        trace.update(hits=0, points=0)
     ScanFileResponse.model_validate(response)
     del trace["reason"]
-    if status == "SKIPPED":
+    if status in ("SKIPPED", "DISABLED"):
         with pytest.raises(ValidationError):
             ScanFileResponse.model_validate(response)
     else:

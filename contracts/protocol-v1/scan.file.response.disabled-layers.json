@@ -1,0 +1,44 @@
+{
+  "jsonrpc": "2.0",
+  "id": 78,
+  "result": {
+    "taskId": "t_31",
+    "status": "SCANNED",
+    "file": {
+      "name": "instalador.exe",
+      "extension": ".exe",
+      "sizeBytes": 0,
+      "modifiedAt": "2026-09-20T14:03:11Z"
+    },
+    "hashes": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "evidence": [],
+    "durationMs": 4,
+    "engineVersion": "0.1.0",
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0,
+        "points": 0,
+        "ms": 0
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 0,
+        "points": 0,
+        "ms": 0
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "DISABLED",
+        "reason": "PROFILE_DISABLED",
+        "hits": 0,
+        "points": 0,
+        "ms": 0
+      }
+    ]
+  }
+}

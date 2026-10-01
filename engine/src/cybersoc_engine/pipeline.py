@@ -6,7 +6,7 @@ from cybersoc_engine.engines.base import AnalysisContext, DetectionEngine
 from cybersoc_engine.engines.filetype_engine import FileTypeEngine
 from cybersoc_engine.engines.signature_engine import SignatureEngine
 from cybersoc_engine.errors import map_file_error
-from cybersoc_engine.models import EngineResult, FileError, FileHashes, LayerTrace
+from cybersoc_engine.models import EngineResult, FileError, FileHashes, Layer, LayerTrace
 
 PREFIX_BYTES = 4096
 
@@ -15,7 +15,9 @@ class AnalysisPipeline:
     def __init__(self) -> None:
         self.engines: tuple[DetectionEngine, ...] = (SignatureEngine(), FileTypeEngine())
 
-    def analyze(self, stream: BinaryIO, result: EngineResult) -> None:
+    def analyze(
+        self, stream: BinaryIO, result: EngineResult, layers: list[Layer] | None = None
+    ) -> None:
         """Ejecuta HASH, SIGNATURES y FILETYPE sin volver a abrir la ruta."""
         started = perf_counter()
         try:
@@ -44,6 +46,9 @@ class AnalysisPipeline:
         )
         result.status = "SCANNED"
         for engine in self.engines:
+            if self.disabled(engine.layer_id, layers):
+                result.layers.append(self.disabled_trace(engine.layer_id))
+                continue
             started = perf_counter()
             try:
                 # Releer solo una muestra acotada evita abrir otra vez la ruta y
@@ -88,12 +93,27 @@ class AnalysisPipeline:
                     )
                 )
 
-    def complete_skipped(self, result: EngineResult) -> None:
+    @staticmethod
+    def disabled(layer: Layer, layers: list[Layer] | None) -> bool:
+        # La lista es acotada a siete capas: pertenencia O(k), sin cambiar su orden.
+        return layers is not None and layer not in ("HASH", "SIGNATURES") and layer not in layers
+
+    @staticmethod
+    def disabled_trace(layer: Layer) -> LayerTrace:
+        return LayerTrace(
+            layer=layer, status="DISABLED", reason="PROFILE_DISABLED", hits=0, points=0, ms=0
+        )
+
+    def complete_skipped(self, result: EngineResult, layers: list[Layer] | None = None) -> None:
         # Invariante: el set contiene las capas que ya tienen traza. Crear el set
         # cuesta O(n); consultar pertenencia O(1) promedio; completar cuesta O(n).
         recorded = {trace.layer for trace in result.layers}
         for layer in ("HASH", *(engine.layer_id for engine in self.engines)):
             if layer not in recorded:
+                if self.disabled(layer, layers):
+                    result.layers.append(self.disabled_trace(layer))
+                    recorded.add(layer)
+                    continue
                 result.layers.append(
                     LayerTrace(
                         layer=layer,

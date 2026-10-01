@@ -119,18 +119,20 @@ it.each([
   expect(layerTraceSchema.safeParse({ ...trace, layer }).success).toBe(true);
 });
 it.each(['RAN', 'SKIPPED', 'DISABLED', 'ERROR'])(
-  'acepta el estado %s y exige motivo solo para SKIPPED',
+  'acepta el estado %s y exige motivo para SKIPPED/DISABLED',
   (status) => {
     expect(
       layerTraceSchema.safeParse({
         ...trace,
         status,
         reason: 'NOT_APPLICABLE',
-        ms: 0.25,
+        ms: status === 'DISABLED' ? 0 : 0.25,
+        hits: status === 'DISABLED' ? 0 : trace.hits,
+        points: status === 'DISABLED' ? 0 : trace.points,
       }).success,
     ).toBe(true);
     expect(layerTraceSchema.safeParse({ ...trace, status }).success).toBe(
-      status !== 'SKIPPED',
+      !['SKIPPED', 'DISABLED'].includes(status),
     );
   },
 );

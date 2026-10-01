@@ -105,13 +105,6 @@ export const fileErrorCodeSchema = z.enum([
   'ENGINE_CRASHED',
 ]);
 
-export const scanFileParamsSchema = z.strictObject({
-  jobId: z.string(),
-  taskId: z.string(),
-  path: z.string(),
-  options: z.strictObject({ maxBytes: z.number() }),
-});
-
 export const evidenceSourceSchema = z.enum([
   'SIGNATURES',
   'FILETYPE',
@@ -130,6 +123,55 @@ export const layerSchema = z.enum([
   'PE',
   'SCRIPTS',
 ]);
+export const zoneSchema = z.enum([
+  'DESCARGAS',
+  'ESCRITORIO',
+  'DOCUMENTOS',
+  'TEMPORALES',
+  'DATOS_APPS',
+  'EXTRAIBLE',
+  'PROGRAMAS',
+  'SISTEMA',
+  'OTRA',
+]);
+export const scanFileParamsSchema = z.strictObject({
+  jobId: z.string(),
+  taskId: z.string(),
+  path: z.string(),
+  options: z.strictObject({
+    maxBytes: z.number(),
+    zone: zoneSchema.optional(),
+    layers: z
+      .array(layerSchema)
+      .refine((layers) => {
+        // El Set contiene capas únicas; construcción O(n), pertenencia O(1) promedio.
+        return new Set(layers).size === layers.length;
+      }, 'Capa repetida')
+      .optional(),
+  }),
+});
+export const driveInfoParamsSchema = z.strictObject({
+  path: z
+    .string()
+    .min(1)
+    .refine((path) => !path.includes('\u0000')),
+});
+export const driveInfoRequestSchema = z.strictObject({
+  ...envelope,
+  method: z.literal('fs.driveInfo'),
+  params: driveInfoParamsSchema,
+});
+export const driveInfoResultSchema = z.strictObject({
+  driveType: z.enum(['FIXED', 'REMOVABLE', 'NETWORK', 'CDROM', 'UNKNOWN']),
+});
+export const driveInfoResponseSchema = z.strictObject({
+  ...envelope,
+  result: driveInfoResultSchema,
+});
+export type Zone = z.infer<typeof zoneSchema>;
+export type DriveInfoRequest = z.infer<typeof driveInfoRequestSchema>;
+export type DriveInfoResult = z.infer<typeof driveInfoResultSchema>;
+export type DriveInfoResponse = z.infer<typeof driveInfoResponseSchema>;
 export const evidenceSchema = z.strictObject({
   // Fin absoluto: impide aceptar un salto de línea después del identificador.
   id: z.string().regex(/^ev[1-9][0-9]*(?![\s\S])/),
@@ -153,18 +195,33 @@ export const layerTraceSchema = z
     ms: z.number().nonnegative(),
   })
   .superRefine((trace, context) => {
-    if (trace.status === 'SKIPPED' && trace.reason === undefined) {
+    if (
+      ['SKIPPED', 'DISABLED'].includes(trace.status) &&
+      trace.reason === undefined
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['reason'],
-        message: 'SKIPPED requiere reason',
+        message: 'SKIPPED/DISABLED requiere reason',
       });
     }
-    if (trace.layer === 'HASH' && trace.status === 'DISABLED') {
+    if (
+      ['HASH', 'SIGNATURES'].includes(trace.layer) &&
+      trace.status === 'DISABLED'
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['status'],
-        message: 'HASH no se puede desactivar',
+        message: 'HASH y SIGNATURES no se pueden desactivar',
+      });
+    }
+    if (
+      trace.status === 'DISABLED' &&
+      (trace.hits !== 0 || trace.points !== 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'DISABLED no ejecuta análisis',
       });
     }
   });

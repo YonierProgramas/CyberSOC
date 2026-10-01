@@ -12,6 +12,8 @@ import {
   parseErrorResponseSchema,
   scanFileRequestSchema,
   scanFileResponseSchema,
+  driveInfoRequestSchema,
+  driveInfoResponseSchema,
   statsRequestSchema,
   statsResponseSchema,
 } from '../src/shared/protocol';
@@ -28,6 +30,11 @@ const schemas = {
   'engine.shutdown.response.json': shutdownResponseSchema,
   'error.method-not-found.json': methodNotFoundResponseSchema,
   'error.parse-error.json': parseErrorResponseSchema,
+  'scan.file.request.zone-layers.json': scanFileRequestSchema,
+  'scan.file.request.mandatory-only.json': scanFileRequestSchema,
+  'scan.file.response.disabled-layers.json': scanFileResponseSchema,
+  'fs.driveInfo.request.json': driveInfoRequestSchema,
+  'fs.driveInfo.response.json': driveInfoResponseSchema,
   'scan.file.request.json': scanFileRequestSchema,
   'scan.file.response.scanned.json': scanFileResponseSchema,
   'scan.file.response.error-access-denied.json': scanFileResponseSchema,
@@ -98,10 +105,13 @@ for (const [name, schema] of Object.entries(schemas)) {
     });
     for (const path of fieldPaths(example)) {
       const optional =
-        name.startsWith('scan.file.response.') &&
-        ['result.file', 'result.hashes', 'result.error'].includes(
+        ['params.options.zone', 'params.options.layers'].includes(
           path.join('.'),
-        );
+        ) ||
+        (name.startsWith('scan.file.response.') &&
+          ['result.file', 'result.hashes', 'result.error'].includes(
+            path.join('.'),
+          ));
       if (!optional) {
         it(`rechaza eliminar ${path.join('.')}`, () => {
           expect(

@@ -4,9 +4,10 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, JsonValue, ValidationError
 
+from cybersoc_engine.analysis.drive_info import drive_type
 from cybersoc_engine.analysis.file_inspector import FileInspector
 from cybersoc_engine.engines.signature_engine import default_catalog
-from cybersoc_engine.models import ScanFileParams, StatsResult
+from cybersoc_engine.models import DriveInfoParams, DriveInfoResult, ScanFileParams, StatsResult
 from cybersoc_engine.rpc.protocol import EmptyParams, Request, RpcError
 from cybersoc_engine.version import ENGINE_VERSION, PROTOCOL_VERSION
 
@@ -27,7 +28,7 @@ def hello(params: dict[str, JsonValue] | list[JsonValue]) -> dict[str, JsonValue
         "protocol": PROTOCOL_VERSION,
         "engineVersion": ENGINE_VERSION,
         "python": ".".join(str(part) for part in sys.version_info[:3]),
-        "capabilities": ["scan.file", "engine.stats"],
+        "capabilities": ["scan.file", "engine.stats", "fs.driveInfo"],
     }
 
 
@@ -68,12 +69,21 @@ def stats(params: dict[str, JsonValue] | list[JsonValue]) -> dict[str, JsonValue
     ).model_dump(mode="json")
 
 
+def drive_info(params: dict[str, JsonValue] | list[JsonValue]) -> dict[str, JsonValue]:
+    try:
+        request = DriveInfoParams.model_validate(params)
+    except ValidationError as error:
+        raise RpcError(-32602) from error
+    return DriveInfoResult(driveType=drive_type(request.path)).model_dump(mode="json")
+
+
 HANDLERS = {
     "engine.hello": hello,
     "engine.ping": ping,
     "engine.shutdown": shutdown,
     "scan.file": scan_file,
     "engine.stats": stats,
+    "fs.driveInfo": drive_info,
 }
 
 

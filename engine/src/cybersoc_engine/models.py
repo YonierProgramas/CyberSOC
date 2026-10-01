@@ -8,6 +8,35 @@ type EvidenceSource = Literal[
     "SIGNATURES", "FILETYPE", "RULES", "HEURISTICS", "PE", "SCRIPTS", "ENGINE"
 ]
 type Layer = Literal["HASH", "SIGNATURES", "FILETYPE", "RULES", "HEURISTICS", "PE", "SCRIPTS"]
+type Zone = Literal[
+    "DESCARGAS",
+    "ESCRITORIO",
+    "DOCUMENTOS",
+    "TEMPORALES",
+    "DATOS_APPS",
+    "EXTRAIBLE",
+    "PROGRAMAS",
+    "SISTEMA",
+    "OTRA",
+]
+type DriveType = Literal["FIXED", "REMOVABLE", "NETWORK", "CDROM", "UNKNOWN"]
+
+
+class DriveInfoParams(ContractModel):
+    path: Annotated[str, Field(min_length=1, pattern=r"^[^\x00]+$")]
+
+
+class DriveInfoRequest(ContractEnvelope):
+    method: Literal["fs.driveInfo"]
+    params: DriveInfoParams
+
+
+class DriveInfoResult(ContractModel):
+    driveType: DriveType
+
+
+class DriveInfoResponse(ContractEnvelope):
+    result: DriveInfoResult
 
 
 def json_integer(value: object) -> object:
@@ -67,10 +96,13 @@ class LayerTrace(ContractModel):
 
     @model_validator(mode="after")
     def validate_status(self) -> "LayerTrace":
-        if self.status == "SKIPPED" and self.reason is None:
-            raise ValueError("SKIPPED requiere reason")
-        if self.layer == "HASH" and self.status == "DISABLED":
-            raise ValueError("HASH no se puede desactivar")
+        if self.status in ("SKIPPED", "DISABLED") and self.reason is None:
+            raise ValueError("SKIPPED/DISABLED requiere reason")
+        if self.status == "DISABLED":
+            if self.layer in ("HASH", "SIGNATURES"):
+                raise ValueError("HASH y SIGNATURES no se pueden desactivar")
+            if self.hits != 0 or self.points != 0:
+                raise ValueError("DISABLED no ejecuta análisis")
         return self
 
 
@@ -96,6 +128,23 @@ class FileTask(ContractModel):
 
 class ScanFileOptions(ContractModel):
     maxBytes: float
+    zone: Zone | None = None
+    layers: list[Layer] | None = None
+
+    @field_validator("zone", "layers", mode="before")
+    @classmethod
+    def reject_null_option(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("Omit optional options instead of sending null")
+        return value
+
+    @field_validator("layers")
+    @classmethod
+    def unique_layers(cls, layers: list[Layer]) -> list[Layer]:
+        # El set guarda capas únicas; construirlo cuesta O(n), pertenencia O(1) promedio.
+        if len(set(layers)) != len(layers):
+            raise ValueError("Capa repetida")
+        return layers
 
 
 class ScanFileParams(ContractModel):

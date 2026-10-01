@@ -177,7 +177,7 @@ it('rechaza opciones y propiedades no acordadas', () => {
   expect(
     scanFileParamsSchema.safeParse({
       ...request.params,
-      options: { maxBytes: 1, layers: [] },
+      options: { maxBytes: 1, unknownOption: [] },
     }).success,
   ).toBe(false);
   expect(

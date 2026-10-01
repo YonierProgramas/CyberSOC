@@ -1,0 +1,7 @@
+{
+  "jsonrpc": "2.0",
+  "id": 79,
+  "result": {
+    "driveType": "FIXED"
+  }
+}
