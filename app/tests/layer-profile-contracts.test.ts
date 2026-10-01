@@ -173,6 +173,9 @@ it.skipIf(!existsSync(python))(
       ['SIGNATURES', 'RAN'],
       ['FILETYPE', 'DISABLED'],
       ['RULES', 'DISABLED'],
+      ['HEURISTICS', 'DISABLED'],
+      ['PE', 'DISABLED'],
+      ['SCRIPTS', 'DISABLED'],
     ]);
     expect(result.result.hashes?.sha256).toHaveLength(64);
     const info = driveInfoResponseSchema.parse(responses[1]);

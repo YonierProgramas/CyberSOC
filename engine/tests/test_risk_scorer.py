@@ -64,7 +64,7 @@ def test_sum_cap_and_decisive_floor():
     scorer = RiskScorer()
     assert scorer.evaluate(result_with()).score == 0
     assert scorer.evaluate(result_with("MEDIUM", "MEDIUM")).verdict == "SUSPICIOUS"
-    assert scorer.evaluate(result_with("CRITICAL", "CRITICAL", "CRITICAL")).score == 100
+    assert scorer.evaluate(result_with("CRITICAL", "CRITICAL", "CRITICAL")).score == 50
     for severities, score in [(("CRITICAL",), 85), (("CRITICAL", "CRITICAL", "CRITICAL"), 100)]:
         assessment = scorer.evaluate(result_with(*severities, decisive=True))
         assert (assessment.verdict, assessment.score, assessment.riskLevel) == (

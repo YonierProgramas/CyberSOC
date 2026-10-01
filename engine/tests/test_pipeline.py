@@ -28,7 +28,15 @@ def result_for(name="factura.pdf.exe"):
 def assert_trace(result):
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [trace.layer for trace in result.layers] == ["HASH", "SIGNATURES", "FILETYPE", "RULES"]
+    assert [trace.layer for trace in result.layers] == [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS",
+    ]
     assert all(trace.ms >= 0 for trace in result.layers)
     assert all(trace.reason for trace in result.layers if trace.status == "SKIPPED")
     assert [item.id for item in result.evidence] == [
@@ -202,8 +210,11 @@ def test_generated_fixtures_through_rpc_are_safe_and_unchanged():
             reply = handle_line(json.dumps(request).encode())
             result = ScanFileResponse.model_validate_json(reply.response).result
             assert_trace(result)
-            assert result.status == "SCANNED"
-            assert [item.code for item in result.evidence] == [code]
+            malformed = name == "pe_disfrazado.pdf"
+            assert result.status == ("ERROR" if malformed else "SCANNED")
+            assert [item.code for item in result.evidence] == [code] + (
+                ["ENGINE_ERROR"] if malformed else []
+            )
             assert result.layers[2].hits == 1
             assert result.layers[2].points == 25
             assert path.read_bytes() == before

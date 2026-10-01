@@ -87,6 +87,9 @@ def test_excluded_filetype_not_called_and_mandatory_layers_detect(tmp_path, laye
         ("SIGNATURES", "RAN"),
         ("FILETYPE", "DISABLED"),
         ("RULES", "RAN" if "RULES" in layers else "DISABLED"),
+        ("HEURISTICS", "RAN" if "HEURISTICS" in layers else "DISABLED"),
+        ("PE", "SKIPPED" if "PE" in layers else "DISABLED"),
+        ("SCRIPTS", "SKIPPED" if "SCRIPTS" in layers else "DISABLED"),
     ]
     disabled = result.layers[2]
     assert disabled.reason == "PROFILE_DISABLED"
@@ -112,6 +115,9 @@ def test_legacy_or_enabled_layers_run_in_canonical_order(tmp_path, options):
         ("SIGNATURES", "RAN"),
         ("FILETYPE", "RAN"),
         ("RULES", "RAN" if "layers" not in options else "DISABLED"),
+        ("HEURISTICS", "RAN" if "layers" not in options else "DISABLED"),
+        ("PE", "SKIPPED" if "layers" not in options else "DISABLED"),
+        ("SCRIPTS", "SKIPPED" if "layers" not in options else "DISABLED"),
     ]
     assert [e.code for e in result.evidence] == ["DOUBLE_EXTENSION"]
 
@@ -124,7 +130,15 @@ def test_disabled_trace_even_when_file_not_analyzed(tmp_path, scenario):
     with patch("cybersoc_engine.pipeline.consume_stream", side_effect=OSError("private path")):
         response = scan(path, layers=[], maxBytes=0 if scenario == "too_large" else 1024)
     result = ScanFileResponse.model_validate(response).result
-    assert [t.layer for t in result.layers] == ["HASH", "SIGNATURES", "FILETYPE", "RULES"]
+    assert [t.layer for t in result.layers] == [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS",
+    ]
     assert result.layers[0].status == ("ERROR" if scenario == "hash_error" else "SKIPPED")
     assert result.layers[1].status == "SKIPPED"
     assert result.layers[1].reason

@@ -1,0 +1,126 @@
+{
+  "jsonrpc": "2.0",
+  "id": 34,
+  "result": {
+    "taskId": "t",
+    "status": "SCANNED",
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "FILETYPE",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev2",
+        "source": "FILETYPE",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev3",
+        "source": "FILETYPE",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev4",
+        "source": "FILETYPE",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev5",
+        "source": "RULES",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev6",
+        "source": "RULES",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev7",
+        "source": "RULES",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      },
+      {
+        "id": "ev8",
+        "source": "RULES",
+        "code": "TEST",
+        "title": "Prueba",
+        "severity": "HIGH",
+        "points": 25,
+        "decisive": false,
+        "confidence": 1.0,
+        "facts": {}
+      }
+    ],
+    "layers": [],
+    "durationMs": 0.0,
+    "engineVersion": "test",
+    "verdict": "SUSPICIOUS",
+    "score": 100,
+    "riskLevel": "CRÍTICO",
+    "scoreBreakdown": {
+      "version": "2",
+      "heuristics": {
+        "raw": 100,
+        "capped": 50,
+        "cap": 50
+      },
+      "rules": {
+        "raw": 100,
+        "capped": 60,
+        "cap": 60
+      },
+      "signatures": {
+        "raw": 0,
+        "capped": 0,
+        "cap": 100
+      },
+      "rawTotal": 200,
+      "cappedTotal": 100,
+      "decisiveFloor": 0,
+      "total": 100
+    }
+  }
+}

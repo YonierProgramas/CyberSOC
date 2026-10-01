@@ -178,7 +178,15 @@ def test_bad_catalog_is_layer_error_and_stats_rpc_error(tmp_path):
     ):
         result = ScanFileResponse.model_validate_json(rpc(request(path)).response).result
     assert result.verdict == "ERROR" and result.score is None and result.riskLevel is None
-    assert [layer.status for layer in result.layers] == ["RAN", "ERROR", "RAN", "RAN"]
+    assert [layer.status for layer in result.layers] == [
+        "RAN",
+        "ERROR",
+        "RAN",
+        "RAN",
+        "RAN",
+        "SKIPPED",
+        "SKIPPED",
+    ]
     with patch(
         "cybersoc_engine.rpc.handlers.default_catalog", side_effect=ValueError("bad catalog")
     ):
@@ -225,6 +233,9 @@ def test_real_process_detects_five_fixtures_and_reports_same_catalog():
                 "SIGNATURES",
                 "FILETYPE",
                 "RULES",
+                "HEURISTICS",
+                "PE",
+                "SCRIPTS",
             ]
             assert result.layers[1].hits == 1 and result.layers[1].points == 40
             assert result.evidence[0].facts["signaturesVersion"] == stats.signaturesVersion

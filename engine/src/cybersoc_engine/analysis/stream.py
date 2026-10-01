@@ -65,6 +65,17 @@ class ByteHistogram:
         )
 
 
+class BoundedSample:
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.data = bytearray()
+
+    def consume(self, chunk: bytes) -> None:
+        # Invariante: len(data) <= límite fijo. O(bytes retenidos) tiempo y
+        # O(límite) memoria; nunca crece con un archivo grande ni relee el disco.
+        self.data.extend(chunk[: max(0, self.limit - len(self.data))])
+
+
 def consume_stream(stream: BinaryIO, consumers: tuple[Consumer, ...]) -> int:
     """Lee bloques de 1 MiB hasta EOF una vez; no cierra el descriptor del llamador."""
     total = 0

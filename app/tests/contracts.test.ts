@@ -24,6 +24,7 @@ const directory = fileURLToPath(
   new URL('../../contracts/protocol-v1/', import.meta.url),
 );
 const schemas = {
+  'scan.file.response.score-v2.json': scanFileResponseSchema,
   'engine.hello.request.json': helloRequestSchema,
   'engine.hello.response.json': helloResponseSchema,
   'engine.ping.request.json': pingRequestSchema,
@@ -91,7 +92,13 @@ function mutate(
   );
   if (change === 'delete') delete parent[key];
   else
-    parent[key] = ['id', 'extension', 'score', 'riskLevel'].includes(key)
+    parent[key] = [
+      'id',
+      'extension',
+      'score',
+      'riskLevel',
+      'scoreBreakdown',
+    ].includes(key)
       ? true
       : null;
   return copy;
@@ -113,9 +120,12 @@ for (const [name, schema] of Object.entries(schemas)) {
           path.join('.'),
         ) ||
         (name.startsWith('scan.file.response.') &&
-          ['result.file', 'result.hashes', 'result.error'].includes(
-            path.join('.'),
-          ));
+          [
+            'result.file',
+            'result.hashes',
+            'result.error',
+            'result.scoreBreakdown',
+          ].includes(path.join('.')));
       if (!optional) {
         it(`rechaza eliminar ${path.join('.')}`, () => {
           expect(
