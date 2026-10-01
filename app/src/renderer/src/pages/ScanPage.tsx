@@ -112,6 +112,7 @@ export function ScanPage() {
         <button
           type="button"
           disabled={busy || running}
+          data-testid="scan-folder"
           onClick={() => void start('FOLDER')}
         >
           Escanear carpeta
@@ -119,6 +120,7 @@ export function ScanPage() {
         <button
           type="button"
           disabled={busy || running}
+          data-testid="scan-file"
           onClick={() => void start('FILE')}
         >
           Escanear archivo
@@ -126,6 +128,7 @@ export function ScanPage() {
         <button
           type="button"
           disabled={!running || busy}
+          data-testid="cancel-scan"
           onClick={() => void cancel()}
         >
           {job?.status === 'CANCELLING' ? 'Cancelando…' : 'Cancelar'}

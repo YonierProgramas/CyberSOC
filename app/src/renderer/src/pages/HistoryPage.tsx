@@ -41,10 +41,14 @@ export function HistoryPage() {
       {jobs.length === 0 ? (
         <p>Todavía no hay escaneos guardados.</p>
       ) : (
-        <ul className="job-list">
+        <ul data-testid="history-list" className="job-list">
           {jobs.map((job) => (
             <li key={job.id}>
-              <button type="button" onClick={() => void openJob(job.id)}>
+              <button
+                data-testid="history-job"
+                type="button"
+                onClick={() => void openJob(job.id)}
+              >
                 <span>{job.targetPath}</span>
                 <span>{jobStatusLabel(job.status)}</span>
                 <span>

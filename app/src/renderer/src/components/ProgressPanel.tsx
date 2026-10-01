@@ -19,7 +19,7 @@ export function ProgressPanel({
   const current = progress?.currentPath;
 
   return (
-    <section className="panel" aria-live="polite">
+    <section data-testid="progress-panel" className="panel" aria-live="polite">
       <h2>Progreso</h2>
       <div
         className={
@@ -51,11 +51,11 @@ export function ProgressPanel({
       <dl className="counters">
         <div>
           <dt>Descubiertos</dt>
-          <dd>{discovered}</dd>
+          <dd data-testid="discovered-count">{discovered}</dd>
         </div>
         <div>
           <dt>Analizados</dt>
-          <dd>{processed}</dd>
+          <dd data-testid="processed-count">{processed}</dd>
         </div>
         <div>
           <dt>Errores</dt>

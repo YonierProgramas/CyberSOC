@@ -1,0 +1,34 @@
+[
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  { "accion": "seleccionar", "parametros": { "texto": "CSD-TEST-001.txt" } },
+  {
+    "accion": "capturar",
+    "selector": "result-detail",
+    "archivo": "01-deteccion-firma-prueba.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "ai-analysis",
+    "archivo": "03-analisis-ia.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "ai-sent",
+    "archivo": "04-que-se-envio.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "layers-applied",
+    "archivo": "10-capas-aplicadas.png"
+  },
+  { "accion": "seleccionar", "parametros": { "texto": "factura.pdf.ps1" } },
+  {
+    "accion": "capturar",
+    "selector": "evidence-panel",
+    "archivo": "02-tipo-real-doble-extension.png"
+  },
+  { "accion": "configurar", "archivo": "15-configuracion-api-key.png" }
+]

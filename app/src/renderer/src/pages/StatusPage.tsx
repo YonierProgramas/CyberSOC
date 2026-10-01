@@ -55,7 +55,7 @@ export function StatusPage() {
       <h1>{status?.app ?? 'CyberSOC Defender'}</h1>
       {status && <p>Versión {status.version}</p>}
       {failed && <p role="alert">No se pudo consultar el estado del motor.</p>}
-      <p role="status">
+      <p data-testid="engine-status" role="status">
         {!status
           ? 'Consultando estado…'
           : engine?.status === 'connected'

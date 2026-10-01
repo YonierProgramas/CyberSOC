@@ -1,0 +1,21 @@
+[
+  { "accion": "cancelar_3000", "archivo": "01-video-escaneo-cancelacion.mp4" },
+  { "accion": "bloquear", "archivo": "05-archivo-bloqueado.png" },
+  { "accion": "reiniciar", "archivo": "06-historial-reinicio.png" },
+  { "accion": "matar_motor", "archivo": "07-motor-caido.png" },
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  { "accion": "capturar", "archivo": "08-tabla-resultados.png" },
+  {
+    "accion": "capturar",
+    "selector": "job-detail",
+    "archivo": "11-metricas-estructuras.png"
+  },
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures/CSD-TEST-001.txt", "tipo": "FILE" }
+  },
+  { "accion": "capturar", "archivo": "10-escaneo-archivo.png" }
+]

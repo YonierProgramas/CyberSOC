@@ -16,14 +16,14 @@ export function JobDetail({
   const metrics = readMetrics(job.metricsJson);
   const duration = jobDuration(job, elapsedMs);
   return (
-    <section className="panel">
+    <section data-testid="job-detail" className="panel">
       <h2>Detalle del trabajo</h2>
       <p>
         {job.targetKind === 'FILE' ? 'Archivo' : 'Carpeta'}: {job.targetPath}
       </p>
-      <p>Estado: {jobStatusLabel(job.status)}</p>
+      <p data-testid="job-status">Estado: {jobStatusLabel(job.status)}</p>
       {job.errorMessage && <p role="alert">{job.errorMessage}</p>}
-      <dl className="counters">
+      <dl data-testid="structure-metrics" className="counters">
         <div>
           <dt>Pico de la pila</dt>
           <dd>{metrics.peakStackSize ?? '—'}</dd>

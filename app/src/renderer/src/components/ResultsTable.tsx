@@ -56,7 +56,7 @@ export function ResultsTable({
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <section className="panel">
+    <section data-testid="results-panel" className="panel">
       <h2>Resultados</h2>
       {failed && <p role="alert">No se pudieron cargar los resultados.</p>}
       <div className="table-wrap">

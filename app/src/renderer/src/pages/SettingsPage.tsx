@@ -79,6 +79,7 @@ export function SettingsPage() {
         <label>
           API key
           <input
+            data-testid="api-key-input"
             type="password"
             autoComplete="off"
             value={key}
@@ -89,6 +90,7 @@ export function SettingsPage() {
           <button
             type="button"
             disabled={busy || key.trim() === ''}
+            data-testid="save-api-key"
             onClick={() => void save()}
           >
             Guardar

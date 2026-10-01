@@ -1,6 +1,8 @@
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { Database } from '../core/persistence/Database';
 import { MigrationRunner } from '../core/persistence/MigrationRunner';
 import {
@@ -20,6 +22,7 @@ import {
   type ScanEngine,
 } from '../core/scan/ScanOrchestrator';
 import { ClaudeProvider } from '../core/ai/providers/ClaudeProvider';
+import { FakeAIProvider } from '../core/ai/providers/FakeAIProvider';
 import type { AIErrorKind, AIProvider } from '../core/ai/AIProvider';
 import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
 import { AISecurityService } from '../core/ai/AISecurityService';
@@ -28,6 +31,43 @@ import type { AIHealthCheck } from '../shared/ipc';
 import type { AppLogger } from '../core/logging/logger';
 import { SecretStore } from './SecretStore';
 import type { AISettingsService } from './ipc/settings.ipc';
+
+let evidenceRoot: string | undefined;
+
+/** Solo el opt-in explícito aísla datos y sustituye el diálogo nativo. */
+function prepareEvidenceMode(): string | undefined {
+  if (process.env.CYBERSOC_EVIDENCE_MODE !== '1') return undefined;
+  if (evidenceRoot) return evidenceRoot;
+  const root = process.env.CYBERSOC_EVIDENCE_ROOT
+    ? resolve(process.env.CYBERSOC_EVIDENCE_ROOT)
+    : mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
+  // El capturador solo puede reutilizar un directorio temporal propio al reiniciar.
+  if (
+    realpathSync(dirname(root)) !== realpathSync(tmpdir()) ||
+    !basename(root).startsWith('cybersoc-evidence-') ||
+    realpathSync(root) !== root
+  ) {
+    throw new Error(
+      'El modo evidencia requiere un directorio temporal aislado.',
+    );
+  }
+  const userData = join(root, 'user-data');
+  mkdirSync(userData, { recursive: true });
+  app.setPath('userData', userData);
+  dialog.showOpenDialog = (async () => {
+    const path = process.env.CYBERSOC_EVIDENCE_DIALOG_PATH;
+    return { canceled: !path, filePaths: path ? [path] : [] };
+  }) as typeof dialog.showOpenDialog;
+  evidenceRoot = root;
+  return root;
+}
+
+function evidenceDelay(): Promise<void> {
+  const milliseconds = Number(process.env.CYBERSOC_EVIDENCE_SCAN_DELAY_MS ?? 0);
+  return new Promise((done) =>
+    setTimeout(done, Math.min(5_000, Math.max(0, milliseconds || 0))),
+  );
+}
 
 export function createSecretStore(database: Database): SecretStore {
   return new SecretStore(database, {
@@ -53,7 +93,35 @@ export function createAIWorkflow(
 export function createAIProvider(
   database: Database,
   secrets = createSecretStore(database),
-): ClaudeProvider | null {
+): ClaudeProvider | FakeAIProvider | null {
+  if (
+    process.env.CYBERSOC_EVIDENCE_MODE === '1' &&
+    process.env.CYBERSOC_EVIDENCE_LIVE !== '1'
+  ) {
+    // Respuesta fija y explícitamente simulada. Atraviesa el validador y RiskPolicy.
+    return new FakeAIProvider({ model: 'fake-evidence-v1' }).enqueueValue({
+      schema: 'cybersoc.ai-assessment/v1',
+      summary:
+        'Demostración con FakeAIProvider: el motor registró evidencia ev1.',
+      plainExplanation:
+        'Este es un fixture inofensivo de prueba. La explicación simulada permite comprobar la interfaz sin consumir la API.',
+      technicalAnalysis:
+        'La evidencia ev1 procede del motor local. El proveedor simulado no lee contenido del archivo ni cambia el veredicto del motor.',
+      correlations: [
+        {
+          evidenceIds: ['ev1'],
+          insight: 'La evidencia ev1 está incluida en el contexto validado.',
+        },
+      ],
+      opinion: 'INSUFFICIENT_EVIDENCE',
+      confidence: 0,
+      recommendedAction: 'VERIFY_SOURCE',
+      actionRationale:
+        'Revisar el origen del archivo y las evidencias del motor.',
+      falsePositiveNotes: 'Fixture de demostración; no contiene malware.',
+      citedEvidenceIds: ['ev1'],
+    });
+  }
   try {
     const apiKey = secrets.getApiKey();
     if (apiKey === null) return null;
@@ -209,7 +277,18 @@ export function createScanOrchestrator(
   const results = new ScanResultRepository(database);
   return new ScanOrchestrator({
     config: () => config.load(),
-    engine,
+    engine:
+      process.env.CYBERSOC_EVIDENCE_MODE === '1'
+        ? {
+            getState: () => engine.getState(),
+            reconnect: () => engine.reconnect(),
+            async scanFile(params, timeoutMs) {
+              // Solo ralentiza la demostración; ni fabrica ni modifica resultados.
+              await evidenceDelay();
+              return engine.scanFile(params, timeoutMs);
+            },
+          }
+        : engine,
     jobs: new ScanJobRepository(database),
     results,
     persistResult(record, result) {
@@ -273,6 +352,8 @@ export function createScanOrchestrator(
 }
 
 export function createDatabase(userDataPath: string): Database {
+  const root = prepareEvidenceMode();
+  if (root) userDataPath = join(root, 'user-data');
   const database = new Database(join(userDataPath, 'cybersoc.db'));
   try {
     new MigrationRunner(database).run();
@@ -287,6 +368,8 @@ export function createEngine(
   appRoot: string,
   userDataPath = app.getPath('userData'),
 ): EngineProcess {
+  const root = prepareEvidenceMode();
+  if (root) userDataPath = join(root, 'user-data');
   const logger = createLogger(join(userDataPath, 'logs'));
   logger.info({ component: 'core' }, 'Logging started');
   return new EngineProcess({
@@ -298,7 +381,22 @@ export function createEngine(
     ) => {
       const env = { ...options?.env };
       delete env.CYBERSOC_ANTHROPIC_API_KEY;
-      return spawn(file, args, { ...options, env });
+      const child = spawn(file, args, {
+        ...options,
+        env,
+        ...(root ? { windowsHide: true } : {}),
+      });
+      if (root && child.pid) {
+        writeFileSync(
+          join(root, 'engine-pid.json'),
+          JSON.stringify({
+            pid: child.pid,
+            parentPid: process.pid,
+          }),
+          { mode: 0o600 },
+        );
+      }
+      return child;
     }) as typeof spawn,
     cwd: appRoot,
     command: () =>

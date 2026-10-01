@@ -67,8 +67,8 @@ export function ResultDetail({ resultId }: { resultId: string }) {
       : aiStatusMessage(result.aiStatus);
 
   return (
-    <div className="result-detail">
-      <section className="panel">
+    <div data-testid="result-detail" className="result-detail">
+      <section data-testid="result-summary" className="panel">
         <h2>Detalle del resultado</h2>
         <p>{result.fileName}</p>
         <dl className="counters">

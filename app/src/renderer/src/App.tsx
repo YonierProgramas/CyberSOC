@@ -13,6 +13,7 @@ export function App() {
       <nav className="nav">
         <button
           type="button"
+          data-testid="nav-scan"
           aria-current={view === 'scan' ? 'page' : undefined}
           onClick={() => setView('scan')}
         >
@@ -20,6 +21,7 @@ export function App() {
         </button>
         <button
           type="button"
+          data-testid="nav-history"
           aria-current={view === 'history' ? 'page' : undefined}
           onClick={() => setView('history')}
         >
@@ -27,6 +29,7 @@ export function App() {
         </button>
         <button
           type="button"
+          data-testid="nav-status"
           aria-current={view === 'status' ? 'page' : undefined}
           onClick={() => setView('status')}
         >
@@ -34,6 +37,7 @@ export function App() {
         </button>
         <button
           type="button"
+          data-testid="nav-settings"
           aria-current={view === 'settings' ? 'page' : undefined}
           onClick={() => setView('settings')}
         >
