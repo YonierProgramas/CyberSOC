@@ -1,5 +1,6 @@
 """Prepara únicamente fixtures inofensivos dentro del temporal del capturador."""
 
+import os
 import runpy
 import shutil
 import sys
@@ -8,7 +9,9 @@ from pathlib import Path
 generator = runpy.run_path(sys.argv[1])
 root = Path(sys.argv[2])
 with generator["generate_fixtures"](
-    include_filetype=True, include_signatures=True
+    include_filetype=True,
+    include_signatures=True,
+    include_rules=os.environ.get("CYBERSOC_EVIDENCE_RULES") == "1",
 ) as generated:
     shutil.copytree(generated, root / "fixtures")
 

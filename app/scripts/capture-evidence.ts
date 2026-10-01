@@ -41,13 +41,15 @@ const sprint = args[sprintIndex + 1];
 const live = args.includes('--live');
 if (
   sprintIndex < 0 ||
-  !['01', '02'].includes(sprint) ||
+  !['01', '02', '03'].includes(sprint) ||
   args.some(
     (arg, index) =>
       index !== sprintIndex + 1 && !['--sprint', '--live'].includes(arg),
   )
 ) {
-  throw new Error('Uso: npm run evidence:capture -- --sprint <01|02> [--live]');
+  throw new Error(
+    'Uso: npm run evidence:capture -- --sprint <01|02|03> [--live]',
+  );
 }
 if (live && !process.env.CYBERSOC_ANTHROPIC_API_KEY) {
   throw new Error(
@@ -68,11 +70,19 @@ function findDocumentation(): string {
 const destination = join(
   findDocumentation(),
   'sprints',
-  sprint === '01' ? 'sprint-01-escaneo-real' : 'sprint-02-evidencia-ia-v1',
+  sprint === '01'
+    ? 'sprint-01-escaneo-real'
+    : sprint === '02'
+      ? 'sprint-02-evidencia-ia-v1'
+      : 'sprint-03-motor-hibrido-ia-v2',
   'evidencias',
 );
 mkdirSync(destination, { recursive: true });
-const root = mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
+const evidenceParent =
+  sprint === '03'
+    ? (process.env.PUBLIC ?? join('C:\\Users', 'Public'))
+    : tmpdir();
+const root = mkdtempSync(join(evidenceParent, 'cybersoc-evidence-'));
 const generated: string[] = [];
 const limitations: string[] = [];
 const checks: string[] = [];
@@ -86,6 +96,8 @@ const stepSchema = z.strictObject({
     'seleccionar',
     'capturar',
     'configurar',
+    'esperar',
+    'perfil',
   ]),
   selector: z
     .string()
@@ -100,6 +112,8 @@ const stepSchema = z.strictObject({
       ruta: z.string().optional(),
       tipo: z.enum(['FILE', 'FOLDER']).optional(),
       texto: z.string().optional(),
+      modo: z.enum(['AUTO', 'CUSTOM']).optional(),
+      capas: z.string().optional(),
     })
     .optional(),
 });
@@ -137,6 +151,12 @@ function environment(): Record<string, string> {
     CYBERSOC_EVIDENCE_ROOT: root,
     CYBERSOC_EVIDENCE_SCAN_DELAY_MS: '0',
     CYBERSOC_EVIDENCE_DIALOG_PATH: '',
+    ...(sprint === '03'
+      ? {
+          CYBERSOC_EVIDENCE_SCENARIO: 'escalation',
+          CYBERSOC_EVIDENCE_RULES: '1',
+        }
+      : {}),
     PYTHONPATH: join(engineRoot, 'src'),
     PYTHONDONTWRITEBYTECODE: '1',
   };
@@ -222,24 +242,76 @@ async function configurePath(path: string, milliseconds = 0): Promise<void> {
   );
 }
 
+function systemFolder(): string {
+  const systemRoot = process.env.SystemRoot;
+  assert(systemRoot, 'SystemRoot debe existir en Windows');
+  const folder = join(systemRoot, 'System32', 'drivers', 'etc');
+  assert(existsSync(folder), 'La subcarpeta de System32 debe existir');
+  const inside = relative(join(systemRoot, 'System32'), folder);
+  assert(
+    inside && !inside.startsWith('..') && !isAbsolute(inside),
+    'Solo una subcarpeta de System32',
+  );
+  return folder;
+}
+
+async function configureAbsolute(target: string): Promise<void> {
+  assert(electron);
+  await electron.evaluate((_api, value) => {
+    process.env.CYBERSOC_EVIDENCE_DIALOG_PATH = value;
+    process.env.CYBERSOC_EVIDENCE_SCAN_DELAY_MS = '0';
+  }, target);
+}
+
 async function scan(
   path: string,
   kind: 'FILE' | 'FOLDER',
   milliseconds = 0,
   finish = true,
 ): Promise<void> {
+  const external = path === 'sistema' ? systemFolder() : null;
   await page.getByTestId('nav-scan').click();
-  await configurePath(path, milliseconds);
+  if (external) await configureAbsolute(external);
+  else await configurePath(path, milliseconds);
   await page.getByTestId(kind === 'FILE' ? 'scan-file' : 'scan-folder').click();
   await page.getByTestId('job-status').waitFor();
   await until(
     async () =>
       (await page.getByTestId('job-detail').innerText()).includes(
-        resolve(root, path),
+        external ?? resolve(root, path),
       ),
-    'nuevo trabajo con la ruta del fixture',
+    'nuevo trabajo con la ruta solicitada',
   );
   if (finish) await completed();
+}
+
+async function waitForText(selector: string, text: string): Promise<void> {
+  await until(
+    async () => {
+      const locator = page.getByTestId(selector);
+      if ((await locator.count()) === 0) return false;
+      return (await locator.innerText({ timeout: 2_000 })).includes(text);
+    },
+    `${selector} contiene ${text}`,
+    120_000,
+  );
+}
+
+async function profile(
+  mode: 'AUTO' | 'CUSTOM',
+  layers?: string,
+): Promise<void> {
+  await page.getByTestId('nav-scan').click();
+  await page
+    .getByTestId(mode === 'AUTO' ? 'profile-mode-auto' : 'profile-mode-custom')
+    .check();
+  if (mode !== 'CUSTOM' || !layers) return;
+  const keep = new Set(layers.split(',').map((item) => item.trim()));
+  for (const layer of ['FILETYPE', 'RULES', 'HEURISTICS', 'PE', 'SCRIPTS']) {
+    const box = page.getByTestId(`layer-${layer}`);
+    if (keep.has(layer)) await box.check();
+    else await box.uncheck();
+  }
 }
 
 async function completed(): Promise<void> {
@@ -507,7 +579,14 @@ async function crash(file: string): Promise<void> {
 }
 
 async function select(text: string): Promise<void> {
-  await page.getByTestId('result-row').filter({ hasText: text }).click();
+  const rows = page.getByTestId('result-row').filter({ hasText: text });
+  const row =
+    (await rows.count()) <= 1
+      ? rows
+      : page.getByTestId('result-row').filter({
+          has: page.getByRole('cell', { name: text, exact: true }),
+        });
+  await row.first().click();
   await until(
     async () =>
       (await page.getByTestId('result-summary').innerText()).includes(text),
@@ -532,7 +611,7 @@ async function select(text: string): Promise<void> {
     checks.push(
       `Análisis VALID; DETECTED conservado; proveedor ${live ? 'Claude' : 'FakeAIProvider'}.`,
     );
-  } else {
+  } else if (text === 'factura.pdf.ps1') {
     const content = await page.getByTestId('evidence-panel').innerText();
     assert(
       content.includes('DOUBLE_EXTENSION') && content.includes('TYPE_MISMATCH'),
@@ -613,6 +692,18 @@ try {
         break;
       case 'configurar':
         await settings(step.archivo!);
+        break;
+      case 'esperar':
+        await waitForText(
+          z.string().parse(step.selector),
+          z.string().parse(step.parametros?.texto),
+        );
+        break;
+      case 'perfil':
+        await profile(
+          z.enum(['AUTO', 'CUSTOM']).parse(step.parametros?.modo),
+          step.parametros?.capas,
+        );
         break;
     }
   }
