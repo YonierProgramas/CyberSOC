@@ -4,7 +4,13 @@ import { ScanResultRepository } from '../src/core/persistence/ScanResultReposito
 import { RiskAssessmentRepository } from '../src/core/persistence/RiskAssessmentRepository';
 import { EvidenceRepository } from '../src/core/persistence/EvidenceRepository';
 import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
-import type { AIAssessment } from '../src/core/ai/schemas';
+import {
+  aiAssessmentSchema,
+  type AIAssessment,
+  type JobSummary,
+  type JobSummaryContext,
+} from '../src/core/ai/schemas';
+import { JobSummaryStore } from '../src/core/ai/JobSummaryStore';
 vi.mock('electron', async () => ({
   app: { getPath: (await import('node:os')).tmpdir },
   safeStorage: {},
@@ -40,6 +46,12 @@ afterEach(async () => {
   vi.useRealTimers();
   await harness.close();
 });
+/** Peticiones de análisis por archivo; cada escaneo completado añade además su JOB_SUMMARY. */
+function fileRequests() {
+  return fake.requests.filter(
+    (request) => request.schema === aiAssessmentSchema,
+  );
+}
 function result(id: string) {
   return new ScanResultRepository(harness.db).get(id)!;
 }
@@ -65,7 +77,7 @@ it('CA-2.3: un escaneo real de siete fixtures analiza los seis no limpios y omit
       true,
     ),
   );
-  expect(fake.requests).toHaveLength(6);
+  expect(fileRequests()).toHaveLength(6);
   const clean = results.find((row) => row.verdict === 'CLEAN')!;
   expect(result(clean.id).aiStatus).toBe('NOT_REQUIRED');
   expect(attempts(clean.id)).toHaveLength(0);
@@ -85,6 +97,49 @@ it('CA-2.3: un escaneo real de siete fixtures analiza los seis no limpios y omit
   }
 }, 20_000);
 
+it('CA-3.5: cada escaneo completado encola su JOB_SUMMARY; solo cita resultados reales', async () => {
+  const { job, results } = await harness.scan();
+  expect(job.status).toBe('COMPLETED');
+  const summaries = new JobSummaryStore(harness.db);
+  expect(summaries.status(job.id)).toBe('PENDING');
+  const risky = results.filter((row) => row.verdict !== 'CLEAN');
+  for (let i = 0; i < risky.length; i++) fake.enqueueValue(answer());
+  // El primer resumen cita un resultId inventado (rechazado); el reintento cita uno real.
+  const real = risky.find((row) => row.verdict === 'DETECTED')!.id;
+  const summary = (ids: string[]): JobSummary => ({
+    summary: 'Se escanearon 7 archivos de prueba.',
+    highlights: ids.map((resultId) => ({
+      resultId,
+      why: 'Firma local (SIGNATURES).',
+    })),
+    recommendations: ['Revisa los resultados detectados.'],
+    citedResultIds: ids,
+  });
+  fake
+    .enqueueValue(summary(['resultado-inventado']))
+    .enqueueValue(summary([real]));
+  harness.worker.start();
+  await vi.waitFor(() => expect(summaries.status(job.id)).toBe('COMPLETED'), {
+    timeout: 10_000,
+  });
+  const rows = harness.db
+    .prepare(
+      "SELECT validation_status, context_json FROM ai_analyses WHERE job_id = ? AND kind = 'JOB_SUMMARY' ORDER BY rowid",
+    )
+    .all(job.id);
+  expect(rows.map((row) => row.validation_status)).toEqual([
+    'UNKNOWN_EVIDENCE',
+    'VALID',
+  ]);
+  const sent = JSON.parse(String(rows[0]!.context_json)) as JobSummaryContext;
+  expect(sent.job.counters.filesProcessed).toBe(7);
+  expect(sent.topResults.map((item) => item.resultId)).toContain(real);
+  expect(String(rows[0]!.context_json)).not.toContain(
+    'texto inofensivo de prueba.',
+  );
+  expect(summaries.latestValid(job.id)?.summary.citedResultIds).toEqual([real]);
+}, 20_000);
+
 it('CA-2.5: OFFLINE no bloquea el escaneo; tres reintentos, pausa y recuperación explícita', async () => {
   for (let i = 0; i < 4; i++) fake.enqueueError('OFFLINE');
   fake.enqueueValue(answer());
@@ -97,7 +152,7 @@ it('CA-2.5: OFFLINE no bloquea el escaneo; tres reintentos, pausa y recuperació
   await vi.advanceTimersByTimeAsync(0);
   expect(result(id).aiStatus).toBe('RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(7000);
-  expect(fake.requests).toHaveLength(4);
+  expect(fileRequests()).toHaveLength(4);
   expect(result(id)).toMatchObject({
     verdict: 'DETECTED',
     aiStatus: 'UNAVAILABLE',
@@ -128,7 +183,7 @@ it('CA-2.5: un RETRY_WAIT por OFFLINE se recupera al reabrir SQLite y reiniciar 
   await vi.waitFor(() => expect(result(id).aiStatus).toBe('RETRY_WAIT'));
   await harness.restart();
   await vi.waitFor(() => expect(result(id).aiStatus).toBe('COMPLETED'));
-  expect(fake.requests).toHaveLength(2);
+  expect(fileRequests()).toHaveLength(2);
   expect(attempts(id).map((row) => row.validation_status)).toEqual([
     'PROVIDER_ERROR',
     'VALID',
@@ -156,16 +211,50 @@ it('CA-2.6: un ID inventado se rechaza dos veces y nunca afecta el veredicto', a
     aiOpinion: null,
     reviewRequired: false,
   });
-  expect(fake.requests[1]!.prompt).toContain('ev999');
+  expect(fileRequests()[1]!.prompt).toContain('ev999');
 });
 
+// RiskPolicy v2 (S3) sustituye a CA-2.8: la IA nunca baja un veredicto ni produce DETECTED, y
+// solo escala CLEAN → SUSPICIOUS con todas las condiciones (CA-3.4). answer() usa confianza 0.8
+// y cita ev1, que existe en los tres fixtures.
 it.each([
-  ['lowScore', 'CLEAN', 'LIKELY_MALICIOUS'],
-  ['suspicious', 'SUSPICIOUS', 'LIKELY_BENIGN'],
-  ['signature', 'DETECTED', 'LIKELY_BENIGN'],
+  [
+    'lowScore',
+    'CLEAN',
+    'LIKELY_MALICIOUS',
+    {
+      verdict: 'SUSPICIOUS',
+      riskLevel: 'MEDIO',
+      origin: 'AI_ESCALATION',
+      reviewRequired: false,
+    },
+  ],
+  [
+    'suspicious',
+    'SUSPICIOUS',
+    'LIKELY_BENIGN',
+    {
+      verdict: 'SUSPICIOUS',
+      riskLevel: null,
+      origin: 'ENGINE',
+      reviewRequired: true,
+    },
+  ],
+  [
+    'signature',
+    'DETECTED',
+    'LIKELY_BENIGN',
+    {
+      verdict: 'DETECTED',
+      riskLevel: null,
+      origin: 'ENGINE',
+      reviewRequired: false,
+    },
+  ],
 ] as const)(
-  'CA-2.8: %s mantiene %s aunque la IA opine %s',
-  async (file, verdict, opinion) => {
+  'CA-3.4: %s (%s) con IA %s aplica RiskPolicy v2',
+  async (file, engineVerdict, opinion, expected) => {
+    const verdict = engineVerdict;
     const { results } = await harness.scan(harness[file]);
     const before = results[0]!;
     expect(before.verdict).toBe(verdict);
@@ -175,18 +264,19 @@ it.each([
       expect(result(before.id).aiStatus).toBe('COMPLETED'),
     );
     expect(result(before.id)).toMatchObject({
-      verdict,
+      verdict: expected.verdict,
       engineScore: before.engineScore,
-      riskLevel: before.riskLevel,
+      riskLevel: expected.riskLevel ?? before.riskLevel,
     });
     expect(
       new RiskAssessmentRepository(harness.db).get(before.id),
     ).toMatchObject({
       engineVerdict: verdict,
-      finalVerdict: verdict,
+      finalVerdict: expected.verdict,
       aiOpinion: opinion,
-      reviewRequired: true,
-      origin: 'ENGINE',
+      reviewRequired: expected.reviewRequired,
+      origin: expected.origin,
+      policyVersion: '2',
     });
   },
 );

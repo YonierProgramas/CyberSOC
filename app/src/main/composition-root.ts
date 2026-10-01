@@ -12,7 +12,10 @@ import {
 } from '../core/engine/EngineProcess';
 import { createLogger } from '../core/logging/logger';
 import { AppConfigStore } from '../core/config/AppConfig';
-import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
+import {
+  ScanJobRepository,
+  type ScanJobRecord,
+} from '../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
 import { EvidenceRepository } from '../core/persistence/EvidenceRepository';
 import { LayerTraceRepository } from '../core/persistence/LayerTraceRepository';
@@ -27,6 +30,8 @@ import type { AIErrorKind, AIProvider } from '../core/ai/AIProvider';
 import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
 import { AISecurityService } from '../core/ai/AISecurityService';
 import { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
+import { JobSummaryService } from '../core/ai/JobSummaryService';
+import { JobSummaryStore } from '../core/ai/JobSummaryStore';
 import type { AIHealthCheck } from '../shared/ipc';
 import type { AppLogger } from '../core/logging/logger';
 import { SecretStore } from './SecretStore';
@@ -91,6 +96,9 @@ export function createAIWorkflow(
       config.load(),
     ),
     () => config.load().ai.autoAnalyzeLimitPerScan,
+    new JobSummaryService(new JobSummaryStore(database), provider, () =>
+      config.load(),
+    ),
   );
 }
 
@@ -275,12 +283,13 @@ function connectionErrorMessage(kind: AIErrorKind): string {
 export function createScanOrchestrator(
   database: Database,
   engine: ScanEngine & Pick<EngineProcess, 'driveInfo' | 'stats'>,
-  worker?: Pick<AIAnalysisWorker, 'enqueueAutomatic'>,
+  worker?: Pick<AIAnalysisWorker, 'enqueueAutomatic'> &
+    Partial<Pick<AIAnalysisWorker, 'enqueueJobSummary'>>,
 ): ScanOrchestrator {
   const config = new AppConfigStore(database);
   const results = new ScanResultRepository(database);
   const roots = resolveZoneRoots((name) => app.getPath(name), process.env);
-  return new ScanOrchestrator({
+  const orchestrator = new ScanOrchestrator({
     profiles: new ScanProfiles(database),
     stats: () => engine.stats(),
     createZoneSession: () => {
@@ -370,6 +379,17 @@ export function createScanOrchestrator(
     },
     onError: (error) => console.error('Error de escaneo:', error),
   });
+  // JOB_SUMMARY: cada escaneo completado encola su resumen de IA. Igual que el análisis por
+  // archivo, un fallo de la IA no afecta al escaneo ya guardado.
+  orchestrator.on('finished', (job: ScanJobRecord) => {
+    if (job.status !== 'COMPLETED') return;
+    try {
+      worker?.enqueueJobSummary?.(job.id);
+    } catch {
+      console.error('No se pudo encolar el resumen de IA.');
+    }
+  });
+  return orchestrator;
 }
 
 export function createDatabase(userDataPath: string): Database {

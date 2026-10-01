@@ -1,0 +1,106 @@
+{
+  "id": "03-test-signature",
+  "title": "Firma académica de texto inofensivo",
+  "context": {
+    "schema": "cybersoc.ai-context/v1",
+    "task": "ANALYZE_FILE_RESULT",
+    "locale": "es-CO",
+    "file": {
+      "resultId": "03-test-signature",
+      "name": "CSD-TEST-001.txt",
+      "extension": ".txt",
+      "detectedType": "TEXT",
+      "typeMatchesExtension": null,
+      "sizeBytes": 65536,
+      "location": "%USERPROFILE%\\Fixtures\\DOCUMENTOS",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+      "zone": "DOCUMENTOS"
+    },
+    "engine": {
+      "engineVersion": "eval-synthetic-v2",
+      "signaturesVersion": "eval-test-1",
+      "verdict": "DETECTED",
+      "score": 100,
+      "riskLevel": "CRÍTICO",
+      "scoreBreakdown": [
+        {
+          "evidenceId": "ev1",
+          "points": 100
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "SIGNATURES",
+        "code": "KNOWN_SIGNATURE",
+        "severity": "CRITICAL",
+        "summary": "Coincidencia exacta CSD-TEST-001: firma académica de un fixture de texto inofensivo, no malware real."
+      }
+    ],
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 1
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "RULES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "HEURISTICS",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "PE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SCRIPTS",
+        "status": "RAN",
+        "hits": 0
+      }
+    ],
+    "profile": {
+      "name": "DOCUMENTOS",
+      "layers": [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS"
+      ]
+    },
+    "history": {
+      "timesSeenBefore": 0
+    },
+    "constraints": {
+      "evidenceTruncated": false,
+      "fieldsTruncated": false,
+      "fileNamePseudonymized": false,
+      "contentIncluded": false
+    }
+  },
+  "expectations": {
+    "benign": true,
+    "acceptableOpinions": ["LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"],
+    "noEscalation": true,
+    "minCitations": 1
+  }
+}

@@ -1,0 +1,117 @@
+{
+  "id": "15-rule-script",
+  "title": "Correlación entre regla y script",
+  "context": {
+    "schema": "cybersoc.ai-context/v1",
+    "task": "ANALYZE_FILE_RESULT",
+    "locale": "es-CO",
+    "file": {
+      "resultId": "15-rule-script",
+      "name": "descarga.ps1",
+      "extension": ".ps1",
+      "detectedType": "TEXT",
+      "typeMatchesExtension": null,
+      "sizeBytes": 65536,
+      "location": "%USERPROFILE%\\Fixtures\\TEMPORALES",
+      "sha256": "000000000000000000000000000000000000000000000000000000000000000f",
+      "zone": "TEMPORALES"
+    },
+    "engine": {
+      "engineVersion": "eval-synthetic-v2",
+      "signaturesVersion": "eval-test-1",
+      "verdict": "SUSPICIOUS",
+      "score": 60,
+      "riskLevel": "ALTO",
+      "scoreBreakdown": [
+        {
+          "evidenceId": "ev1",
+          "points": 30
+        },
+        {
+          "evidenceId": "ev2",
+          "points": 30
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "RULES",
+        "code": "RULE_MATCH",
+        "severity": "HIGH",
+        "summary": "Patrón de prueba que simula descarga y ejecución, sin contenido adjunto."
+      },
+      {
+        "id": "ev2",
+        "source": "SCRIPTS",
+        "code": "SCRIPT_DOWNLOAD_EXEC",
+        "severity": "HIGH",
+        "summary": "Señal de descarga seguida de ejecución; requiere verificar el origen."
+      }
+    ],
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "RULES",
+        "status": "RAN",
+        "hits": 1
+      },
+      {
+        "layer": "HEURISTICS",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "PE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SCRIPTS",
+        "status": "RAN",
+        "hits": 1
+      }
+    ],
+    "profile": {
+      "name": "TEMPORALES",
+      "layers": [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS"
+      ]
+    },
+    "history": {
+      "timesSeenBefore": 0
+    },
+    "constraints": {
+      "evidenceTruncated": false,
+      "fieldsTruncated": false,
+      "fileNamePseudonymized": false,
+      "contentIncluded": false
+    }
+  },
+  "expectations": {
+    "benign": false,
+    "acceptableOpinions": ["SUSPICIOUS", "LIKELY_MALICIOUS"],
+    "noEscalation": false,
+    "minCitations": 2
+  }
+}

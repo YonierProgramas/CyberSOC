@@ -18,6 +18,11 @@ import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
 import { decideRisk } from '../src/core/risk/RiskPolicy';
 import type { Evidence } from '../src/shared/protocol';
 import type { AIAssessment } from '../src/core/ai/schemas';
+import {
+  ANALYSIS_MAX_TOKENS,
+  ANALYSIS_RETRY_MAX_TOKENS,
+  PROMPT_VERSION,
+} from '../src/core/ai/prompts/analysis.v2';
 import type { AIResult } from '../src/core/ai/AIProvider';
 
 const valid: AIAssessment = {
@@ -85,13 +90,19 @@ afterEach(async () => {
 });
 function seed(
   seq = 0,
-  options: { jobId?: string; clean?: boolean; evidence?: Evidence[] } = {},
+  options: {
+    jobId?: string;
+    clean?: boolean;
+    evidence?: Evidence[];
+    verdict?: 'CLEAN' | 'SUSPICIOUS' | 'DETECTED';
+    score?: number;
+  } = {},
 ) {
   const jobId = options.jobId ?? 'job';
   const id = `${jobId}-${seq}`;
   const decision = decideRisk({
-    verdict: options.clean ? 'CLEAN' : 'SUSPICIOUS',
-    score: options.clean ? 0 : 40,
+    verdict: options.verdict ?? (options.clean ? 'CLEAN' : 'SUSPICIOUS'),
+    score: options.score ?? (options.clean ? 0 : 40),
   });
   new ScanResultRepository(db).insertComplete({
     result: {
@@ -181,7 +192,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
     outputTokens: 22,
     latencyMs: 35,
     validationStatus: 'VALID',
-    promptVersion: 'analysis.v1',
+    promptVersion: PROMPT_VERSION,
   });
   expect(fake.requests[0]!.prompt).toContain(saved.contextJson);
   expect(saved.contextSha256).toBe(
@@ -190,7 +201,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
   expect(new RiskAssessmentRepository(db).get(id)).toMatchObject({
     finalVerdict: 'SUSPICIOUS',
     reviewRequired: true,
-    policyVersion: '1',
+    policyVersion: '2',
   });
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
@@ -319,7 +330,10 @@ it('INCOMPLETE permite solo un reintento con más tokens', async () => {
   const id = seed();
   fake.enqueueRaw('{cut', { stopReason: 'max_tokens' }).enqueueValue(valid);
   await service.analyze(id);
-  expect(fake.requests.map((r) => r.maxTokens)).toEqual([1200, 2400]);
+  expect(fake.requests.map((r) => r.maxTokens)).toEqual([
+    ANALYSIS_MAX_TOKENS,
+    ANALYSIS_RETRY_MAX_TOKENS,
+  ]);
   expect(rows()[0]!.validation_status).toBe('INCOMPLETE');
 });
 
@@ -335,7 +349,7 @@ it('rollback del intento y estado si falla el guardado de la evaluación', async
   expect(new RiskAssessmentRepository(db).get(id)?.aiOpinion).toBeNull();
 });
 
-it('FIFO, sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async () => {
+it('sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async () => {
   const first = seed();
   const second = seed(1, { clean: true });
   fake.enqueueValue(valid).enqueueValue({
@@ -513,4 +527,121 @@ it('corregir la credencial recupera NOT_CONFIGURED incluso después de reiniciar
   worker.resume();
   await flush();
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
+});
+
+it.each(['manual', 'reinicio'] as const)(
+  'prioridad: tres pendientes, primero el mayor riesgo (%s)',
+  async (mode) => {
+    const low = seed(0, { score: 40 });
+    const high = seed(1, { score: 90 });
+    const detected = seed(2, { verdict: 'DETECTED', score: 85 });
+    fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+    if (mode === 'manual') {
+      for (const id of [low, high, detected]) worker.analyzeNow(id);
+    } else {
+      store.setStatus(low, 'PENDING');
+      store.setStatus(high, 'RETRY_WAIT');
+      store.setStatus(detected, 'PENDING');
+      await worker.stop();
+      worker = new AIAnalysisWorker(service);
+    }
+    worker.start();
+    await flush();
+    const order = rows().map((row) => row.result_id);
+    expect(order).toEqual([detected, high, low]);
+    expect(fake.requests).toHaveLength(3);
+    expect(worker.state.pending).toBe(0);
+    console.log(
+      'AI_PRIORITY_ORDER',
+      JSON.stringify({ mode, priorities: [185, 90, 40], resultIds: order }),
+    );
+  },
+);
+
+it('empates usan llegada al worker, no el seq del resultado en SQLite', async () => {
+  const first = seed(2);
+  const second = seed(0);
+  const third = seed(1);
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  for (const id of [first, second, third]) worker.analyzeNow(id);
+  worker.start();
+  await flush();
+  expect(rows().map((row) => row.result_id)).toEqual([first, second, third]);
+});
+
+it('una llegada prioritaria durante RUNNING no duplica ni retira el análisis equivocado', async () => {
+  const current = seed(0);
+  const low = seed(1);
+  const high = seed(2, { verdict: 'DETECTED', score: 85 });
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  worker.analyzeNow(current);
+  let observedPending = 0;
+  worker.once('ai:resultUpdated', () => {
+    worker.analyzeNow(low);
+    worker.analyzeNow(high);
+    worker.analyzeNow(current); // Sigue deduplicado mientras está en vuelo.
+    observedPending = worker.state.pending;
+  });
+  worker.start();
+  await flush();
+  expect(observedPending).toBe(3);
+  expect(rows().map((row) => row.result_id)).toEqual([current, high, low]);
+  expect(fake.requests).toHaveLength(3);
+  expect(worker.state.pending).toBe(0);
+});
+
+it('una prioridad nueva no evita Retry-After y se atiende después del reintento', async () => {
+  const current = seed(0);
+  const low = seed(1);
+  const high = seed(2, { verdict: 'DETECTED', score: 85 });
+  fake.enqueueError('RATE_LIMIT', { retryAfterMs: 5000 });
+  fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
+  worker.analyzeNow(current);
+  worker.start();
+  await flush();
+  worker.analyzeNow(low);
+  worker.analyzeNow(high);
+  await vi.advanceTimersByTimeAsync(4999);
+  expect(fake.requests).toHaveLength(1);
+  await vi.advanceTimersByTimeAsync(1);
+  expect(rows().map((row) => row.result_id)).toEqual([
+    current,
+    current,
+    high,
+    low,
+  ]);
+  expect(worker.state.pending).toBe(0);
+});
+
+it('parar en vuelo conserva el trabajo aunque llegue uno más prioritario', async () => {
+  const current = seed(0);
+  const high = seed(1, { verdict: 'DETECTED', score: 85 });
+  const original = fake.generateStructured.bind(fake);
+  const request = vi
+    .spyOn(fake, 'generateStructured')
+    .mockImplementationOnce(
+      (req) =>
+        new Promise<AIResult<never>>((resolve) => {
+          req.signal!.addEventListener('abort', () =>
+            resolve({
+              ok: false,
+              error: { kind: 'TIMEOUT', retryable: true, message: 'cancelado' },
+            }),
+          );
+        }),
+    )
+    .mockImplementation(original);
+  worker.analyzeNow(current);
+  worker.start();
+  await flush();
+  worker.analyzeNow(high);
+  await worker.stop();
+  expect(store.results.get(current)?.aiStatus).toBe('PENDING');
+  expect(worker.state.pending).toBe(2);
+  request.mockRestore();
+  fake.enqueueValue(valid).enqueueValue(valid);
+  worker.start();
+  await flush();
+  expect(rows().map((row) => row.result_id)).toEqual([current, high]);
+  expect(worker.state.pending).toBe(0);
 });

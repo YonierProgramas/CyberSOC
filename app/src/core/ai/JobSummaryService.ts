@@ -1,53 +1,55 @@
 import { randomUUID } from 'node:crypto';
 import type { AppConfig } from '../config/AppConfig';
 import type { AIStatus } from '../persistence/assessmentTypes';
-import type { AIProvider, AIError, AIResult } from './AIProvider';
-import { AIContextBuilder } from './AIContextBuilder';
-import { AIAnalysisStore } from './AIAnalysisStore';
-import { validateAIResponse } from './AIResponseValidator';
+import type { AIProvider, AIResult } from './AIProvider';
+import type { AnalysisOutcome } from './AISecurityService';
+import { buildJobSummaryContext } from './JobSummaryContext';
+import type { JobSummaryStore } from './JobSummaryStore';
+import { validateJobSummary } from './JobSummaryValidator';
 import {
-  buildAnalysisRequest,
+  JOB_SUMMARY_RETRY_MAX_TOKENS,
   PROMPT_VERSION,
-  ANALYSIS_RETRY_MAX_TOKENS,
-} from './prompts/analysis.v2';
-import type { AIAssessment } from './schemas';
+  buildJobSummaryRequest,
+} from './prompts/job-summary.v1';
+import type { JobSummary } from './schemas';
 
-export type AnalysisOutcome =
-  | { status: 'COMPLETED' | 'INVALID' }
-  | {
-      status: 'PROVIDER_ERROR';
-      error: Pick<AIError, 'kind' | 'retryable' | 'retryAfterMs'>;
-    };
-
-export class AISecurityService {
+/**
+ * Resumen de escaneo por IA (`kind = JOB_SUMMARY`). Mismo ciclo que el análisis por archivo:
+ * contexto → proveedor → validación → guardar el intento. Hasta dos intentos; el segundo lleva
+ * la retroalimentación del validador o más tokens si el primero se cortó. Nunca cambia
+ * veredictos: el resumen solo se guarda para mostrarlo.
+ */
+export class JobSummaryService {
   constructor(
-    readonly store: AIAnalysisStore,
+    readonly store: JobSummaryStore,
     private readonly provider: () => AIProvider | null,
     private readonly readConfig: () => AppConfig,
   ) {}
 
-  async analyze(
-    resultId: string,
+  async summarize(
+    jobId: string,
     signal?: AbortSignal,
     notify: (status: AIStatus) => void = () => {},
   ): Promise<AnalysisOutcome> {
-    const { result, analysis } = this.store.load(resultId);
     const config = this.readConfig();
-    const built = new AIContextBuilder(() => config).build(result, analysis);
-    this.store.setStatus(resultId, 'RUNNING');
+    const built = buildJobSummaryContext(this.store.facts(jobId), {
+      sendFileNames: config.ai.sendFileNames,
+    });
+    this.store.setStatus(jobId, 'RUNNING');
     notify('RUNNING');
     let previousErrors: string[] = [];
     let maxTokens: number | undefined;
+
     for (let attempt = 0; attempt < 2; attempt++) {
       signal?.throwIfAborted();
       const started = performance.now();
       let provider: AIProvider | null = null;
-      let response: AIResult<AIAssessment>;
+      let response: AIResult<JobSummary>;
       try {
         provider = this.provider();
         response = provider
           ? await provider.generateStructured(
-              buildAnalysisRequest(built.json, {
+              buildJobSummaryRequest(built.json, {
                 previousErrors,
                 maxTokens,
                 signal,
@@ -72,15 +74,16 @@ export class AISecurityService {
         };
       }
       signal?.throwIfAborted();
+
       const rawText = response.ok
         ? (response.rawText ?? JSON.stringify(response.value))
         : response.error.rawText;
       const usage = response.ok ? response.usage : response.error.usage;
       const row = {
         id: randomUUID(),
-        kind: 'FILE_RESULT' as const,
-        resultId,
-        jobId: result.jobId,
+        kind: 'JOB_SUMMARY' as const,
+        resultId: null,
+        jobId,
         provider: provider?.id ?? 'claude',
         model: response.ok
           ? response.model
@@ -97,18 +100,19 @@ export class AISecurityService {
         ),
         errorKind: response.ok ? null : response.error.kind,
       };
+
+      // Sin respuesta utilizable del modelo: lo decide el worker (reintento, pausa o circuito).
       if (
         !response.ok &&
         !['INVALID_OUTPUT', 'INCOMPLETE', 'UNSAFE'].includes(
           response.error.kind,
         )
       ) {
-        const status =
+        const status: AIStatus =
           response.error.kind === 'AUTH' ? 'NOT_CONFIGURED' : 'RETRY_WAIT';
         this.store.saveAttempt(
           { ...row, validationStatus: 'PROVIDER_ERROR' },
           status,
-          { validationStatus: 'PROVIDER_ERROR' },
         );
         notify(status);
         return {
@@ -122,13 +126,14 @@ export class AISecurityService {
           },
         };
       }
+
       const checked =
         !response.ok && response.error.kind === 'UNSAFE'
           ? {
               status: 'UNSAFE' as const,
               errors: ['Respuesta descartada por seguridad.'],
             }
-          : validateAIResponse({
+          : validateJobSummary({
               rawText: rawText ?? '',
               truncated: !response.ok && response.error.kind === 'INCOMPLETE',
               context: built.context,
@@ -137,13 +142,6 @@ export class AISecurityService {
         this.store.saveAttempt(
           { ...row, validationStatus: 'VALID' },
           'COMPLETED',
-          {
-            validationStatus: 'VALID',
-            opinion: checked.assessment.opinion,
-            confidence: checked.assessment.confidence,
-            // RiskPolicy v2 vuelve a comprobar que las citas existen antes de escalar.
-            citedEvidenceIds: checked.assessment.citedEvidenceIds,
-          },
         );
         notify('COMPLETED');
         return { status: 'COMPLETED' };
@@ -152,7 +150,6 @@ export class AISecurityService {
       this.store.saveAttempt(
         { ...row, validationStatus: checked.status },
         retry ? 'RUNNING' : 'INVALID',
-        { validationStatus: checked.status },
       );
       if (!retry) {
         notify('INVALID');
@@ -160,7 +157,7 @@ export class AISecurityService {
       }
       previousErrors = checked.errors;
       if (checked.status === 'INCOMPLETE')
-        maxTokens = ANALYSIS_RETRY_MAX_TOKENS;
+        maxTokens = JOB_SUMMARY_RETRY_MAX_TOKENS;
     }
     throw new Error('Estado de validación inesperado.');
   }
