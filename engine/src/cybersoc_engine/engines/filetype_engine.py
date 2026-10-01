@@ -17,8 +17,37 @@ class FileType:
 # Invariante: cada prefijo tiene un único tipo. El dict evita recorrer todos los
 # tipos: get cuesta O(1) promedio, además de O(l) para copiar/hashear l bytes.
 MAGIC_NUMBERS: dict[bytes, FileType] = {
+    # Calibración T3.11: además de las extensiones clásicas, formatos PE estándar de Windows
+    # (.mui, .winmd, .tlb, .ax, .acm, .drv, .efi, .rll, .tsp, .ime, .iec, .rs) y de runtimes
+    # comunes (.pyd de Python, .node de Node.js). Son contenedores PE legítimos que no se abren
+    # con doble clic; marcarlos generaba 4 248 TYPE_MISMATCH en el corpus benigno. Un PE con
+    # extensión de documento (.pdf, .png…) sigue siendo TYPE_MISMATCH.
     b"MZ": FileType(
-        "PE ejecutable", (".exe", ".dll", ".sys", ".scr", ".com", ".cpl", ".ocx"), True
+        "PE ejecutable",
+        (
+            ".exe",
+            ".dll",
+            ".sys",
+            ".scr",
+            ".com",
+            ".cpl",
+            ".ocx",
+            ".mui",
+            ".winmd",
+            ".tlb",
+            ".ax",
+            ".acm",
+            ".drv",
+            ".efi",
+            ".rll",
+            ".tsp",
+            ".ime",
+            ".iec",
+            ".rs",
+            ".pyd",
+            ".node",
+        ),
+        True,
     ),
     b"%PDF": FileType("PDF", (".pdf",)),
     b"PK\x03\x04": FileType(
