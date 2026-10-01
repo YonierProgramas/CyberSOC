@@ -1,0 +1,106 @@
+{
+  "id": "01-installer-entropy",
+  "title": "Instalador legítimo de alta entropía",
+  "context": {
+    "schema": "cybersoc.ai-context/v1",
+    "task": "ANALYZE_FILE_RESULT",
+    "locale": "es-CO",
+    "file": {
+      "resultId": "01-installer-entropy",
+      "name": "installer.exe",
+      "extension": ".exe",
+      "detectedType": "PE",
+      "typeMatchesExtension": null,
+      "sizeBytes": 65536,
+      "location": "%USERPROFILE%\\Fixtures\\DESCARGAS",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+      "zone": "DESCARGAS"
+    },
+    "engine": {
+      "engineVersion": "eval-synthetic-v2",
+      "signaturesVersion": "eval-test-1",
+      "verdict": "CLEAN",
+      "score": 15,
+      "riskLevel": "BAJO",
+      "scoreBreakdown": [
+        {
+          "evidenceId": "ev1",
+          "points": 15
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "HEURISTICS",
+        "code": "HIGH_ENTROPY",
+        "severity": "MEDIUM",
+        "summary": "Entropía 7.85 bits por byte; compatible con compresión. Sin otros indicios."
+      }
+    ],
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "RULES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "HEURISTICS",
+        "status": "RAN",
+        "hits": 1
+      },
+      {
+        "layer": "PE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SCRIPTS",
+        "status": "RAN",
+        "hits": 0
+      }
+    ],
+    "profile": {
+      "name": "DESCARGAS",
+      "layers": [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS"
+      ]
+    },
+    "history": {
+      "timesSeenBefore": 0
+    },
+    "constraints": {
+      "evidenceTruncated": false,
+      "fieldsTruncated": false,
+      "fileNamePseudonymized": false,
+      "contentIncluded": false
+    }
+  },
+  "expectations": {
+    "benign": true,
+    "acceptableOpinions": ["LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"],
+    "noEscalation": true,
+    "minCitations": 1
+  }
+}

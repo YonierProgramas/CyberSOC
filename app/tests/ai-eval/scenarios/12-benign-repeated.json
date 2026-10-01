@@ -1,0 +1,106 @@
+{
+  "id": "12-benign-repeated",
+  "title": "Instalador empaquetado visto anteriormente",
+  "context": {
+    "schema": "cybersoc.ai-context/v1",
+    "task": "ANALYZE_FILE_RESULT",
+    "locale": "es-CO",
+    "file": {
+      "resultId": "12-benign-repeated",
+      "name": "actualizador.exe",
+      "extension": ".exe",
+      "detectedType": "PE",
+      "typeMatchesExtension": null,
+      "sizeBytes": 65536,
+      "location": "%USERPROFILE%\\Fixtures\\PROGRAMAS",
+      "sha256": "000000000000000000000000000000000000000000000000000000000000000c",
+      "zone": "PROGRAMAS"
+    },
+    "engine": {
+      "engineVersion": "eval-synthetic-v2",
+      "signaturesVersion": "eval-test-1",
+      "verdict": "CLEAN",
+      "score": 15,
+      "riskLevel": "BAJO",
+      "scoreBreakdown": [
+        {
+          "evidenceId": "ev1",
+          "points": 15
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "ev1",
+        "source": "HEURISTICS",
+        "code": "HIGH_ENTROPY",
+        "severity": "MEDIUM",
+        "summary": "Entropía 7.7 bits por byte; señal aislada de empaquetado, sin coincidencias de reglas o firmas."
+      }
+    ],
+    "layers": [
+      {
+        "layer": "HASH",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SIGNATURES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "FILETYPE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "RULES",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "HEURISTICS",
+        "status": "RAN",
+        "hits": 1
+      },
+      {
+        "layer": "PE",
+        "status": "RAN",
+        "hits": 0
+      },
+      {
+        "layer": "SCRIPTS",
+        "status": "RAN",
+        "hits": 0
+      }
+    ],
+    "profile": {
+      "name": "PROGRAMAS",
+      "layers": [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS"
+      ]
+    },
+    "history": {
+      "timesSeenBefore": 20
+    },
+    "constraints": {
+      "evidenceTruncated": false,
+      "fieldsTruncated": false,
+      "fileNamePseudonymized": false,
+      "contentIncluded": false
+    }
+  },
+  "expectations": {
+    "benign": true,
+    "acceptableOpinions": ["LIKELY_BENIGN", "INSUFFICIENT_EVIDENCE"],
+    "noEscalation": true,
+    "minCitations": 1
+  }
+}
