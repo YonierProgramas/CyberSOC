@@ -44,16 +44,26 @@ def test_generated_rules_through_real_pipeline_are_harmless_and_deterministic(tm
         assert [e.code for e in result.evidence] == [code]
         assert result.evidence[0].id == "ev1"
         assert result.evidence[0].source == "RULES"
-        assert result.layers[-1].layer == "RULES" and result.layers[-1].status == "RAN"
-        assert result.layers[-1].hits == 1
-        assert result.layers[-1].points == result.evidence[0].points
+        assert (
+            next(t for t in result.layers if t.layer == "RULES").layer == "RULES"
+            and next(t for t in result.layers if t.layer == "RULES").status == "RAN"
+        )
+        assert next(t for t in result.layers if t.layer == "RULES").hits == 1
+        assert (
+            next(t for t in result.layers if t.layer == "RULES").points == result.evidence[0].points
+        )
         assert result.verdict == ("DETECTED" if code == "R-TEST-HEX" else "CLEAN")
         assert path.read_bytes() == before
         assert path.stat().st_mtime_ns == mtime
         disabled = scan(path, layers=["FILETYPE"])
         assert disabled.evidence == []
-        assert disabled.layers[-1].status == "DISABLED"
-        assert disabled.layers[-1].ms == disabled.layers[-1].points == disabled.layers[-1].hits == 0
+        assert next(t for t in disabled.layers if t.layer == "RULES").status == "DISABLED"
+        assert (
+            next(t for t in disabled.layers if t.layer == "RULES").ms
+            == next(t for t in disabled.layers if t.layer == "RULES").points
+            == next(t for t in disabled.layers if t.layer == "RULES").hits
+            == 0
+        )
 
 
 def test_disabled_rules_do_not_load_catalog(tmp_path):
@@ -72,8 +82,8 @@ def test_bad_catalog_marks_rules_error_but_preserves_hash_and_signature(tmp_path
         result = scan(tmp_path / "CSD-TEST-001.txt")
     assert result.status == "ERROR" and result.verdict == "DETECTED"
     assert result.hashes is not None
-    assert result.layers[-1].status == "ERROR"
-    assert result.layers[-1].reason == "RULESET_INVALID"
+    assert next(t for t in result.layers if t.layer == "RULES").status == "ERROR"
+    assert next(t for t in result.layers if t.layer == "RULES").reason == "RULESET_INVALID"
 
 
 def test_ids_stay_stable_across_filetype_and_rules():

@@ -32,6 +32,7 @@ from cybersoc_engine.rpc.server import handle_line
 
 CONTRACTS = Path(__file__).resolve().parents[2] / "contracts" / "protocol-v1"
 MODELS = {
+    "scan.file.response.score-v2.json": ScanFileResponse,
     "engine.hello.request.json": HelloRequest,
     "engine.hello.response.json": HelloResponse,
     "engine.ping.request.json": PingRequest,
@@ -88,7 +89,13 @@ MUTATIONS = [
         and (
             (
                 name.startswith("scan.file.response.")
-                and path in (("result", "file"), ("result", "hashes"), ("result", "error"))
+                and path
+                in (
+                    ("result", "file"),
+                    ("result", "hashes"),
+                    ("result", "error"),
+                    ("result", "scoreBreakdown"),
+                )
             )
             or path in (("params", "options", "zone"), ("params", "options", "layers"))
         )
@@ -119,7 +126,11 @@ def test_required_fields_reject_mutations(name, path, change):
     if change == "delete":
         del parent[path[-1]]
     else:
-        parent[path[-1]] = True if path[-1] in ("id", "extension", "score", "riskLevel") else None
+        parent[path[-1]] = (
+            True
+            if path[-1] in ("id", "extension", "score", "riskLevel", "scoreBreakdown")
+            else None
+        )
     with pytest.raises(ValidationError):
         MODELS[name].model_validate(value)
     with pytest.raises(ValidationError):
@@ -546,7 +557,15 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
         )
     wire = result.model_dump(exclude_unset=True)
     EngineResult.model_validate(wire)
-    assert [layer.layer for layer in result.layers] == ["HASH", "SIGNATURES", "FILETYPE", "RULES"]
+    assert [layer.layer for layer in result.layers] == [
+        "HASH",
+        "SIGNATURES",
+        "FILETYPE",
+        "RULES",
+        "HEURISTICS",
+        "PE",
+        "SCRIPTS",
+    ]
     trace = result.layers[0]
     assert trace.layer == "HASH"
     assert (

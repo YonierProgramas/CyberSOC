@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol
 
-from cybersoc_engine.models import Evidence, FileInfo, Layer
+from cybersoc_engine.models import Evidence, FileInfo, Layer, Zone
 
 if TYPE_CHECKING:
     from cybersoc_engine.engines.rule_engine import RuleCatalog
@@ -20,6 +20,12 @@ class AnalysisContext:
     pe_imports: tuple[str, ...] | None = None
     rule_catalog: "RuleCatalog | None" = None
     rule_matches: frozenset[str] = frozenset()
+    zone: Zone | None = None
+    attributes: int = 0
+    sample: bytes = b""
+    pe_data: dict | None = None
+    pe_error: str | None = None
+    pe_ms: float = 0
 
 
 class DetectionEngine(Protocol):

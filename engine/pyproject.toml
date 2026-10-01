@@ -3,6 +3,7 @@ name = "cybersoc-engine"
 version = "0.0.1"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "pefile>=2024.8.26",
     "pydantic>=2,<3",
     "pyyaml>=6,<7",
 ]

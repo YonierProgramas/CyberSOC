@@ -85,7 +85,13 @@ class FileInspector:
                     result.error = reason
                     return result
                 result.file = _file_info(target, opened)
-                self.pipeline.analyze(fh, result, opts.layers)
+                self.pipeline.analyze(
+                    fh,
+                    result,
+                    opts.layers,
+                    zone=opts.zone,
+                    attributes=getattr(opened, "st_file_attributes", 0),
+                )
         except OSError as error:
             result.status = "ERROR"
             result.error = map_file_error(error)
@@ -101,5 +107,6 @@ class FileInspector:
             result.verdict = assessment.verdict
             result.score = assessment.score
             result.riskLevel = assessment.riskLevel
+            result.scoreBreakdown = assessment.scoreBreakdown
             result.durationMs = (perf_counter() - started) * 1000
         return result

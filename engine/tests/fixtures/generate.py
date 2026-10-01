@@ -1,4 +1,5 @@
 import hashlib
+import random
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,7 +21,11 @@ def generate_signature_fixtures(root: Path) -> dict[str, str]:
 
 @contextmanager
 def generate_fixtures(
-    *, include_filetype: bool = False, include_signatures: bool = False, include_rules: bool = False
+    *,
+    include_filetype: bool = False,
+    include_signatures: bool = False,
+    include_rules: bool = False,
+    include_heuristics: bool = False,
 ) -> Iterator[Path]:
     """25 textos S1; include_filetype agrega las 3 muestras inofensivas de T2.2."""
     with TemporaryDirectory(prefix="cybersoc-fixtures-") as temporary:
@@ -40,7 +45,21 @@ def generate_fixtures(
             generate_signature_fixtures(root)
         if include_rules:
             generate_rule_fixtures(root)
+        if include_heuristics:
+            generate_heuristic_fixtures(root)
         yield root
+
+
+def generate_heuristic_fixtures(root: Path) -> list[Path]:
+    """Bytes deterministas y comentario marcador; no comandos ni código ejecutable."""
+    contents = {
+        "alta_entropia.bin": random.Random(340).randbytes(64 * 1024),
+        "encoded_marker.ps1": b"# CYBERSOC_TEST_ENCODED_COMMAND\n# Texto inofensivo.\n",
+        "pe_truncado.bin": b"MZ" + b"\0" * 30,
+    }
+    for name, content in contents.items():
+        (root / name).write_bytes(content)
+    return [root / name for name in contents]
 
 
 def generate_rule_fixtures(root: Path) -> list[Path]:

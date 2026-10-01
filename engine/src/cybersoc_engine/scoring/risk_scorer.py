@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from cybersoc_engine.models import EngineResult
+from cybersoc_engine.models import EngineResult, ScoreBreakdown, ScoreGroup
 
 # Invariante: una severidad tiene un peso fijo. Consultar el dict cuesta O(1)
 # promedio; evaluar e evidencias cuesta O(e) tiempo y O(1) espacio auxiliar.
@@ -15,6 +15,7 @@ class RiskAssessment:
     verdict: EngineVerdict
     score: int | None
     riskLevel: RiskLevel | None
+    scoreBreakdown: ScoreBreakdown | None = None
 
 
 class RiskScorer:
@@ -36,11 +37,40 @@ class RiskScorer:
 
     def evaluate(self, result: EngineResult) -> RiskAssessment:
         # Una firma concluyente se conserva incluso si falla otra capa después.
-        decisive = any(item.decisive for item in result.evidence)
+        decisive = any(
+            item.decisive and item.source in ("SIGNATURES", "RULES") for item in result.evidence
+        )
         if not decisive:
             if result.status == "SKIPPED":
                 return RiskAssessment("NOT_ANALYZED", None, None)
             if result.status == "ERROR" or any(layer.status == "ERROR" for layer in result.layers):
                 return RiskAssessment("ERROR", None, None)
-        score = sum(SEVERITY_POINTS[item.severity] for item in result.evidence)
-        return self.classify(score, decisive=decisive)
+        # Invariante: tres acumuladores, uno por grupo, conservan la suma bruta.
+        # Dict: O(1) promedio por consulta; recorrido O(e), memoria auxiliar O(1).
+        raw = {"heuristics": 0, "rules": 0, "signatures": 0}
+        for item in result.evidence:
+            if item.source == "ENGINE":
+                continue  # Un fallo técnico nunca agrega riesgo de malware.
+            group = (
+                "rules"
+                if item.source == "RULES"
+                else "signatures"
+                if item.source == "SIGNATURES"
+                else "heuristics"
+            )
+            raw[group] += SEVERITY_POINTS[item.severity]
+        groups = {
+            name: ScoreGroup(raw=raw[name], capped=min(raw[name], cap), cap=cap)
+            for name, cap in (("heuristics", 50), ("rules", 60), ("signatures", 100))
+        }
+        capped = min(100, sum(group.capped for group in groups.values()))
+        assessed = self.classify(capped, decisive=decisive)
+        breakdown = ScoreBreakdown(
+            version="2",
+            **groups,
+            rawTotal=sum(raw.values()),
+            cappedTotal=capped,
+            decisiveFloor=85 if decisive else 0,
+            total=assessed.score,
+        )
+        return RiskAssessment(assessed.verdict, assessed.score, assessed.riskLevel, breakdown)

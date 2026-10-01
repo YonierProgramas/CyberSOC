@@ -185,6 +185,44 @@ class FileError(ContractModel):
     message: str
 
 
+class ScoreGroup(ContractModel):
+    raw: NonNegativeInt
+    capped: NonNegativeInt
+    cap: Literal[50, 60, 100]
+
+
+class ScoreBreakdown(ContractModel):
+    version: Literal["2"]
+    heuristics: ScoreGroup
+    rules: ScoreGroup
+    signatures: ScoreGroup
+    rawTotal: NonNegativeInt
+    cappedTotal: Annotated[NonNegativeInt, Field(le=100)]
+    decisiveFloor: Literal[0, 85]
+    total: Annotated[NonNegativeInt, Field(le=100)]
+
+    @field_validator("decisiveFloor", mode="before")
+    @classmethod
+    def reject_boolean_floor(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("El mínimo decisivo debe ser numérico")
+        return value
+
+    @model_validator(mode="after")
+    def consistent_totals(self) -> "ScoreBreakdown":
+        groups = (self.heuristics, self.rules, self.signatures)
+        for group, cap in zip(groups, (50, 60, 100), strict=True):
+            if group.cap != cap or group.capped != min(group.raw, cap):
+                raise ValueError("Tope de grupo incompatible")
+        if self.rawTotal != sum(g.raw for g in groups):
+            raise ValueError("Total bruto incompatible")
+        if self.cappedTotal != min(100, sum(g.capped for g in groups)):
+            raise ValueError("Total limitado incompatible")
+        if self.total != max(self.cappedTotal, self.decisiveFloor):
+            raise ValueError("Puntuación final incompatible")
+        return self
+
+
 class EngineResult(ContractModel):
     taskId: str
     status: FileScanStatus
@@ -200,9 +238,15 @@ class EngineResult(ContractModel):
     verdict: Literal["CLEAN", "SUSPICIOUS", "DETECTED", "ERROR", "NOT_ANALYZED"] | None = None
     score: Annotated[NonNegativeInt, Field(le=100)] | None = None
     riskLevel: Literal["BAJO", "MEDIO", "ALTO", "CRÍTICO"] | None = None
+    scoreBreakdown: ScoreBreakdown | None = None
 
     @model_validator(mode="after")
     def validate_assessment(self) -> "EngineResult":
+        if self.scoreBreakdown is not None:
+            if self.score != self.scoreBreakdown.total or self.verdict is None:
+                raise ValueError("Desglose incompatible con evaluación")
+            if (self.verdict == "DETECTED") != (self.scoreBreakdown.decisiveFloor == 85):
+                raise ValueError("Desglose decisivo incompatible")
         fields = ("verdict", "score", "riskLevel")
         present = [field in self.model_fields_set for field in fields]
         if not any(present):

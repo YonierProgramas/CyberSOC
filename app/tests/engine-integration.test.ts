@@ -76,6 +76,29 @@ it.skipIf(!existsSync(python))(
           points: 0,
           ms: expect.any(Number),
         },
+        {
+          layer: 'HEURISTICS',
+          status: 'RAN',
+          hits: 0,
+          points: 0,
+          ms: expect.any(Number),
+        },
+        {
+          layer: 'PE',
+          status: 'SKIPPED',
+          reason: 'NOT_PE',
+          hits: 0,
+          points: 0,
+          ms: 0,
+        },
+        {
+          layer: 'SCRIPTS',
+          status: 'SKIPPED',
+          reason: 'NOT_SCRIPT',
+          hits: 0,
+          points: 0,
+          ms: 0,
+        },
       ]);
       expect(result.layers[0]!.ms).toBeGreaterThanOrEqual(0);
       expect((await engine.reconnect()).status).toBe('connected');

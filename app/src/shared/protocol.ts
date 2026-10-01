@@ -247,6 +247,43 @@ export type Evidence = z.infer<typeof evidenceSchema>;
 export type LayerTrace = z.infer<typeof layerTraceSchema>;
 
 // File, hashes and error retain their S1 optionality; evidence and layers are required.
+const scoreGroupSchema = z.strictObject({
+  raw: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  capped: z.number().int().min(0).max(100),
+  cap: z.union([z.literal(50), z.literal(60), z.literal(100)]),
+});
+export const scoreBreakdownSchema = z
+  .strictObject({
+    version: z.literal('2'),
+    heuristics: scoreGroupSchema,
+    rules: scoreGroupSchema,
+    signatures: scoreGroupSchema,
+    rawTotal: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+    cappedTotal: z.number().int().min(0).max(100),
+    decisiveFloor: z.union([z.literal(0), z.literal(85)]),
+    total: z.number().int().min(0).max(100),
+  })
+  .superRefine((value, context) => {
+    const groups = [value.heuristics, value.rules, value.signatures];
+    const caps = [50, 60, 100];
+    const valid =
+      groups.every(
+        (g, i) => g.cap === caps[i] && g.capped === Math.min(g.raw, g.cap),
+      ) &&
+      value.rawTotal === groups.reduce((sum, g) => sum + g.raw, 0) &&
+      value.cappedTotal ===
+        Math.min(
+          100,
+          groups.reduce((sum, g) => sum + g.capped, 0),
+        ) &&
+      value.total === Math.max(value.cappedTotal, value.decisiveFloor);
+    if (!valid)
+      context.addIssue({
+        code: 'custom',
+        message: 'Desglose de puntuación inconsistente',
+      });
+  });
+
 export const engineResultSchema = z
   .strictObject({
     taskId: z.string(),
@@ -288,6 +325,7 @@ export const engineResultSchema = z
       .optional(),
     durationMs: z.number(),
     engineVersion: z.string(),
+    scoreBreakdown: scoreBreakdownSchema.nullable().optional(),
     verdict: z
       .enum(['CLEAN', 'SUSPICIOUS', 'DETECTED', 'ERROR', 'NOT_ANALYZED'])
       .optional(),
@@ -298,6 +336,18 @@ export const engineResultSchema = z
       .optional(),
   })
   .superRefine((result, context) => {
+    if (
+      result.scoreBreakdown &&
+      (result.score !== result.scoreBreakdown.total ||
+        !result.verdict ||
+        (result.verdict === 'DETECTED') !==
+          (result.scoreBreakdown.decisiveFloor === 85))
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Desglose incompatible con evaluación',
+      });
+    }
     const values = [result.verdict, result.score, result.riskLevel];
     if (values.every((value) => value === undefined)) return;
     const reject = (message: string) =>

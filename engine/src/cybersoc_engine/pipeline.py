@@ -1,9 +1,11 @@
 import logging
+from dataclasses import replace
 from time import perf_counter
 from typing import BinaryIO
 
 from cybersoc_engine.analysis.stream import (
     HEADER_BYTES,
+    BoundedSample,
     ByteHistogram,
     HashConsumer,
     HeaderConsumer,
@@ -11,6 +13,8 @@ from cybersoc_engine.analysis.stream import (
 )
 from cybersoc_engine.engines.base import AnalysisContext, DetectionEngine
 from cybersoc_engine.engines.filetype_engine import FileTypeEngine
+from cybersoc_engine.engines.heuristics_engine import HeuristicsEngine
+from cybersoc_engine.engines.pe_engine import PE_MAX_BYTES, PEEngine, inspect_pe
 from cybersoc_engine.engines.rule_engine import (
     RuleConfigError,
     RuleConsumer,
@@ -18,9 +22,10 @@ from cybersoc_engine.engines.rule_engine import (
     classify_file_type,
     default_rules,
 )
+from cybersoc_engine.engines.script_engine import SCRIPT_MAX_BYTES, ScriptEngine
 from cybersoc_engine.engines.signature_engine import SignatureEngine
 from cybersoc_engine.errors import map_file_error
-from cybersoc_engine.models import EngineResult, FileError, FileHashes, Layer, LayerTrace
+from cybersoc_engine.models import EngineResult, FileError, FileHashes, Layer, LayerTrace, Zone
 
 PREFIX_BYTES = HEADER_BYTES
 logger = logging.getLogger(__name__)
@@ -32,10 +37,19 @@ class AnalysisPipeline:
             SignatureEngine(),
             FileTypeEngine(),
             RuleEngine(),
+            HeuristicsEngine(),
+            PEEngine(),
+            ScriptEngine(),
         )
 
     def analyze(
-        self, stream: BinaryIO, result: EngineResult, layers: list[Layer] | None = None
+        self,
+        stream: BinaryIO,
+        result: EngineResult,
+        layers: list[Layer] | None = None,
+        *,
+        zone: Zone | None = None,
+        attributes: int = 0,
     ) -> None:
         """Un solo recorrido alimenta HASH, cabecera, histograma y búsqueda de reglas."""
         rules = None
@@ -47,6 +61,13 @@ class AnalysisPipeline:
                 logger.error("No se cargaron reglas: %s", error)
                 rules_invalid = True
         hashing, header, histogram = HashConsumer(), HeaderConsumer(), ByteHistogram()
+        sample = BoundedSample(
+            PE_MAX_BYTES
+            if not self.disabled("PE", layers)
+            else SCRIPT_MAX_BYTES
+            if not self.disabled("SCRIPTS", layers)
+            else 0
+        )
         started = perf_counter()
         try:
             consumers = (
@@ -54,7 +75,7 @@ class AnalysisPipeline:
                 if rules is not None
                 else (hashing, header, histogram)
             )
-            size = consume_stream(stream, consumers)
+            size = consume_stream(stream, (*consumers, sample))
             result.hashes = FileHashes(sha256=hashing.hexdigest())
         except (OSError, ValueError) as error:
             reason = map_file_error(error).code if isinstance(error, OSError) else "IO_ERROR"
@@ -91,13 +112,38 @@ class AnalysisPipeline:
             file_type=classify_file_type(prefix, result.file.extension),
             rule_catalog=rules.catalog if rules else None,
             rule_matches=rules.matches() if rules else frozenset(),
+            zone=zone,
+            attributes=attributes,
+            sample=bytes(sample.data),
         )
+        if not self.disabled("PE", layers) and PEEngine().skip_reason(ctx) is None:
+            data, error, ms = inspect_pe(ctx.sample)
+            ctx = replace(
+                ctx,
+                pe_data=data,
+                pe_error=error,
+                pe_ms=ms,
+                pe_imports=tuple(data["imports"]) if data else None,
+            )
         for engine in self.engines:
             if self.disabled(engine.layer_id, layers):
                 result.layers.append(self.disabled_trace(engine.layer_id))
                 continue
             started = perf_counter()
             try:
+                skip = getattr(engine, "skip_reason", lambda _ctx: None)(ctx)
+                if skip:
+                    result.layers.append(
+                        LayerTrace(
+                            layer=engine.layer_id,
+                            status="SKIPPED",
+                            reason=skip,
+                            hits=0,
+                            points=0,
+                            ms=0,
+                        )
+                    )
+                    continue
                 if engine.layer_id == "RULES" and rules_invalid:
                     raise RuleConfigError("Catálogo de reglas inválido")
                 # Solo datos del recorrido; ninguna capa vuelve a leer o abrir la ruta.
@@ -109,14 +155,22 @@ class AnalysisPipeline:
                     for i, item in enumerate(findings, start=1)
                 ]
                 result.evidence.extend(findings)
+                failed_pe = engine.layer_id == "PE" and ctx.pe_error is not None
+                if failed_pe:
+                    result.status = "ERROR"
+                    result.error = FileError(
+                        code="IO_ERROR", message="No se completó el análisis PE"
+                    )
                 result.layers.append(
                     LayerTrace(
                         layer=engine.layer_id,
-                        status="RAN",
+                        status="ERROR" if failed_pe else "RAN",
                         hits=len(findings),
                         points=sum(item.points for item in findings),
                         ms=(perf_counter() - started) * 1000
-                        + (rules.ms if rules and engine.layer_id == "RULES" else 0),
+                        + (rules.ms if rules and engine.layer_id == "RULES" else 0)
+                        + (ctx.pe_ms if engine.layer_id == "PE" else 0),
+                        **({"reason": ctx.pe_error} if failed_pe else {}),
                     )
                 )
             except Exception:
