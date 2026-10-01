@@ -617,6 +617,11 @@ try {
     }
   }
 } catch (error) {
+  if (page! && !page.isClosed()) {
+    await page
+      .screenshot({ path: join(root, 'capture-failure.png'), fullPage: true })
+      .catch(() => {});
+  }
   limitations.push(safeMessage(error));
   console.error(safeMessage(error));
   process.exitCode = 1;

@@ -103,7 +103,10 @@ export function ResultsTable({
                         '—'
                       )}
                     </td>
-                    <td>{resultStatusLabel(result.status)}</td>
+                    <td>
+                      {resultStatusLabel(result.status)}
+                      {result.errorCode && <code> · {result.errorCode}</code>}
+                    </td>
                     <td>{verdictLabel(result.verdict)}</td>
                   </tr>
                 );
