@@ -152,7 +152,8 @@ const contextEvidenceSchema = z.strictObject({
   source: evidenceSourceSchema,
   code: z
     .string()
-    .regex(/^[A-Z][A-Z0-9_]*$/)
+    // Las reglas versionadas del motor usan IDs como R-TEST-DOWNLOADER.
+    .regex(/^[A-Z][A-Z0-9_-]*$/)
     .max(L.evidenceCode),
   severity: severitySchema,
   summary: z.string().min(1).max(L.evidenceSummary),

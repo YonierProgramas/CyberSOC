@@ -17,9 +17,7 @@ import {
   type ScanJobRecord,
 } from '../core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../core/persistence/ScanResultRepository';
-import { AIAnalysisRepository } from '../core/persistence/AIAnalysisRepository';
 import { EvidenceRepository } from '../core/persistence/EvidenceRepository';
-import { RiskAssessmentRepository } from '../core/persistence/RiskAssessmentRepository';
 import { LayerTraceRepository } from '../core/persistence/LayerTraceRepository';
 import { decideRisk } from '../core/risk/RiskPolicy';
 import {
@@ -28,7 +26,13 @@ import {
 } from '../core/scan/ScanOrchestrator';
 import { ClaudeProvider } from '../core/ai/providers/ClaudeProvider';
 import { FakeAIProvider } from '../core/ai/providers/FakeAIProvider';
-import type { AIErrorKind, AIProvider } from '../core/ai/AIProvider';
+import type {
+  AIErrorKind,
+  AIProvider,
+  AIResult,
+  StructuredRequest,
+} from '../core/ai/AIProvider';
+import { jobSummaryContextSchema, jobSummarySchema } from '../core/ai/schemas';
 import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
 import { AISecurityService } from '../core/ai/AISecurityService';
 import { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
@@ -103,28 +107,15 @@ export function createAIWorkflow(
   provider: () => AIProvider | null = () => createAIProvider(database),
 ): AIAnalysisWorker {
   const config = new AppConfigStore(database);
-  const store =
-    process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation'
-      ? new EvidenceEscalationStore(database)
-      : new AIAnalysisStore(database);
-  const worker = new AIAnalysisWorker(
-    new AISecurityService(store, provider, () => config.load()),
+  return new AIAnalysisWorker(
+    new AISecurityService(new AIAnalysisStore(database), provider, () =>
+      config.load(),
+    ),
     () => config.load().ai.autoAnalyzeLimitPerScan,
     new JobSummaryService(new JobSummaryStore(database), provider, () =>
       config.load(),
     ),
   );
-  if (
-    process.env.CYBERSOC_EVIDENCE_MODE === '1' &&
-    process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation'
-  ) {
-    // Se registra antes del reenvío IPC: la UI lee el origen ya actualizado.
-    worker.on('ai:resultUpdated', (update) => {
-      if (update.aiStatus === 'COMPLETED')
-        noteEvidenceEscalation(database, update.resultId);
-    });
-  }
-  return worker;
 }
 
 export function createAIProvider(
@@ -137,7 +128,7 @@ export function createAIProvider(
   ) {
     // Respuesta fija y explícitamente simulada. Atraviesa el validador y RiskPolicy.
     const escalation = process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation';
-    const provider = new FakeAIProvider({ model: 'fake-evidence-v1' });
+    const provider = new EvidenceAIProvider({ model: 'fake-evidence-v1' });
     const value = escalation
       ? {
           schema: 'cybersoc.ai-assessment/v1',
@@ -320,75 +311,35 @@ export function createAISettings(
   };
 }
 
-/** El esquema de contexto rechaza códigos con guion; solo afecta lo que ve el proveedor simulado. */
-class EvidenceEscalationStore extends AIAnalysisStore {
-  override load(id: string) {
-    const loaded = super.load(id);
-    return {
-      ...loaded,
-      analysis: {
-        ...loaded.analysis,
-        evidence: loaded.analysis.evidence.map((item) => ({
-          ...item,
-          code: item.code.replace(/[^A-Z0-9_]/g, '_') || 'RULE',
-        })),
-      },
+/** Solo se instancia en modo evidencia sin --live: simula el modelo, nunca la política. */
+class EvidenceAIProvider extends FakeAIProvider {
+  override async generateStructured<T>(
+    request: StructuredRequest<T>,
+  ): Promise<AIResult<T>> {
+    if (!Object.is(request.schema, jobSummarySchema))
+      return super.generateStructured(request);
+    const json = request.prompt.match(
+      /^<contexto>\n([\s\S]*?)\n<\/contexto>$/m,
+    )?.[1];
+    const context = jobSummaryContextSchema.parse(JSON.parse(json ?? '{}'));
+    const first = context.topResults[0];
+    const summary = {
+      summary:
+        'Demostración con FakeAIProvider: escaneo completado; consulte las evidencias de los resultados.',
+      highlights: first
+        ? [
+            {
+              resultId: first.resultId,
+              why: 'Resultado seleccionado entre los de mayor riesgo del escaneo.',
+            },
+          ]
+        : [],
+      recommendations: ['Revisar el origen de los archivos señalados.'],
+      citedResultIds: first ? [first.resultId] : [],
     };
-  }
-}
-
-function noteEvidenceEscalation(database: Database, resultId: string): void {
-  try {
-    const assessment = new RiskAssessmentRepository(database).get(resultId);
-    if (
-      !assessment ||
-      assessment.origin !== 'ENGINE' ||
-      assessment.engineVerdict !== 'CLEAN' ||
-      assessment.engineScore <= 0 ||
-      (assessment.aiOpinion !== 'SUSPICIOUS' &&
-        assessment.aiOpinion !== 'LIKELY_MALICIOUS') ||
-      (assessment.aiConfidence ?? 0) < 0.7
-    )
-      return;
-    const response = new AIAnalysisRepository(database).latestValidByResult(
-      resultId,
-    )?.responseJson;
-    if (!response) return;
-    const parsed: unknown = JSON.parse(response);
-    const cited =
-      parsed && typeof parsed === 'object'
-        ? (parsed as { citedEvidenceIds?: unknown }).citedEvidenceIds
-        : null;
-    if (!Array.isArray(cited) || cited.length === 0) return;
-    const known = new Set(
-      new EvidenceRepository(database)
-        .listByResult(resultId)
-        .map((item) => item.evidenceKey),
-    );
-    if (!cited.every((item) => typeof item === 'string' && known.has(item)))
-      return;
-    const trace = JSON.parse(assessment.traceJson);
-    const lines = Array.isArray(trace)
-      ? trace.filter((item): item is string => typeof item === 'string')
-      : [];
-    lines.push(
-      'Regla CLEAN: se cumplen todas las condiciones: se escala a SUSPICIOUS con nivel MEDIO (origen AI_ESCALATION).',
-    );
-    database
-      .prepare(
-        `UPDATE risk_assessments
-         SET origin = 'AI_ESCALATION', final_verdict = 'SUSPICIOUS', final_level = 'MEDIO',
-             trace_json = ? WHERE result_id = ? AND origin = 'ENGINE' AND engine_verdict = 'CLEAN'`,
-      )
-      .run(JSON.stringify(lines), resultId);
-    database
-      .prepare(
-        `UPDATE scan_results SET verdict = 'SUSPICIOUS', risk_level = 'MEDIO'
-         WHERE id = ? AND verdict = 'CLEAN'`,
-      )
-      .run(resultId);
-  } catch {
-    // El modo evidencia no debe tumbar el worker si la fila aún no está lista.
+    return new FakeAIProvider({ model: this.model })
+      .enqueueValue(summary)
+      .generateStructured(request);
   }
 }
 

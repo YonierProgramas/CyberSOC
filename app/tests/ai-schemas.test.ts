@@ -9,6 +9,19 @@ import {
   type AIContext,
 } from '../src/core/ai/schemas';
 
+it('admite IDs de reglas con guion sin relajar el resto del formato', () => {
+  const context = structuredClone(fullContext);
+  context.evidence[0]!.source = 'RULES';
+  context.evidence[0]!.code = 'R-TEST-DOWNLOADER';
+  expect(aiContextSchema.parse(context).evidence[0]!.code).toBe(
+    'R-TEST-DOWNLOADER',
+  );
+  for (const code of ['r-test', 'R TEST', 'R<script>']) {
+    context.evidence[0]!.code = code;
+    expect(aiContextSchema.safeParse(context).success).toBe(false);
+  }
+});
+
 // Ejemplo de ai-context/v1 del plan de S2, con los campos de S2 y S3 incluidos.
 const fullContext: AIContext = {
   schema: 'cybersoc.ai-context/v1',

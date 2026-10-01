@@ -140,6 +140,19 @@ function seed(
 function rows() {
   return db.prepare('SELECT * FROM ai_analyses ORDER BY rowid').all();
 }
+
+it('una regla con guiones llega intacta al proveedor real del servicio, sin modo evidencia', async () => {
+  const id = seed(0, {
+    evidence: [{ ...evidence, source: 'RULES', code: 'R-TEST-DOWNLOADER' }],
+  });
+  fake.enqueueValue(valid);
+  expect(await service.analyze(id)).toEqual({ status: 'COMPLETED' });
+  const saved = new AIAnalysisRepository(db).latestValidByResult(id)!;
+  expect(JSON.parse(saved.contextJson).evidence[0].code).toBe(
+    'R-TEST-DOWNLOADER',
+  );
+  expect(fake.requests[0]!.prompt).toContain('R-TEST-DOWNLOADER');
+});
 async function flush() {
   await vi.advanceTimersByTimeAsync(0);
 }
