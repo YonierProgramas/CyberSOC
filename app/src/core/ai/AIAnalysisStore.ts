@@ -155,6 +155,7 @@ export class AIAnalysisStore {
           {
             verdict: result.verdict as 'CLEAN' | 'SUSPICIOUS' | 'DETECTED',
             score: analysis.score,
+            evidenceIds: analysis.evidence.map((item) => item.id),
           },
           ai,
         );

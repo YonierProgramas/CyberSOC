@@ -2,8 +2,11 @@ import { EventEmitter } from 'node:events';
 import { PriorityQueue } from '../structures/PriorityQueue';
 import type { AIStatus } from '../persistence/assessmentTypes';
 import { AISecurityService } from './AISecurityService';
+import type { JobSummaryService } from './JobSummaryService';
 
 interface Pending {
+  /** FILE_RESULT: id es un resultId. JOB_SUMMARY: id es un jobId. */
+  kind: 'FILE_RESULT' | 'JOB_SUMMARY';
   id: string;
   retries: number;
   due: number;
@@ -12,6 +15,22 @@ interface Pending {
 export interface AIResultUpdated {
   resultId: string;
   aiStatus: AIStatus;
+}
+
+export interface AIJobSummaryUpdated {
+  jobId: string;
+  aiStatus: AIStatus;
+}
+
+/**
+ * Prioridad del resumen de escaneo: por debajo de cualquier archivo (las prioridades de
+ * archivo van de 0 a 200), así se analizan primero los resultados de mayor riesgo.
+ */
+const JOB_SUMMARY_PRIORITY = -1;
+
+/** Clave del Set de programados: los jobId llevan prefijo para no chocar con los resultId. */
+function key(item: Pick<Pending, 'kind' | 'id'>): string {
+  return item.kind === 'JOB_SUMMARY' ? `job:${item.id}` : item.id;
 }
 
 export class AIAnalysisWorker extends EventEmitter {
@@ -34,6 +53,7 @@ export class AIAnalysisWorker extends EventEmitter {
   constructor(
     private readonly service: AISecurityService,
     private readonly autoLimit: () => number = () => 50,
+    private readonly jobSummaries?: JobSummaryService,
   ) {
     super();
   }
@@ -42,7 +62,24 @@ export class AIAnalysisWorker extends EventEmitter {
     if (this.active) return;
     this.active = true;
     for (const id of this.service.store.pending()) this.schedule(id);
+    for (const jobId of this.jobSummaries?.store.pending() ?? [])
+      this.scheduleJob(jobId);
     this.kick();
+  }
+
+  /**
+   * Encola el resumen de IA de un escaneo terminado (JOB_SUMMARY). Solo para escaneos
+   * COMPLETED sin resumen final; devuelve si quedó encolado.
+   */
+  enqueueJobSummary(jobId: string): boolean {
+    if (!this.jobSummaries) return false;
+    if (this.scheduled.has(key({ kind: 'JOB_SUMMARY', id: jobId })))
+      return false;
+    if (!this.jobSummaries.store.markPending(jobId)) return false;
+    this.scheduleJob(jobId);
+    this.jobUpdated(jobId, 'PENDING');
+    this.kick();
+    return true;
   }
 
   enqueueAutomatic(id: string): boolean {
@@ -74,7 +111,13 @@ export class AIAnalysisWorker extends EventEmitter {
       if (head) {
         head.retries = 0;
         head.due = 0;
-        this.status(head.id, 'PENDING');
+        this.itemStatus(head, 'PENDING');
+      }
+    }
+    for (const jobId of this.jobSummaries?.store.paused() ?? []) {
+      if (!this.scheduled.has(key({ kind: 'JOB_SUMMARY', id: jobId }))) {
+        this.itemStatus({ kind: 'JOB_SUMMARY', id: jobId }, 'PENDING');
+        this.scheduleJob(jobId);
       }
     }
     // Una credencial corregida también recupera resultados pausados antes de reiniciar.
@@ -94,8 +137,12 @@ export class AIAnalysisWorker extends EventEmitter {
     this.controller?.abort();
     await this.running;
     const head = this.current;
-    if (head && this.service.store.results.get(head.id)?.aiStatus === 'RUNNING')
-      this.status(head.id, 'PENDING');
+    if (!head) return;
+    const running =
+      head.kind === 'JOB_SUMMARY'
+        ? this.jobSummaries?.store.status(head.id) === 'RUNNING'
+        : this.service.store.results.get(head.id)?.aiStatus === 'RUNNING';
+    if (running) this.itemStatus(head, 'PENDING');
   }
 
   get state() {
@@ -112,15 +159,39 @@ export class AIAnalysisWorker extends EventEmitter {
     // Se usa el score y el veredicto del motor, no la opinión de la IA.
     const priority =
       (analysis.score ?? 0) + (result.verdict === 'DETECTED' ? 100 : 0);
-    this.queue.push({ id, retries: 0, due: 0 }, priority);
+    this.queue.push({ kind: 'FILE_RESULT', id, retries: 0, due: 0 }, priority);
     this.scheduled.add(id);
+  }
+  private scheduleJob(jobId: string): void {
+    const item: Pending = {
+      kind: 'JOB_SUMMARY',
+      id: jobId,
+      retries: 0,
+      due: 0,
+    };
+    if (this.scheduled.has(key(item))) return;
+    this.queue.push(item, JOB_SUMMARY_PRIORITY);
+    this.scheduled.add(key(item));
+  }
+  private jobUpdated(jobId: string, aiStatus: AIStatus): void {
+    this.publish('ai:jobSummaryUpdated', { jobId, aiStatus });
+  }
+  /** Estado de un elemento de la cola, sea un archivo o un resumen de escaneo. */
+  private itemStatus(
+    item: Pick<Pending, 'kind' | 'id'>,
+    status: AIStatus,
+  ): void {
+    if (item.kind === 'JOB_SUMMARY') {
+      this.jobSummaries?.store.setStatus(item.id, status);
+      this.jobUpdated(item.id, status);
+    } else this.status(item.id, status);
   }
   private updated(resultId: string, aiStatus: AIStatus): void {
     this.publish('ai:resultUpdated', { resultId, aiStatus });
   }
   private publish(
-    event: 'ai:resultUpdated' | 'workerError',
-    value: AIResultUpdated | string,
+    event: 'ai:resultUpdated' | 'ai:jobSummaryUpdated' | 'workerError',
+    value: AIResultUpdated | AIJobSummaryUpdated | string,
   ): void {
     for (const listener of this.rawListeners(event)) {
       try {
@@ -137,7 +208,7 @@ export class AIAnalysisWorker extends EventEmitter {
   private finish(): void {
     const item = this.current;
     this.current = undefined;
-    if (item) this.scheduled.delete(item.id);
+    if (item) this.scheduled.delete(key(item));
   }
 
   private kick(): void {
@@ -175,11 +246,16 @@ export class AIAnalysisWorker extends EventEmitter {
     if (!this.active) return;
     const item = this.current!;
     this.controller = new AbortController();
-    const outcome = await this.service.analyze(
-      item.id,
-      this.controller.signal,
-      (state) => this.updated(item.id, state),
-    );
+    const outcome =
+      item.kind === 'JOB_SUMMARY' && this.jobSummaries
+        ? await this.jobSummaries.summarize(
+            item.id,
+            this.controller.signal,
+            (state) => this.jobUpdated(item.id, state),
+          )
+        : await this.service.analyze(item.id, this.controller.signal, (state) =>
+            this.updated(item.id, state),
+          );
     if (!this.active) return;
     if (outcome.status !== 'PROVIDER_ERROR') {
       this.failures = 0;
@@ -200,7 +276,7 @@ export class AIAnalysisWorker extends EventEmitter {
       }
     } else this.failures = 0;
     if (!error.retryable || item.retries >= 3) {
-      this.status(item.id, 'UNAVAILABLE');
+      this.itemStatus(item, 'UNAVAILABLE');
       if (error.kind === 'OFFLINE') this.paused = true;
       else this.finish();
       return;
@@ -211,6 +287,6 @@ export class AIAnalysisWorker extends EventEmitter {
       : 0;
     item.due =
       Date.now() + Math.max(1000 * 2 ** (item.retries - 1), retryAfter);
-    this.status(item.id, 'RETRY_WAIT');
+    this.itemStatus(item, 'RETRY_WAIT');
   }
 }

@@ -7,91 +7,92 @@ import {
   levelForScore,
 } from '../src/core/risk/RiskPolicy.ts';
 
-// Tabla de casos de RiskPolicy v1, escrita a partir del plan de S2 y no de la implementación.
-// Columnas: nombre, motor, IA, nivel esperado, revisión esperada, IA pendiente esperada.
-const valid = (opinion, confidence = 0.8) => ({
+// Tabla de casos de RiskPolicy v2, escrita a partir del plan de S3 («RiskPolicy v2»),
+// no de la implementación. Columnas:
+// nombre · motor · IA · veredicto final · nivel final · origen · regla · revisión · IA pendiente.
+const EV = ['ev1', 'ev2'];
+const valid = (opinion, confidence = 0.9, cited = ['ev1']) => ({
   validationStatus: 'VALID',
   opinion,
   confidence,
+  citedEvidenceIds: cited,
 });
+const clean = (score = 25, evidenceIds = EV) => ({
+  verdict: 'CLEAN',
+  score,
+  evidenceIds,
+});
+const suspicious = { verdict: 'SUSPICIOUS', score: 40, evidenceIds: EV };
+const detected = { verdict: 'DETECTED', score: 100, evidenceIds: EV };
 
 const cases = [
-  // Sin IA: el motor decide y se etiqueta "IA pendiente".
+  // --- IA ausente o inválida: el motor decide y se etiqueta «IA pendiente». ---
   [
     'CLEAN sin IA (undefined)',
-    { verdict: 'CLEAN', score: 0 },
+    clean(0),
     undefined,
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
   [
     'CLEAN sin IA (null)',
-    { verdict: 'CLEAN', score: 29 },
+    clean(29),
     null,
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
   [
-    'SUSPICIOUS 30 sin IA',
-    { verdict: 'SUSPICIOUS', score: 30 },
+    'SUSPICIOUS sin IA',
+    suspicious,
     null,
+    'SUSPICIOUS',
     'MEDIO',
-    false,
-    true,
-  ],
-  [
-    'SUSPICIOUS 59 sin IA',
-    { verdict: 'SUSPICIOUS', score: 59 },
-    null,
-    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
     false,
     true,
   ],
   [
     'SUSPICIOUS 60 sin IA',
-    { verdict: 'SUSPICIOUS', score: 60 },
+    { ...suspicious, score: 60 },
     null,
+    'SUSPICIOUS',
     'ALTO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
     false,
     true,
   ],
   [
-    'SUSPICIOUS 84 sin IA',
-    { verdict: 'SUSPICIOUS', score: 84 },
+    'DETECTED sin IA',
+    detected,
     null,
-    'ALTO',
-    false,
-    true,
-  ],
-  [
-    'DETECTED 85 sin IA',
-    { verdict: 'DETECTED', score: 85 },
-    null,
+    'DETECTED',
     'CRÍTICO',
+    'ENGINE',
+    'DETECTED_KEPT',
     false,
     true,
   ],
-  [
-    'DETECTED 100 sin IA',
-    { verdict: 'DETECTED', score: 100 },
-    null,
-    'CRÍTICO',
-    false,
-    true,
-  ],
-  // DETECTED implica nivel ≥ 85 aunque la puntuación no llegue.
   [
     'DETECTED 40 fuerza CRÍTICO',
-    { verdict: 'DETECTED', score: 40 },
+    { ...detected, score: 40 },
     null,
+    'DETECTED',
     'CRÍTICO',
+    'ENGINE',
+    'DETECTED_KEPT',
     false,
     true,
   ],
-
-  // IA inválida: igual que ausente.
   ...[
     'INVALID_JSON',
     'SCHEMA_ERROR',
@@ -100,161 +101,335 @@ const cases = [
     'INCOMPLETE',
     'PROVIDER_ERROR',
   ].map((status) => [
-    `IA ${status} sobre SUSPICIOUS`,
-    { verdict: 'SUSPICIOUS', score: 40 },
+    `IA ${status} sobre CLEAN: no escala`,
+    clean(),
     { validationStatus: status },
-    'MEDIO',
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ]),
-  // "VALID" con datos imposibles: se descarta, no se confía en la IA.
+  // «VALID» con datos imposibles: se descarta como inválida.
   [
     'IA con opinión fuera del enum',
-    { verdict: 'CLEAN', score: 0 },
+    clean(),
     valid('MALICIOUS'),
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
   [
     'IA con confianza NaN',
-    { verdict: 'CLEAN', score: 0 },
+    clean(),
     valid('SUSPICIOUS', Number.NaN),
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
   [
     'IA con confianza negativa',
-    { verdict: 'CLEAN', score: 0 },
+    clean(),
     valid('SUSPICIOUS', -0.1),
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
   [
     'IA con confianza mayor que 1',
-    { verdict: 'CLEAN', score: 0 },
+    clean(),
     valid('SUSPICIOUS', 1.1),
+    'CLEAN',
     'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    true,
+  ],
+  [
+    'IA sin citedEvidenceIds',
+    clean(),
+    { validationStatus: 'VALID', opinion: 'SUSPICIOUS', confidence: 0.9 },
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     true,
   ],
 
-  // IA válida: matriz completa veredicto × opinión.
+  // --- DETECTED: siempre DETECTED; la IA nunca baja un veredicto. ---
   [
-    'CLEAN + LIKELY_BENIGN',
-    { verdict: 'CLEAN', score: 10 },
-    valid('LIKELY_BENIGN'),
-    'BAJO',
-    false,
-    false,
-  ],
-  [
-    'CLEAN + SUSPICIOUS',
-    { verdict: 'CLEAN', score: 10 },
-    valid('SUSPICIOUS'),
-    'BAJO',
-    true,
-    false,
-  ],
-  [
-    'CLEAN + LIKELY_MALICIOUS',
-    { verdict: 'CLEAN', score: 10 },
-    valid('LIKELY_MALICIOUS', 1),
-    'BAJO',
-    true,
-    false,
-  ],
-  [
-    'CLEAN + INSUFFICIENT_EVIDENCE',
-    { verdict: 'CLEAN', score: 10 },
-    valid('INSUFFICIENT_EVIDENCE', 0),
-    'BAJO',
-    false,
-    false,
-  ],
-  [
-    'SUSPICIOUS + LIKELY_BENIGN',
-    { verdict: 'SUSPICIOUS', score: 40 },
-    valid('LIKELY_BENIGN'),
-    'MEDIO',
-    true,
-    false,
-  ],
-  [
-    'SUSPICIOUS + SUSPICIOUS',
-    { verdict: 'SUSPICIOUS', score: 40 },
-    valid('SUSPICIOUS'),
-    'MEDIO',
-    false,
-    false,
-  ],
-  [
-    'SUSPICIOUS + LIKELY_MALICIOUS',
-    { verdict: 'SUSPICIOUS', score: 40 },
-    valid('LIKELY_MALICIOUS'),
-    'MEDIO',
-    false,
-    false,
-  ],
-  [
-    'SUSPICIOUS + INSUFFICIENT_EVIDENCE',
-    { verdict: 'SUSPICIOUS', score: 40 },
-    valid('INSUFFICIENT_EVIDENCE'),
-    'MEDIO',
-    false,
-    false,
-  ],
-  [
-    'DETECTED + LIKELY_BENIGN',
-    { verdict: 'DETECTED', score: 100 },
+    'DETECTED + LIKELY_BENIGN 0.99',
+    detected,
     valid('LIKELY_BENIGN', 0.99),
+    'DETECTED',
     'CRÍTICO',
-    true,
+    'ENGINE',
+    'DETECTED_KEPT',
+    false,
     false,
   ],
   [
     'DETECTED + SUSPICIOUS',
-    { verdict: 'DETECTED', score: 100 },
+    detected,
     valid('SUSPICIOUS'),
+    'DETECTED',
     'CRÍTICO',
+    'ENGINE',
+    'DETECTED_KEPT',
     false,
     false,
   ],
   [
     'DETECTED + LIKELY_MALICIOUS',
-    { verdict: 'DETECTED', score: 100 },
-    valid('LIKELY_MALICIOUS'),
+    detected,
+    valid('LIKELY_MALICIOUS', 1),
+    'DETECTED',
     'CRÍTICO',
+    'ENGINE',
+    'DETECTED_KEPT',
     false,
     false,
   ],
   [
     'DETECTED + INSUFFICIENT_EVIDENCE',
-    { verdict: 'DETECTED', score: 100 },
-    valid('INSUFFICIENT_EVIDENCE'),
+    detected,
+    valid('INSUFFICIENT_EVIDENCE', 0, []),
+    'DETECTED',
     'CRÍTICO',
+    'ENGINE',
+    'DETECTED_KEPT',
+    false,
+    false,
+  ],
+
+  // --- SUSPICIOUS: siempre SUSPICIOUS; revisión solo con LIKELY_BENIGN y confianza ≥ 0.8. ---
+  [
+    'SUSPICIOUS + LIKELY_BENIGN 0.80 → revisión',
+    suspicious,
+    valid('LIKELY_BENIGN', 0.8),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_POSSIBLE_FALSE_POSITIVE',
+    true,
+    false,
+  ],
+  [
+    'SUSPICIOUS + LIKELY_BENIGN 1.00 → revisión',
+    suspicious,
+    valid('LIKELY_BENIGN', 1),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_POSSIBLE_FALSE_POSITIVE',
+    true,
+    false,
+  ],
+  [
+    'SUSPICIOUS + LIKELY_BENIGN 0.79 → sin revisión',
+    suspicious,
+    valid('LIKELY_BENIGN', 0.79),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
+    false,
+    false,
+  ],
+  [
+    'SUSPICIOUS + SUSPICIOUS',
+    suspicious,
+    valid('SUSPICIOUS'),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
+    false,
+    false,
+  ],
+  [
+    'SUSPICIOUS + LIKELY_MALICIOUS 1.00 (no sube a DETECTED)',
+    suspicious,
+    valid('LIKELY_MALICIOUS', 1),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
+    false,
+    false,
+  ],
+  [
+    'SUSPICIOUS + INSUFFICIENT_EVIDENCE',
+    suspicious,
+    valid('INSUFFICIENT_EVIDENCE', 0.9, []),
+    'SUSPICIOUS',
+    'MEDIO',
+    'ENGINE',
+    'SUSPICIOUS_KEPT',
+    false,
+    false,
+  ],
+
+  // --- CLEAN: escalamiento solo con TODAS las condiciones. ---
+  [
+    'CLEAN + SUSPICIOUS 0.70, cita ev1, 25 pts → escala',
+    clean(25),
+    valid('SUSPICIOUS', 0.7),
+    'SUSPICIOUS',
+    'MEDIO',
+    'AI_ESCALATION',
+    'CLEAN_ESCALATED_BY_AI',
+    false,
+    false,
+  ],
+  [
+    'CLEAN + LIKELY_MALICIOUS 1.00, 1 pt → escala con nivel MEDIO',
+    clean(1),
+    valid('LIKELY_MALICIOUS', 1, ['ev1', 'ev2']),
+    'SUSPICIOUS',
+    'MEDIO',
+    'AI_ESCALATION',
+    'CLEAN_ESCALATED_BY_AI',
+    false,
+    false,
+  ],
+  // Límite de confianza.
+  [
+    'CLEAN + SUSPICIOUS 0.69 → no escala',
+    clean(25),
+    valid('SUSPICIOUS', 0.69),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  // Límite de puntuación.
+  [
+    'CLEAN puntuación 0 + LIKELY_MALICIOUS 1.00 → no escala',
+    clean(0),
+    valid('LIKELY_MALICIOUS', 1),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  // Citas.
+  [
+    'CLEAN + SUSPICIOUS sin citas → no escala',
+    clean(25),
+    valid('SUSPICIOUS', 0.9, []),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  [
+    'CLEAN + SUSPICIOUS con cita inexistente → no escala',
+    clean(25),
+    valid('SUSPICIOUS', 0.9, ['ev9']),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  [
+    'CLEAN + SUSPICIOUS con una cita real y otra inventada → no escala',
+    clean(25),
+    valid('SUSPICIOUS', 0.9, ['ev1', 'ev9']),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  [
+    'CLEAN sin ids de evidencia del motor → no escala',
+    { verdict: 'CLEAN', score: 25 },
+    valid('SUSPICIOUS', 0.9),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  // Opinión.
+  [
+    'CLEAN + LIKELY_BENIGN → no escala',
+    clean(25),
+    valid('LIKELY_BENIGN', 0.9),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
+    false,
+    false,
+  ],
+  [
+    'CLEAN + INSUFFICIENT_EVIDENCE → no escala',
+    clean(25),
+    valid('INSUFFICIENT_EVIDENCE', 0.9, []),
+    'CLEAN',
+    'BAJO',
+    'ENGINE',
+    'CLEAN_KEPT',
     false,
     false,
   ],
 ];
 
-describe('RiskPolicy v1: tabla de casos', () => {
-  for (const [name, engine, ai, level, review, pending] of cases) {
+describe('RiskPolicy v2: tabla de casos', () => {
+  for (const [
+    name,
+    engine,
+    ai,
+    verdict,
+    level,
+    origin,
+    rule,
+    review,
+    pending,
+  ] of cases) {
     it(name, () => {
       const input = structuredClone({ engine, ai });
       const decision = decideRisk(engine, ai);
 
-      // La IA nunca cambia el veredicto ni el origen en v1.
-      assert.equal(decision.finalVerdict, engine.verdict);
+      assert.equal(decision.policyVersion, POLICY_VERSION);
       assert.equal(decision.engineVerdict, engine.verdict);
       assert.equal(decision.engineScore, engine.score);
-      assert.equal(decision.origin, 'ENGINE');
-      assert.equal(decision.policyVersion, POLICY_VERSION);
+      assert.equal(decision.finalVerdict, verdict);
       assert.equal(decision.finalLevel, level);
+      assert.equal(decision.origin, origin);
+      assert.equal(decision.rule, rule);
       assert.equal(decision.reviewRequired, review);
       assert.equal(decision.aiPending, pending);
+
+      // Nunca DETECTED por la IA, nunca un veredicto más bajo que el del motor.
+      if (engine.verdict !== 'DETECTED')
+        assert.notEqual(decision.finalVerdict, 'DETECTED');
+      if (engine.verdict !== 'CLEAN')
+        assert.equal(decision.finalVerdict, engine.verdict);
 
       // Opinión y confianza solo se registran si la IA es válida.
       if (pending) {
@@ -265,30 +440,40 @@ describe('RiskPolicy v1: tabla de casos', () => {
         assert.equal(decision.aiConfidence, ai.confidence);
       }
 
-      // Traza legible: empieza por el motor, termina con el veredicto final, y
-      // lleva la etiqueta de IA pendiente cuando corresponde.
-      assert.ok(decision.trace.length >= 3);
-      assert.ok(
-        decision.trace.every(
-          (step) => typeof step === 'string' && step.length > 0,
-        ),
-      );
+      // Traza: empieza por el motor, nombra la regla aplicada y termina con el resultado.
       assert.match(
         decision.trace[0],
         new RegExp(`^Motor: veredicto ${engine.verdict}`),
       );
+      assert.ok(
+        decision.trace.some((step) =>
+          step.startsWith(`Regla ${engine.verdict}`),
+        ),
+      );
       assert.match(
         decision.trace.at(-1),
-        new RegExp(`^Veredicto final: ${engine.verdict}`),
+        new RegExp(
+          `^Veredicto final: ${verdict}, nivel ${level} \\(origen ${origin}\\)`,
+        ),
       );
       assert.equal(
         decision.trace.some((step) => step.includes(AI_PENDING_LABEL)),
         pending,
       );
-      assert.equal(
-        decision.trace.some((step) => step.includes('se requiere revisión')),
-        review,
-      );
+      // Con IA válida sobre CLEAN, la traza muestra las 4 condiciones y cuál falló.
+      if (engine.verdict === 'CLEAN' && !pending) {
+        const conditions = decision.trace.filter((step) =>
+          step.startsWith('Condición de escalamiento'),
+        );
+        assert.equal(conditions.length, 4);
+        assert.equal(
+          conditions.every(
+            (step) =>
+              step.includes('cumplida:') && !step.includes('NO cumplida'),
+          ),
+          origin === 'AI_ESCALATION',
+        );
+      }
 
       // Pura: no modifica la entrada y repite el mismo resultado.
       assert.deepEqual({ engine, ai }, input);
@@ -297,7 +482,7 @@ describe('RiskPolicy v1: tabla de casos', () => {
   }
 });
 
-describe('RiskPolicy v1: entradas que no evalúa', () => {
+describe('RiskPolicy v2: entradas que no evalúa', () => {
   for (const [name, engine] of [
     ['veredicto ERROR', { verdict: 'ERROR', score: 0 }],
     ['veredicto NOT_ANALYZED', { verdict: 'NOT_ANALYZED', score: 0 }],

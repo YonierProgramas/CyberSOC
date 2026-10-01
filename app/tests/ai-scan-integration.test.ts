@@ -10,6 +10,7 @@ import { LayerTraceRepository } from '../src/core/persistence/LayerTraceReposito
 import { RiskAssessmentRepository } from '../src/core/persistence/RiskAssessmentRepository';
 import type { ScanJobRecord } from '../src/core/persistence/ScanJobRepository';
 import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
+import { aiAssessmentSchema } from '../src/core/ai/schemas';
 import type { AIAnalysisWorker } from '../src/core/ai/AIAnalysisWorker';
 import type { EngineResult } from '../src/shared/protocol';
 import { FakeEngineClient, scanned } from './FakeEngineClient';
@@ -22,6 +23,12 @@ import {
 let directory: string;
 let db: Database;
 let fake: FakeAIProvider;
+/** Peticiones de análisis por archivo; cada escaneo completado añade además su JOB_SUMMARY. */
+function fileRequests() {
+  return fake.requests.filter(
+    (request) => request.schema === aiAssessmentSchema,
+  );
+}
 let worker: AIAnalysisWorker;
 let engine: FakeEngineClient;
 const evidence: EngineResult['evidence'] = [
@@ -118,9 +125,9 @@ it('escaneo → transacción completa → IA → RiskPolicy, usando las fábrica
     finalVerdict: 'SUSPICIOUS',
     reviewRequired: true,
   });
-  expect(fake.requests).toHaveLength(1);
-  expect(fake.requests[0]!.prompt).toContain('TYPE_MISMATCH');
-  expect(fake.requests[0]!.prompt).not.toContain('NO_ENVIAR');
+  expect(fileRequests()).toHaveLength(1);
+  expect(fileRequests()[0]!.prompt).toContain('TYPE_MISMATCH');
+  expect(fileRequests()[0]!.prompt).not.toContain('NO_ENVIAR');
   expect(event).toHaveBeenCalledWith({
     resultId: result!.id,
     aiStatus: 'COMPLETED',
@@ -138,7 +145,7 @@ it('un CLEAN sin evidencia conserva evaluación local y no llama a la IA', async
     engineScore: 0,
     aiStatus: 'NOT_REQUIRED',
   });
-  expect(fake.requests).toHaveLength(0);
+  expect(fileRequests()).toHaveLength(0);
 });
 
 it('un fallo de API no impide terminar el escaneo local', async () => {
@@ -162,7 +169,7 @@ it('un fallo al insertar capas revierte todas las tablas y no encola IA', async 
   for (const table of ['evidences', 'result_layers', 'risk_assessments']) {
     expect(db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n).toBe(0);
   }
-  expect(fake.requests).toHaveLength(0);
+  expect(fileRequests()).toHaveLength(0);
 });
 
 it('un fallo de la cola conserva el resultado y se comunica sin detalles sensibles', async () => {
@@ -183,7 +190,7 @@ it('respuestas antiguas conservan hechos sin inventar puntuación ni enviarse au
   expect(result).toMatchObject({ verdict: 'NOT_EVALUATED', engineScore: null });
   expect(new EvidenceRepository(db).listByResult(result!.id)).toHaveLength(1);
   expect(new LayerTraceRepository(db).listByResult(result!.id)).toHaveLength(2);
-  expect(fake.requests).toHaveLength(0);
+  expect(fileRequests()).toHaveLength(0);
 });
 
 it('un archivo no analizado conserva traza y puntuación nula sin evaluación inventada', async () => {

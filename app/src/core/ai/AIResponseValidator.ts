@@ -35,7 +35,7 @@ export type AIValidationResult =
   | { status: Exclude<AIValidationStatus, 'VALID'>; errors: string[] };
 
 type Failure = Exclude<AIValidationResult, { status: 'VALID' }>;
-type TextField = { field: string; text: string };
+export type TextField = { field: string; text: string };
 
 const EVIDENCE_REF = /\bev[1-9][0-9]*\b/g;
 const MAX_LISTED = 5;
@@ -84,7 +84,8 @@ function fail(status: Failure['status'], errors: string[]): Failure {
   return { status, errors };
 }
 
-function describeIssue(issue: z.core.$ZodIssue): string {
+/** Describe un error de zod sin copiar valores de la respuesta (solo ruta y límite del esquema). */
+export function describeIssue(issue: z.core.$ZodIssue): string {
   const path = issue.path.length ? issue.path.join('.') : '(raíz)';
   let detail = ISSUE_TEXT[issue.code] ?? 'no cumple el esquema';
   if (issue.code === 'too_big') detail = `supera el máximo (${issue.maximum})`;
@@ -155,8 +156,19 @@ function checkContent(input: AIResponseInput): AIValidationResult {
 
   // 4. Seguridad: sin URLs ni comandos. Las longitudes máximas y el enum de la acción ya los
   //    hace cumplir el esquema del paso 2.
+  const unsafe = unsafeTextErrors(textFields(value));
+  if (unsafe.length) return fail('UNSAFE', unsafe);
+
+  return { status: 'VALID', assessment: value, errors: [] };
+}
+
+/**
+ * Paso 4 reutilizable (también lo usa el validador de JOB_SUMMARY): un error por campo con
+ * URL o comando. Los mensajes nombran el campo y la categoría, nunca el texto encontrado.
+ */
+export function unsafeTextErrors(fields: readonly TextField[]): string[] {
   const unsafe: string[] = [];
-  for (const { field, text } of textFields(value)) {
+  for (const { field, text } of fields) {
     if (URL_PATTERNS.some((pattern) => pattern.test(text))) {
       unsafe.push(`Campo ${field}: contiene una URL o enlace.`);
     }
@@ -165,9 +177,7 @@ function checkContent(input: AIResponseInput): AIValidationResult {
       unsafe.push(`Campo ${field}: contiene un comando (${command[0]}).`);
     }
   }
-  if (unsafe.length) return fail('UNSAFE', unsafe);
-
-  return { status: 'VALID', assessment: value, errors: [] };
+  return unsafe;
 }
 
 /**

@@ -18,6 +18,11 @@ import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
 import { decideRisk } from '../src/core/risk/RiskPolicy';
 import type { Evidence } from '../src/shared/protocol';
 import type { AIAssessment } from '../src/core/ai/schemas';
+import {
+  ANALYSIS_MAX_TOKENS,
+  ANALYSIS_RETRY_MAX_TOKENS,
+  PROMPT_VERSION,
+} from '../src/core/ai/prompts/analysis.v2';
 import type { AIResult } from '../src/core/ai/AIProvider';
 
 const valid: AIAssessment = {
@@ -187,7 +192,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
     outputTokens: 22,
     latencyMs: 35,
     validationStatus: 'VALID',
-    promptVersion: 'analysis.v1',
+    promptVersion: PROMPT_VERSION,
   });
   expect(fake.requests[0]!.prompt).toContain(saved.contextJson);
   expect(saved.contextSha256).toBe(
@@ -196,7 +201,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
   expect(new RiskAssessmentRepository(db).get(id)).toMatchObject({
     finalVerdict: 'SUSPICIOUS',
     reviewRequired: true,
-    policyVersion: '1',
+    policyVersion: '2',
   });
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
@@ -325,7 +330,10 @@ it('INCOMPLETE permite solo un reintento con más tokens', async () => {
   const id = seed();
   fake.enqueueRaw('{cut', { stopReason: 'max_tokens' }).enqueueValue(valid);
   await service.analyze(id);
-  expect(fake.requests.map((r) => r.maxTokens)).toEqual([1200, 2400]);
+  expect(fake.requests.map((r) => r.maxTokens)).toEqual([
+    ANALYSIS_MAX_TOKENS,
+    ANALYSIS_RETRY_MAX_TOKENS,
+  ]);
   expect(rows()[0]!.validation_status).toBe('INCOMPLETE');
 });
 

@@ -313,3 +313,140 @@ export type AIAssessment = z.infer<typeof aiAssessmentSchema>;
 export function aiAssessmentJsonSchema(): Record<string, unknown> {
   return toClaudeJsonSchema(aiAssessmentSchema);
 }
+
+// ---------------------------------------------------------------------------
+// JOB_SUMMARY (S3): resumen de un escaneo terminado
+// ---------------------------------------------------------------------------
+
+export const JOB_SUMMARY_CONTEXT_SCHEMA_ID = 'cybersoc.job-summary-context/v1';
+
+/** Topes del contexto del resumen: contadores + los 10 resultados de mayor riesgo. */
+export const JOB_SUMMARY_CONTEXT_LIMITS = {
+  jobId: 64,
+  resultId: 64,
+  location: 260,
+  maxTopResults: 10,
+  maxEvidencePerResult: 10,
+} as const;
+
+/** Longitudes máximas de la salida del resumen; caben en su `max_tokens`. */
+export const JOB_SUMMARY_LIMITS = {
+  summary: 800,
+  maxHighlights: 10,
+  why: 300,
+  maxRecommendations: 5,
+  recommendation: 200,
+  maxCitedResults: 10,
+} as const;
+
+const JL = JOB_SUMMARY_CONTEXT_LIMITS;
+const verdictCountsSchema = z.strictObject({
+  CLEAN: nonNegativeInt,
+  SUSPICIOUS: nonNegativeInt,
+  DETECTED: nonNegativeInt,
+  NOT_ANALYZED: nonNegativeInt,
+  NOT_EVALUATED: nonNegativeInt,
+});
+
+export const jobSummaryContextSchema = z
+  .strictObject({
+    schema: z.literal(JOB_SUMMARY_CONTEXT_SCHEMA_ID),
+    task: z.literal('SUMMARIZE_SCAN_JOB'),
+    locale: z.literal('es-CO'),
+    job: z.strictObject({
+      jobId: z.string().min(1).max(JL.jobId),
+      targetKind: z.enum(['FILE', 'FOLDER']),
+      /** Ruta escaneada con la carpeta de usuario anonimizada. */
+      targetLocation: z.string().max(JL.location),
+      durationMs: nonNegativeInt.nullable(),
+      counters: z.strictObject({
+        filesDiscovered: nonNegativeInt,
+        filesProcessed: nonNegativeInt,
+        filesError: nonNegativeInt,
+        filesSkipped: nonNegativeInt,
+      }),
+      verdicts: verdictCountsSchema,
+      aiEscalations: nonNegativeInt,
+      reviewsRequired: nonNegativeInt,
+    }),
+    topResults: z
+      .array(
+        z.strictObject({
+          resultId: z.string().min(1).max(JL.resultId),
+          name: z.string().min(1).max(AI_CONTEXT_LIMITS.fileName),
+          verdict: engineVerdictSchema,
+          score: nonNegativeInt.max(100).nullable(),
+          riskLevel: riskLevelSchema.nullable(),
+          escalatedByAI: z.boolean(),
+          evidence: z
+            .array(
+              z.strictObject({
+                source: evidenceSourceSchema,
+                code: z.string().min(1).max(AI_CONTEXT_LIMITS.evidenceCode),
+                severity: severitySchema,
+              }),
+            )
+            .max(JL.maxEvidencePerResult),
+        }),
+      )
+      .max(JL.maxTopResults),
+    constraints: z.strictObject({
+      /** Había más de 10 resultados de riesgo; solo van los 10 primeros. */
+      topResultsTruncated: z.boolean(),
+      /** Algún resultado tenía más de 10 evidencias; solo van las 10 primeras. */
+      evidenceTruncated: z.boolean(),
+      fileNamesPseudonymized: z.boolean(),
+      contentIncluded: z.literal(false),
+    }),
+  })
+  .superRefine((context, ctx) => {
+    if (hasDuplicates(context.topResults.map((item) => item.resultId))) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['topResults'],
+        message: 'resultId repetidos.',
+      });
+    }
+  });
+
+export type JobSummaryContext = z.infer<typeof jobSummaryContextSchema>;
+
+const S = JOB_SUMMARY_LIMITS;
+const resultIdSchema = z.string().min(1).max(JL.resultId);
+
+/** Salida del resumen: exactamente las claves del plan de S3. */
+export const jobSummarySchema = z.strictObject({
+  summary: text(
+    S.summary,
+    'Resumen del escaneo en lenguaje sencillo, solo con cifras del contexto.',
+  ),
+  highlights: z
+    .array(
+      z.strictObject({
+        resultId: resultIdSchema.describe(
+          'resultId exacto de topResults en el contexto.',
+        ),
+        why: text(
+          S.why,
+          'Por qué merece atención, citando códigos de evidencia y su capa.',
+        ),
+      }),
+    )
+    .max(S.maxHighlights)
+    .describe(`Hasta ${S.maxHighlights} resultados que merecen atención.`),
+  recommendations: z
+    .array(text(S.recommendation, 'Paso recomendado en lenguaje natural.'))
+    .max(S.maxRecommendations)
+    .describe(`Hasta ${S.maxRecommendations} recomendaciones.`),
+  citedResultIds: z
+    .array(resultIdSchema)
+    .max(S.maxCitedResults)
+    .describe('Todos los resultId del contexto que mencionas.'),
+});
+
+export type JobSummary = z.infer<typeof jobSummarySchema>;
+
+/** JSON Schema del resumen para `output_config.format` (el mismo que envía ClaudeProvider). */
+export function jobSummaryJsonSchema(): Record<string, unknown> {
+  return toClaudeJsonSchema(jobSummarySchema);
+}
