@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScanJobDTO, ScanProgress, ScanTarget } from '../../../shared/ipc';
 import { JobDetail } from '../components/JobDetail';
 import { JobSummaryCard } from '../components/JobSummaryCard';
@@ -11,6 +11,7 @@ import {
 } from '../components/ProfileSelector';
 import { ProgressPanel } from '../components/ProgressPanel';
 import { ResultsTable } from '../components/ResultsTable';
+import { pathLabel, useCopilotFocus } from '../copilot/focus';
 
 const activeStatuses = new Set<ScanJobDTO['status']>([
   'CREATED',
@@ -28,8 +29,27 @@ export function ScanPage() {
   const [profileMode, setProfileMode] = useState<ProfileMode>('AUTO');
   const [layers, setLayers] = useState(allLayers);
   const [focusResultId, setFocusResultId] = useState<string | null>(null);
+  const { setFocus } = useCopilotFocus();
   const jobId = useRef<string | null>(null);
   const lastResultsRefresh = useRef(0);
+  const jobFocusId = job?.id ?? null;
+  const jobFocusLabel = job ? pathLabel(job.targetPath) : null;
+
+  const chooseResult = useCallback(
+    (result: { id: string; fileName: string }) => {
+      setFocus({
+        kind: 'RESULT',
+        resultId: result.id,
+        label: result.fileName,
+      });
+    },
+    [setFocus],
+  );
+
+  useEffect(() => {
+    if (!jobFocusId || !jobFocusLabel) return;
+    setFocus({ kind: 'JOB', jobId: jobFocusId, label: jobFocusLabel });
+  }, [jobFocusId, jobFocusLabel, setFocus]);
 
   useEffect(() => {
     const stopProgress = window.cybersoc.scan.onProgress((update) => {
@@ -172,6 +192,7 @@ export function ScanPage() {
             profileJson={job.profileJson}
             refreshToken={refreshToken}
             focusResultId={focusResultId}
+            onSelectResult={chooseResult}
           />
         </>
       )}

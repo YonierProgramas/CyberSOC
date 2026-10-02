@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ScanJobDTO } from '../../../shared/ipc';
 import { JobDetail } from '../components/JobDetail';
 import { JobSummaryCard } from '../components/JobSummaryCard';
 import { ResultsTable } from '../components/ResultsTable';
+import { pathLabel, useCopilotFocus } from '../copilot/focus';
 import { jobStatusLabel } from '../scan/format';
 
 export function HistoryPage() {
@@ -10,6 +11,17 @@ export function HistoryPage() {
   const [selected, setSelected] = useState<ScanJobDTO | null>(null);
   const [focusResultId, setFocusResultId] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const { setFocus } = useCopilotFocus();
+  const chooseResult = useCallback(
+    (result: { id: string; fileName: string }) => {
+      setFocus({
+        kind: 'RESULT',
+        resultId: result.id,
+        label: result.fileName,
+      });
+    },
+    [setFocus],
+  );
 
   useEffect(() => {
     let active = true;
@@ -30,7 +42,13 @@ export function HistoryPage() {
     setFailed(false);
     try {
       setFocusResultId(null);
-      setSelected(await window.cybersoc.scan.getJob(jobId));
+      const job = await window.cybersoc.scan.getJob(jobId);
+      setSelected(job);
+      setFocus({
+        kind: 'JOB',
+        jobId: job.id,
+        label: pathLabel(job.targetPath),
+      });
     } catch {
       setFailed(true);
     }
@@ -71,6 +89,7 @@ export function HistoryPage() {
             jobId={selected.id}
             profileJson={selected.profileJson}
             focusResultId={focusResultId}
+            onSelectResult={chooseResult}
           />
         </>
       )}

@@ -14,11 +14,13 @@ export function ResultsTable({
   profileJson = null,
   refreshToken = 0,
   focusResultId = null,
+  onSelectResult,
 }: {
   jobId: string;
   profileJson?: string | null;
   refreshToken?: number;
   focusResultId?: string | null;
+  onSelectResult?: (result: { id: string; fileName: string }) => void;
 }) {
   const [page, setPage] = useState(0);
   const [data, setData] = useState<Page<ScanResultDTO> | null>(null);
@@ -32,8 +34,11 @@ export function ResultsTable({
   }, [jobId]);
 
   useEffect(() => {
-    if (focusResultId) setSelectedId(focusResultId);
-  }, [focusResultId]);
+    if (!focusResultId) return;
+    setSelectedId(focusResultId);
+    const found = data?.items.find((item) => item.id === focusResultId);
+    if (found) onSelectResult?.({ id: found.id, fileName: found.fileName });
+  }, [focusResultId, data, onSelectResult]);
 
   useEffect(() => {
     let active = true;
@@ -89,7 +94,13 @@ export function ResultsTable({
                     data-testid="result-row"
                     data-result-id={result.id}
                     aria-selected={selectedId === result.id}
-                    onClick={() => setSelectedId(result.id)}
+                    onClick={() => {
+                      setSelectedId(result.id);
+                      onSelectResult?.({
+                        id: result.id,
+                        fileName: result.fileName,
+                      });
+                    }}
                   >
                     <td>{result.fileName}</td>
                     <td className="path" title={result.path}>
