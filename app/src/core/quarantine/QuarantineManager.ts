@@ -497,29 +497,30 @@ export class QuarantineManager {
   private async recoverRestore(item: QuarantineRecord): Promise<void> {
     const target = await this.allowed(item.restoredTo!, false);
     const temp = this.restoreTemp(item);
+    let targetMatches = false;
     if (await exists(target)) {
       await this.allowed(target, true);
       const file = await open(target, 'r');
       try {
-        if ((await hashFile(file)) !== item.sha256)
-          throw new QuarantineError(
-            'FILE_CHANGED',
-            'El destino de restauración cambió.',
-          );
+        targetMatches =
+          (await file.stat()).isFile() &&
+          (await hashFile(file)) === item.sha256;
       } finally {
         await file.close();
       }
-      if (await exists(temp)) {
-        await assertNoLinks(temp);
-        await unlink(temp);
-      }
+    }
+    // El temporal pertenece a esta restauración; no conservar contenido descifrado
+    // tras un cierre, tampoco si otra aplicación ocupó el destino o el blob se dañó.
+    if (await exists(temp)) {
+      await assertNoLinks(temp);
+      await unlink(temp);
+    }
+    if (targetMatches) {
       await this.finishRestore(item, 'SYSTEM');
     } else {
+      // Nunca tocar el archivo ajeno. La copia cifrada verificada vuelve a estar
+      // disponible para restaurar con sufijo o eliminar tras nueva confirmación.
       await this.options.vault.verify(item);
-      if (await exists(temp)) {
-        await assertNoLinks(temp);
-        await unlink(temp);
-      }
       item.status = 'QUARANTINED';
       item.restoredTo = null;
       item.errorMessage = 'RESTORE_ROLLED_BACK';

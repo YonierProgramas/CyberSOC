@@ -125,9 +125,9 @@ describe('validatePath: nombres reservados de Windows', () => {
       expect(() => validatePath(`C:\\carpeta\\${name}`)).toThrow();
     },
   );
-  // HALLAZGO T4.3-A: Microsoft (Naming Files, Paths, and Namespaces) reserva también COM0,
-  // LPT0 y los superíndices COM¹-COM³ y LPT¹-LPT³. La expresión de paths.ts solo cubre
-  // [1-9]. Solo se comprueba la validación: no se crea ningún archivo.
+  // Regresión T4.3-A: Windows también reserva COM¹-COM³ y LPT¹-LPT³.
+  // COM0 y LPT0 se rechazan conservadoramente como nombres ambiguos de dispositivos.
+  // Solo se comprueba la validación: no se crea ningún archivo.
   for (const name of [
     'COM0',
     'LPT0',
@@ -138,7 +138,7 @@ describe('validatePath: nombres reservados de Windows', () => {
     'LPT²',
     'LPT³',
   ])
-    it.fails(`[HALLAZGO A] rechaza ${name} como segmento`, () => {
+    it(`[HALLAZGO A] rechaza ${name} como segmento`, () => {
       expect(() => validatePath(`C:\\carpeta\\${name}.txt`)).toThrow();
     });
 });

@@ -39,7 +39,7 @@ export function validatePath(path: string): string {
         part === '.' ||
         /[<>:"|?*\x00-\x1f]/.test(part) ||
         /[. ]$/.test(part) ||
-        /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)
+        /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(?:\.|$)/i.test(part)
       )
         throw new QuarantineError('INVALID_PATH', 'Segmento de ruta inseguro.');
     }

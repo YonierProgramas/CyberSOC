@@ -288,43 +288,64 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     },
   );
 
-  // HALLAZGO T4.3-B: si tras el cierre aparece OTRO archivo en el destino, recoverRestore lanza
-  // FILE_CHANGED antes de limpiar: el ítem queda FAILED (ya no se puede restaurar ni eliminar
-  // desde la UI, aunque su blob es válido) y el temporal en texto plano queda junto al destino.
-  it.fails(
-    '[HALLAZGO B] cierre en R3 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED y no queda texto plano',
-    async () => {
-      const { input, id, temp } = await crashRestoreAt('R3-temporal-completo');
-      await fs.writeFile(
-        input.path,
-        'Archivo distinto creado por otro programa',
-      );
-      await restartAndReconcile();
-      expect(await fs.readFile(input.path, 'utf8')).toBe(
-        'Archivo distinto creado por otro programa',
-      );
-      expect(await exists(temp)).toBe(false);
-      const record = h.record(id);
-      expect(record.status).toBe('QUARANTINED');
-      expect(record.restoredTo).toBeNull();
-    },
-  );
+  // Regresión T4.3-B: un archivo ajeno en el destino no debe dejar un temporal
+  // descifrado ni bloquear el ítem recuperable en FAILED.
+  it('[HALLAZGO B] cierre en R3 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED y no queda texto plano', async () => {
+    const { input, id, temp } = await crashRestoreAt('R3-temporal-completo');
+    await fs.writeFile(input.path, 'Archivo distinto creado por otro programa');
+    await restartAndReconcile();
+    expect(await fs.readFile(input.path, 'utf8')).toBe(
+      'Archivo distinto creado por otro programa',
+    );
+    expect(await exists(temp)).toBe(false);
+    const record = h.record(id);
+    expect(record.status).toBe('QUARANTINED');
+    expect(record.restoredTo).toBeNull();
+    const restored = await h.manager.restore(id, { trustHash: false });
+    expect(restored.restoredTo).not.toBe(input.path);
+    expect(sha(await fs.readFile(restored.restoredTo!))).toBe(input.hash);
+    expect(await fs.readFile(input.path, 'utf8')).toBe(
+      'Archivo distinto creado por otro programa',
+    );
+  });
 
-  it.fails(
-    '[HALLAZGO B] cierre en R1 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED',
-    async () => {
-      const { input, id } = await crashRestoreAt('R1-pending-sin-temporal');
-      await fs.writeFile(
-        input.path,
-        'Archivo distinto creado por otro programa',
-      );
-      await restartAndReconcile();
-      expect(await fs.readFile(input.path, 'utf8')).toBe(
-        'Archivo distinto creado por otro programa',
-      );
-      expect(h.record(id).status).toBe('QUARANTINED');
-    },
-  );
+  it('[HALLAZGO B] cierre en R1 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED', async () => {
+    const { input, id } = await crashRestoreAt('R1-pending-sin-temporal');
+    await fs.writeFile(input.path, 'Archivo distinto creado por otro programa');
+    await restartAndReconcile();
+    expect(await fs.readFile(input.path, 'utf8')).toBe(
+      'Archivo distinto creado por otro programa',
+    );
+    expect(h.record(id).status).toBe('QUARANTINED');
+  });
+
+  it('rollback con confianza pendiente no añade allowlist y permite eliminar el blob', async () => {
+    const { input, id, temp } = await crashRestoreAt(
+      'R2-temporal-a-medias',
+      true,
+    );
+    await fs.writeFile(input.path, 'archivo ajeno');
+    await restartAndReconcile();
+    expect(await exists(temp)).toBe(false);
+    expect(h.record(id).status).toBe('QUARANTINED');
+    expect(h.db.prepare('SELECT count(*) AS n FROM allowlist').get()?.n).toBe(
+      0,
+    );
+    await h.manager.delete(id);
+    expect(h.record(id).status).toBe('DELETED');
+    expect(await fs.readFile(input.path, 'utf8')).toBe('archivo ajeno');
+  });
+
+  it('retira el temporal descifrado aunque el blob esté corrupto al reconciliar', async () => {
+    const { input, id, temp } = await crashRestoreAt('R3-temporal-completo');
+    await fs.writeFile(input.path, 'archivo ajeno');
+    await fs.writeFile(h.record(id).vaultFile, 'blob corrupto inofensivo');
+    await restartAndReconcile();
+    expect(await exists(temp)).toBe(false);
+    expect(h.record(id).status).toBe('FAILED');
+    expect(await fs.readFile(input.path, 'utf8')).toBe('archivo ajeno');
+    expect(await exists(h.record(id).vaultFile)).toBe(true);
+  });
 
   it('el núcleo del hallazgo B, sin depender de la expectativa: nunca se sobrescribe el archivo ajeno ni se borra el blob', async () => {
     const { input, id } = await crashRestoreAt('R3-temporal-completo');
