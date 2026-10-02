@@ -125,5 +125,5 @@ jobs:
               error => { console.log(JSON.stringify({ name, ms: Math.round(performance.now() - start), code: error?.code ?? 0 })); resolve(); }
             ));
           }
-          (async () => { for (const name of ['PSModulePath', 'ComSpec', 'ProgramFiles', 'ProgramFiles(x86)']) { const value = Object.entries(process.env).find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1]; await measure(name, { ...minimal, [name]: value }); } })();
+          (async () => { await measure('compile-before', minimal, script.replace(/  Import-Module [^\r\n]+\r?\n/, '')); await measure('compile-fixed', minimal); })();
           '@ | node

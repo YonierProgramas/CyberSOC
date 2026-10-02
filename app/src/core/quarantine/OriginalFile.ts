@@ -11,6 +11,10 @@ import { QuarantineError } from './paths';
 const DELETE_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
 try {
+  # Cargar el módulo incorporado por ruta evita buscar por todos los módulos instalados.
+  # Con el entorno mínimo, ese descubrimiento añade decenas de segundos en Windows CI.
+  # PSHOME lo fija PowerShell; no heredamos PSModulePath ni credenciales del proceso main.
+  Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1" -ErrorAction Stop
   Add-Type -TypeDefinition @'
 using System;
 using System.IO;
