@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main, Jhonier, s0/ci]
+    branches: [main, Jhonier, s0/ci, s4/fix-ci-quarantine]
   workflow_dispatch:
 
 permissions:
@@ -59,8 +59,33 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint
+      - name: Diagnose native Windows helper startup (no file operations)
+        run: |
+          @'
+          const { execFile } = require('node:child_process');
+          const { readFileSync } = require('node:fs');
+          const { join } = require('node:path');
+          const source = readFileSync('src/core/quarantine/OriginalFile.ts', 'utf8');
+          const script = source.split('const DELETE_SCRIPT = String.raw`')[1].split('`;')[0]
+            .replace('  exit [VerifiedDelete]::Run($env:CYBERSOC_DELETE_PATH, $env:CYBERSOC_DELETE_HASH)', '  exit 0');
+          const minimal = { SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP };
+          const locations = { ...minimal };
+          for (const name of ['USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'HOMEDRIVE', 'HOMEPATH', 'SystemDrive', 'PATH']) {
+            locations[name] = process.env[name];
+          }
+          async function measure(name, env) {
+            const start = performance.now();
+            await new Promise(resolve => execFile(
+              join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+              ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
+              { env, windowsHide: true, timeout: 60000 },
+              error => { console.log(JSON.stringify({ name, ms: Math.round(performance.now() - start), code: error?.code ?? 0 })); resolve(); }
+            ));
+          }
+          (async () => { await measure('minimal', minimal); await measure('locations', locations); })();
+          '@ | node
       - name: Tests (including TypeScript contracts; no live AI smoke)
-        run: npm test
+        run: npm test -- --maxWorkers=2
 
   engine:
     runs-on: windows-latest
