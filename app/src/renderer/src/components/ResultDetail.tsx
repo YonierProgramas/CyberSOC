@@ -15,6 +15,7 @@ import {
   zoneLabel,
 } from '../scan/format';
 import { PlainText } from './PlainText';
+import { QuarantineButton } from './QuarantineButton';
 
 export function ResultDetail({
   resultId,
@@ -27,6 +28,7 @@ export function ResultDetail({
   const [failed, setFailed] = useState(false);
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -50,7 +52,7 @@ export function ResultDetail({
       active = false;
       stop();
     };
-  }, [resultId]);
+  }, [resultId, revision]);
 
   async function analyze() {
     setAsking(true);
@@ -110,6 +112,12 @@ export function ResultDetail({
         {decision?.origin === 'AI_ESCALATION' && (
           <p data-testid="ai-escalation">Escalado por IA</p>
         )}
+        <QuarantineButton
+          resultId={result.id}
+          path={result.path}
+          verdict={result.verdict}
+          onDone={() => setRevision((value) => value + 1)}
+        />
       </section>
 
       <section className="panel" data-testid="decision-panel">

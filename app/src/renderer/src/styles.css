@@ -213,6 +213,18 @@ tr[aria-selected='true'] {
   border-radius: 999px;
 }
 
+dialog {
+  color: inherit;
+  background: #16202c;
+  border: 1px solid #3d5166;
+  border-radius: 12px;
+  max-width: 36rem;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 55%);
+}
+
 fieldset {
   border: 1px solid #243140;
   margin: 16px 0 0;
