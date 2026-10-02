@@ -6,6 +6,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   writeFileSync,
 } from 'node:fs';
@@ -41,14 +42,14 @@ const sprint = args[sprintIndex + 1];
 const live = args.includes('--live');
 if (
   sprintIndex < 0 ||
-  !['01', '02', '03'].includes(sprint) ||
+  !['01', '02', '03', '04'].includes(sprint) ||
   args.some(
     (arg, index) =>
       index !== sprintIndex + 1 && !['--sprint', '--live'].includes(arg),
   )
 ) {
   throw new Error(
-    'Uso: npm run evidence:capture -- --sprint <01|02|03> [--live]',
+    'Uso: npm run evidence:capture -- --sprint <01|02|03|04> [--live]',
   );
 }
 if (live && !process.env.CYBERSOC_ANTHROPIC_API_KEY) {
@@ -74,12 +75,14 @@ const destination = join(
     ? 'sprint-01-escaneo-real'
     : sprint === '02'
       ? 'sprint-02-evidencia-ia-v1'
-      : 'sprint-03-motor-hibrido-ia-v2',
+      : sprint === '03'
+        ? 'sprint-03-motor-hibrido-ia-v2'
+        : 'sprint-04-cuarentena-copilot-v1',
   'evidencias',
 );
 mkdirSync(destination, { recursive: true });
 const evidenceParent =
-  sprint === '03'
+  sprint === '03' || sprint === '04'
     ? (process.env.PUBLIC ?? join('C:\\Users', 'Public'))
     : tmpdir();
 const root = mkdtempSync(join(evidenceParent, 'cybersoc-evidence-'));
@@ -98,6 +101,15 @@ const stepSchema = z.strictObject({
     'configurar',
     'esperar',
     'perfil',
+    'cuarentena',
+    'abrir_cuarentena',
+    'restaurar',
+    'restaurar_otra',
+    'eliminar',
+    'copilot',
+    'copilot_offline',
+    'guardar_video',
+    'consultar',
   ]),
   selector: z
     .string()
@@ -105,7 +117,7 @@ const stepSchema = z.strictObject({
     .optional(),
   archivo: z
     .string()
-    .regex(/^[a-zA-Z0-9-]+\.(png|mp4)$/)
+    .regex(/^[a-zA-Z0-9-]+\.(png|mp4|txt)$/)
     .optional(),
   parametros: z
     .strictObject({
@@ -157,6 +169,7 @@ function environment(): Record<string, string> {
           CYBERSOC_EVIDENCE_RULES: '1',
         }
       : {}),
+    ...(sprint === '04' ? { CYBERSOC_EVIDENCE_REPLIES: '8' } : {}),
     PYTHONPATH: join(engineRoot, 'src'),
     PYTHONDONTWRITEBYTECODE: '1',
   };
@@ -189,7 +202,7 @@ async function launch(record = false): Promise<void> {
         ? {
             recordVideo: {
               dir: join(root, 'video'),
-              size: { width: 1360, height: 1000 },
+              size: { width: 1680, height: 1000 },
             },
           }
         : {}),
@@ -203,9 +216,43 @@ async function launch(record = false): Promise<void> {
   }
   page = await electron.firstWindow();
   page.setDefaultTimeout(15_000);
+  const consoleNotes: string[] = [];
+  page.on('console', (message) => {
+    if (consoleNotes.length < 8)
+      consoleNotes.push(`${message.type()}: ${message.text()}`);
+  });
+  page.on('pageerror', (error) => {
+    if (consoleNotes.length < 8)
+      consoleNotes.push(`pageerror: ${error.message}`);
+  });
   await electron.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].setSize(1360, 1000),
+    BrowserWindow.getAllWindows()[0].setSize(1680, 1000),
   );
+  const opened = await page
+    .getByTestId('nav-status')
+    .waitFor({ timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!opened) {
+    if (record) {
+      limitations.push(
+        'recordVideo dejó la ventana sin la interfaz. Se usan 01a/01b/01c.',
+      );
+      await electron.close();
+      electron = undefined;
+      video = null;
+      await launch(false);
+      return;
+    }
+    const url = page.url();
+    const body = await page
+      .locator('body')
+      .innerText()
+      .catch(() => '');
+    throw new Error(
+      `La interfaz no apareció. url=${url} body=${body.slice(0, 400)} console=${consoleNotes.join(' | ')}`,
+    );
+  }
   video = record ? page.video() : null;
   await page.getByTestId('nav-status').click();
   await until(
@@ -579,6 +626,15 @@ async function crash(file: string): Promise<void> {
 }
 
 async function select(text: string): Promise<void> {
+  if (sprint === '04' && (await page.getByTestId('result-row').count()) === 0) {
+    await page.getByTestId('nav-history').click();
+    await page
+      .getByTestId('history-job')
+      .filter({ hasText: 'fixtures' })
+      .first()
+      .click();
+    await page.getByTestId('result-row').first().waitFor();
+  }
   const rows = page.getByTestId('result-row').filter({ hasText: text });
   const row =
     (await rows.count()) <= 1
@@ -592,7 +648,7 @@ async function select(text: string): Promise<void> {
       (await page.getByTestId('result-summary').innerText()).includes(text),
     'detalle del fixture seleccionado',
   );
-  if (text === 'CSD-TEST-001.txt') {
+  if (sprint !== '04' && text === 'CSD-TEST-001.txt') {
     await until(
       async () =>
         (await page.getByTestId('ai-analysis').innerText()).includes('Resumen'),
@@ -641,6 +697,266 @@ async function settings(file: string): Promise<void> {
   checks.push('Configuración muestra solo ••••last4; input vacío al capturar.');
 }
 
+function fixtureName(value: string): string {
+  assert(/^[\w.-]+$/.test(value), 'Nombre de fixture no permitido');
+  return value;
+}
+
+function quarantineRows(fileName: string) {
+  return page.getByTestId('quarantine-row').filter({ hasText: fileName });
+}
+
+async function quarantineItems(fileName: string) {
+  return query(
+    'SELECT status, original_path AS path FROM quarantine_items',
+  ).filter((row) => String(row.path).endsWith(fileName));
+}
+
+async function quarantineFile(fileName: string): Promise<void> {
+  await page.getByTestId('quarantine-file').click();
+  if (
+    sprint === '04' &&
+    !video &&
+    !existsSync(join(destination, '01a-detectado.png'))
+  ) {
+    await capture('01a-detectado.png', 'quarantine-dialog');
+  }
+  await page.getByTestId('quarantine-confirm').click();
+  await until(async () => {
+    const items = await quarantineItems(fileName);
+    return items.some((item) => item.status === 'QUARANTINED');
+  }, `cuarentena de ${fileName}`);
+  await until(
+    async () => (await page.getByTestId('quarantine-dialog').count()) === 0,
+    'diálogo de cuarentena cerrado',
+  );
+}
+
+async function openQuarantine(fileName: string): Promise<void> {
+  await page.getByTestId('nav-quarantine').click();
+  await until(
+    async () => (await quarantineRows(fileName).count()) > 0,
+    `fila de cuarentena de ${fileName}`,
+  );
+  if (
+    sprint === '04' &&
+    !video &&
+    !existsSync(join(destination, '01b-cuarentena.png'))
+  ) {
+    await capture('01b-cuarentena.png');
+  }
+}
+
+async function restoreQuarantine(fileName: string): Promise<void> {
+  const row = quarantineRows(fileName);
+  await row.getByTestId('quarantine-restore').click();
+  await page.getByTestId('quarantine-restore-confirm').click();
+  await page.getByTestId('quarantine-restore-detected-confirm').click();
+  await until(
+    async () => (await row.innerText()).includes('Restaurado'),
+    `restauración de ${fileName}`,
+  );
+  if (
+    sprint === '04' &&
+    !video &&
+    !existsSync(join(destination, '01c-restaurado.png'))
+  ) {
+    await capture('01c-restaurado.png');
+  }
+}
+
+async function restoreWithoutOverwrite(
+  fileName: string,
+  shot: string,
+): Promise<void> {
+  const item = (await quarantineItems(fileName)).find(
+    (row) => row.status === 'QUARANTINED',
+  );
+  assert(item, 'Debe haber un archivo en cuarentena para restaurar');
+  const original = String(item.path);
+  writeFileSync(
+    original,
+    'Archivo inocuo ya presente en la ruta original.\n',
+    'utf8',
+  );
+  const row = quarantineRows(fileName);
+  await row.getByTestId('quarantine-restore').click();
+  await page.getByTestId('quarantine-original-exists').check();
+  const alternate = join(root, `copia-${fileName}`);
+  await page.getByTestId('quarantine-target-path').fill(alternate);
+  await capture(shot, 'quarantine-restore-dialog');
+  await page.getByTestId('quarantine-restore-confirm').click();
+  await page.getByTestId('quarantine-restore-detected-confirm').click();
+  await until(
+    async () => (await row.innerText()).includes('Restaurado'),
+    `restauración sin sobrescribir ${fileName}`,
+  );
+  assert(readFileSync(original, 'utf8').includes('ya presente'));
+  assert(existsSync(alternate));
+  checks.push(
+    'La ruta original no se sobrescribió; la copia salió a otra ruta.',
+  );
+}
+
+async function deleteQuarantine(fileName: string, shot: string): Promise<void> {
+  const row = quarantineRows(fileName);
+  await row.getByTestId('quarantine-delete').click();
+  await page.getByTestId('quarantine-delete-phrase').fill('ELIMINAR');
+  await capture(shot, 'quarantine-delete-dialog');
+  await page.getByTestId('quarantine-delete-confirm').click();
+  await until(async () => {
+    const items = await quarantineItems(fileName);
+    return items.some((item) => item.status === 'DELETED');
+  }, `eliminación de ${fileName}`);
+}
+
+async function askCopilot(question: string, shot: string): Promise<void> {
+  await page
+    .getByTestId('copilot-suggestion')
+    .filter({ hasText: question })
+    .click();
+  await until(async () => {
+    const reply = page.getByTestId('copilot-reply');
+    if ((await reply.count()) === 0) return false;
+    return (await reply.last().innerText()).includes('Evidencias citadas: ev');
+  }, 'respuesta del Copilot con evidencias');
+  const reply = await page.getByTestId('copilot-reply').last().innerText();
+  assert(reply.includes('capa '));
+  await capture(shot, 'copilot-panel');
+  checks.push('FakeAIProvider citó evidencias y capas del foco real.');
+}
+
+async function askCopilotOffline(shot: string): Promise<void> {
+  assert(electron);
+  await electron.evaluate(() => {
+    process.env.CYBERSOC_EVIDENCE_AI = 'OFFLINE';
+  });
+  await page.getByTestId('copilot-reset').click();
+  await page
+    .getByTestId('copilot-suggestion')
+    .filter({ hasText: '¿Por qué fue marcado?' })
+    .click();
+  await until(async () => {
+    const reply = page.getByTestId('copilot-reply');
+    if ((await reply.count()) === 0) return false;
+    return (await reply.last().innerText()).includes('Sin conexión con la IA.');
+  }, 'aviso de IA no disponible');
+  await capture(shot, 'copilot-panel');
+  await page.getByTestId('nav-scan').click();
+  await page.getByTestId('scan-folder').waitFor();
+  checks.push(
+    'FakeAIProvider en OFFLINE: mensaje claro y el escaneo sigue disponible.',
+  );
+}
+
+async function publishVideo(file: string): Promise<void> {
+  if (!video) {
+    checks.push(
+      'recordVideo no estuvo disponible: quedan 01a-detectado.png, 01b-cuarentena.png y 01c-restaurado.png.',
+    );
+    return;
+  }
+  const recording = video;
+  await electron!.close();
+  electron = undefined;
+  video = null;
+  const webm = join(root, 'cuarentena.webm');
+  await recording.saveAs(webm);
+  const mp4 = join(root, file);
+  const env = environment();
+  delete env.CYBERSOC_ANTHROPIC_API_KEY;
+  try {
+    if (process.platform === 'win32') {
+      execFileSync(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-File',
+          join(import.meta.dirname, 'evidence/transcode-video.ps1'),
+          '-SourcePath',
+          webm,
+          '-DestinationPath',
+          mp4,
+        ],
+        { env, windowsHide: true, timeout: 75_000, stdio: 'pipe' },
+      );
+    } else {
+      execFileSync(
+        'ffmpeg',
+        ['-y', '-i', webm, '-c:v', 'libx264', '-pix_fmt', 'yuv420p', mp4],
+        { env, windowsHide: true, timeout: 60_000, stdio: 'pipe' },
+      );
+    }
+    assert.equal(readFileSync(mp4).subarray(4, 8).toString(), 'ftyp');
+    copyFileSync(mp4, join(destination, file));
+    generated.push(file);
+    checks.push(
+      'recordVideo de Playwright convertido a MP4 real, contenedor ftyp verificado.',
+    );
+  } catch {
+    await recording.saveAs(join(destination, '01-video-ciclo-cuarentena.webm'));
+    generated.push('01-video-ciclo-cuarentena.webm');
+    limitations.push(
+      `${file}: el conversor de video del sistema no pudo producir MP4; se entrega WebM.`,
+    );
+  }
+  await launch();
+}
+
+function writeEvidenceText(file: string): void {
+  assert.equal(basename(file), file);
+  let body = '';
+  if (file === '03-audit-log.txt') {
+    const rows = query(
+      'SELECT ts, actor, action, target_type AS targetType, target_id AS targetId FROM audit_log ORDER BY ts',
+    );
+    assert(rows.some((row) => row.action === 'QUARANTINE'));
+    assert(rows.some((row) => row.action === 'RESTORE'));
+    body = rows
+      .map(
+        (row) =>
+          `${row.ts} ${row.actor} ${row.action} ${row.targetType ?? ''} ${row.targetId ?? ''}`,
+      )
+      .join('\n');
+    checks.push('audit_log tiene QUARANTINE y RESTORE después del ciclo.');
+  } else if (file === '07-registro-deleted.txt') {
+    const rows = query(
+      "SELECT id, original_path AS path, sha256, status, deleted_at AS deletedAt, reason, verdict_snapshot AS verdict FROM quarantine_items WHERE status = 'DELETED'",
+    );
+    assert(rows.length > 0);
+    body = rows
+      .map(
+        (row) =>
+          `${row.id} ${row.status} ${row.verdict} ${row.deletedAt}\n${row.path}\n${row.sha256}\n${row.reason}`,
+      )
+      .join('\n\n');
+    checks.push('quarantine_items conserva una fila DELETED.');
+  } else if (file === '13-boveda-csq.txt') {
+    const vault = join(root, 'user-data', 'quarantine');
+    const names = readdirSync(vault).filter((name) => name.endsWith('.csq'));
+    assert(names.length > 0);
+    const lines = ['Bóveda:', ...names.map((name) => `  ${name}`), ''];
+    for (const name of names) {
+      const bytes = readFileSync(join(vault, name)).subarray(0, 17);
+      const header = bytes.subarray(0, 4).toString('utf8');
+      assert.equal(header, 'CSQ1');
+      assert.notEqual(bytes.subarray(0, 2).toString('utf8'), 'MZ');
+      lines.push(
+        `${name}: ${bytes.toString('hex')} (${header}, no es un ejecutable)`,
+      );
+    }
+    body = lines.join('\n');
+    checks.push('El .csq empieza por CSQ1 y no por MZ.');
+  } else {
+    throw new Error(`Consulta de evidencia desconocida: ${file}`);
+  }
+  writeFileSync(join(destination, file), `${body}\n`, 'utf8');
+  generated.push(file);
+  console.log(`Texto: ${file}`);
+}
+
 function safeMessage(error: unknown): string {
   let message = error instanceof Error ? error.message : 'Error desconocido';
   const key = process.env.CYBERSOC_ANTHROPIC_API_KEY;
@@ -660,7 +976,7 @@ try {
     ],
     { env, windowsHide: true, timeout: 30_000, stdio: 'pipe' },
   );
-  await launch(sprint === '01');
+  await launch(sprint === '01' || sprint === '04');
   for (const step of steps) {
     console.log(
       `Paso: ${step.accion}${step.archivo ? ` → ${step.archivo}` : ''}`,
@@ -705,7 +1021,73 @@ try {
           step.parametros?.capas,
         );
         break;
+      case 'cuarentena':
+        await quarantineFile(
+          fixtureName(z.string().parse(step.parametros?.texto)),
+        );
+        break;
+      case 'abrir_cuarentena':
+        await openQuarantine(
+          fixtureName(z.string().parse(step.parametros?.texto)),
+        );
+        break;
+      case 'restaurar':
+        await restoreQuarantine(
+          fixtureName(z.string().parse(step.parametros?.texto)),
+        );
+        break;
+      case 'restaurar_otra':
+        await restoreWithoutOverwrite(
+          fixtureName(z.string().parse(step.parametros?.texto)),
+          z.string().parse(step.archivo),
+        );
+        break;
+      case 'eliminar':
+        await deleteQuarantine(
+          fixtureName(z.string().parse(step.parametros?.texto)),
+          z.string().parse(step.archivo),
+        );
+        break;
+      case 'copilot':
+        await askCopilot(
+          z.string().parse(step.parametros?.texto),
+          z.string().parse(step.archivo),
+        );
+        break;
+      case 'copilot_offline':
+        await askCopilotOffline(z.string().parse(step.archivo));
+        break;
+      case 'guardar_video':
+        await publishVideo(z.string().parse(step.archivo));
+        break;
+      case 'consultar':
+        writeEvidenceText(z.string().parse(step.archivo));
+        break;
     }
+  }
+  if (sprint === '04') {
+    const required = [
+      '02-pantalla-cuarentena.png',
+      '03-audit-log.txt',
+      '05-restaurar-sin-sobrescribir.png',
+      '06-eliminar-confirmacion.png',
+      '07-registro-deleted.txt',
+      '10-copilot-explica.png',
+      '12-copilot-sin-ia.png',
+      '13-boveda-csq.txt',
+    ];
+    for (const file of required) {
+      assert(existsSync(join(destination, file)), `Falta ${file}`);
+    }
+    const videoFile = existsSync(
+      join(destination, '01-video-ciclo-cuarentena.mp4'),
+    );
+    const stills = [
+      '01a-detectado.png',
+      '01b-cuarentena.png',
+      '01c-restaurado.png',
+    ].every((file) => existsSync(join(destination, file)));
+    assert(videoFile || stills, 'Falta el video o las capturas 01a/01b/01c');
   }
 } catch (error) {
   if (page! && !page.isClosed()) {

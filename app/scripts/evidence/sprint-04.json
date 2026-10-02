@@ -1,0 +1,89 @@
+[
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "result-summary",
+    "parametros": { "texto": "Detectado" }
+  },
+  {
+    "accion": "cuarentena",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "abrir_cuarentena",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  { "accion": "capturar", "archivo": "02-pantalla-cuarentena.png" },
+  { "accion": "consultar", "archivo": "13-boveda-csq.txt" },
+  {
+    "accion": "restaurar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  { "accion": "consultar", "archivo": "03-audit-log.txt" },
+  {
+    "accion": "guardar_video",
+    "archivo": "01-video-ciclo-cuarentena.mp4"
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-002.txt" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "result-summary",
+    "parametros": { "texto": "Detectado" }
+  },
+  {
+    "accion": "cuarentena",
+    "parametros": { "texto": "CSD-TEST-002.txt" }
+  },
+  {
+    "accion": "abrir_cuarentena",
+    "parametros": { "texto": "CSD-TEST-002.txt" }
+  },
+  {
+    "accion": "restaurar_otra",
+    "parametros": { "texto": "CSD-TEST-002.txt" },
+    "archivo": "05-restaurar-sin-sobrescribir.png"
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-003.txt" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "result-summary",
+    "parametros": { "texto": "Detectado" }
+  },
+  {
+    "accion": "cuarentena",
+    "parametros": { "texto": "CSD-TEST-003.txt" }
+  },
+  {
+    "accion": "abrir_cuarentena",
+    "parametros": { "texto": "CSD-TEST-003.txt" }
+  },
+  {
+    "accion": "eliminar",
+    "parametros": { "texto": "CSD-TEST-003.txt" },
+    "archivo": "06-eliminar-confirmacion.png"
+  },
+  { "accion": "consultar", "archivo": "07-registro-deleted.txt" },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "copilot",
+    "parametros": { "texto": "¿Por qué fue marcado?" },
+    "archivo": "10-copilot-explica.png"
+  },
+  { "accion": "copilot_offline", "archivo": "12-copilot-sin-ia.png" }
+]

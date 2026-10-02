@@ -30,6 +30,7 @@ import type {
   AIErrorKind,
   AIProvider,
   AIResult,
+  AssistantTurnRequest,
   StructuredRequest,
 } from '../core/ai/AIProvider';
 import { jobSummaryContextSchema, jobSummarySchema } from '../core/ai/schemas';
@@ -183,8 +184,14 @@ export function createAIProvider(
           falsePositiveNotes: 'Fixture de demostración; no contiene malware.',
           citedEvidenceIds: ['ev1'],
         };
-    for (let copy = 0; copy < (escalation ? 60 : 1); copy += 1)
-      provider.enqueueValue(value);
+    const configured = Number(process.env.CYBERSOC_EVIDENCE_REPLIES ?? '');
+    const copies =
+      Number.isInteger(configured) && configured > 0
+        ? Math.min(configured, 60)
+        : escalation
+          ? 60
+          : 1;
+    for (let copy = 0; copy < copies; copy += 1) provider.enqueueValue(value);
     return provider;
   }
   try {
@@ -348,6 +355,68 @@ class EvidenceAIProvider extends FakeAIProvider {
       .enqueueValue(summary)
       .generateStructured(request);
   }
+
+  /** Texto fijo a partir del foco real. OFFLINE simula que Claude no responde. */
+  override async runAssistantTurn(
+    request: AssistantTurnRequest,
+  ): Promise<AIResult<string>> {
+    if (process.env.CYBERSOC_EVIDENCE_AI === 'OFFLINE') {
+      return {
+        ok: false,
+        error: {
+          kind: 'OFFLINE',
+          retryable: true,
+          message: 'Sin conexión simulada.',
+        },
+      };
+    }
+    const content = request.messages.at(-1)?.content ?? '';
+    const json = content.match(/<contexto>\n([\s\S]*?)\n<\/contexto>/)?.[1];
+    const text = evidenceAssistantText(json);
+    return {
+      ok: true,
+      value: text,
+      model: this.model,
+      usage: { inputTokens: 0, outputTokens: 0 },
+      latencyMs: 0,
+      rawText: text,
+    };
+  }
+}
+
+function evidenceAssistantText(json: string | undefined): string {
+  let evidence = 'sin evidencias en el foco';
+  let layers = 'sin traza de capas';
+  try {
+    const focus = JSON.parse(json ?? '') as {
+      kind?: string;
+      result?: {
+        evidence?: { id?: string; code?: string; source?: string }[];
+        layers?: { layer?: string; status?: string }[];
+      };
+    };
+    if (focus.kind === 'RESULT') {
+      const items = focus.result?.evidence ?? [];
+      if (items.length > 0) {
+        evidence = items
+          .map((item) => `${item.id} (${item.code}, origen ${item.source})`)
+          .join('; ');
+      }
+      const trace = focus.result?.layers ?? [];
+      if (trace.length > 0) {
+        layers = trace
+          .map((item) => `capa ${item.layer} (${item.status})`)
+          .join(', ');
+      }
+    }
+  } catch {
+    evidence = 'no se pudo leer el foco';
+  }
+  return (
+    'Demostración con FakeAIProvider. El archivo fue marcado según los datos del escaneo. ' +
+    `Evidencias citadas: ${evidence}. Capas: ${layers}. ` +
+    'Esta explicación usa solo esos datos y no cambia el veredicto.'
+  );
 }
 
 function connectionErrorMessage(kind: AIErrorKind): string {
