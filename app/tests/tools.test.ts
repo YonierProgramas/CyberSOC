@@ -19,6 +19,7 @@ import { createToolRegistry } from '../src/core/ai/tools';
 import { ToolRegistry } from '../src/core/ai/tools/ToolRegistry';
 import { boundResult, type ToolResult } from '../src/core/ai/tools/limits';
 import type { ToolContext } from '../src/core/ai/tools/context';
+import { ReportBuilder } from '../src/core/reports/ReportBuilder';
 
 let db: Database;
 let root: string;
@@ -27,6 +28,7 @@ let context: ToolContext;
 const stamp = '2026-10-02T12:00:00.000Z';
 const hash = 'a'.repeat(64);
 const cases: [string, Record<string, unknown>, Record<string, unknown>][] = [
+  ['build_report', {}, { verdicts: ['INVENTADO'] }],
   ['get_scan_summary', {}, { jobId: 2 }],
   ['list_scans', { limit: 3 }, { limit: 21 }],
   [
@@ -230,7 +232,7 @@ beforeEach(() => {
     ],
     removableDrives: async () => [{ driveId: 'e:', path: 'E:\\' }],
   };
-  registry = createToolRegistry(context);
+  registry = createToolRegistry(context, new ReportBuilder(db));
   // SQLite rechaza cualquier escritura accidental durante la ejecución de herramientas.
   db.exec('PRAGMA query_only = ON');
 });
@@ -285,7 +287,7 @@ describe.each(cases)('%s', (name, valid, invalid) => {
 
 it('cada especificación es JSON Schema estricto y los opcionales admiten null en Zod', async () => {
   const definitions = registry.definitions();
-  expect(definitions).toHaveLength(13);
+  expect(definitions).toHaveLength(14);
   for (const spec of definitions) {
     expect(spec.strict).toBe(true);
     expect(spec.input_schema.additionalProperties).toBe(false);

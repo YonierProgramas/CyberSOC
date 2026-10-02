@@ -281,6 +281,9 @@ export interface SystemStatus {
 }
 
 export interface CyberSocApi {
+  readonly reports: {
+    readonly export: (query: ReportExportQuery) => Promise<ReportExportResult>;
+  };
   readonly quarantine: {
     readonly list: (query?: QuarantineQuery) => Promise<QuarantineItemDTO[]>;
     /** Invocar únicamente después de la confirmación explícita en la UI. */
@@ -333,6 +336,15 @@ export interface CyberSocApi {
     readonly ask: (query: AssistantAskQuery) => Promise<AssistantReplyDTO>;
     readonly reset: () => Promise<void>;
   };
+}
+
+export const REPORTS_EXPORT = 'reports:export';
+export interface ReportExportQuery {
+  reportDraftId: string;
+  format: 'html' | 'csv' | 'json';
+}
+export interface ReportExportResult {
+  status: 'SAVED' | 'CANCELLED';
 }
 
 export const QUARANTINE_LIST = 'quarantine:list';

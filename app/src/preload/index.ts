@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
+  REPORTS_EXPORT,
   QUARANTINE_LIST,
   QUARANTINE_QUARANTINE,
   QUARANTINE_RESTORE,
@@ -57,6 +58,7 @@ function subscribe<T>(
 }
 
 const api: CyberSocApi = {
+  reports: { export: (query) => ipcRenderer.invoke(REPORTS_EXPORT, query) },
   quarantine: {
     list: (query) =>
       query === undefined

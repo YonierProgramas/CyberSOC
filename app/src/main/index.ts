@@ -10,6 +10,8 @@ import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerScanIpc } from './ipc/scan.ipc';
 import { registerSettingsIpc } from './ipc/settings.ipc';
 import { registerAssistantIpc } from './ipc/assistant.ipc';
+import { registerReportsIpc } from './ipc/reports.ipc';
+import { ReportBuilder } from '../core/reports/ReportBuilder';
 import { createMainWindow } from './window';
 import {
   createDatabase,
@@ -35,6 +37,7 @@ let stopDialogIpc: (() => void) | null = null;
 let stopQuarantineIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
 let stopAssistantIpc: (() => void) | null = null;
+let stopReportsIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
 let quarantine: QuarantineManager | null = null;
 let readyToQuit = false;
@@ -56,6 +59,8 @@ app.on('before-quit', (event) => {
   stopSettingsIpc = null;
   stopAssistantIpc?.();
   stopAssistantIpc = null;
+  stopReportsIpc?.();
+  stopReportsIpc = null;
   stopDialogIpc?.();
   stopDialogIpc = null;
   void Promise.allSettled([
@@ -112,6 +117,12 @@ app
       createAISettings(database, { onReady: () => aiWorker?.resume() }),
     );
     const db = database;
+    const reports = new ReportBuilder(db);
+    stopReportsIpc = registerReportsIpc(
+      () => mainWindow,
+      trustedRendererUrl,
+      reports,
+    );
     stopAssistantIpc = registerAssistantIpc(
       () => mainWindow,
       trustedRendererUrl,

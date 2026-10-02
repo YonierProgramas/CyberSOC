@@ -27,11 +27,17 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
     'assistant',
     'dialog',
     'quarantine',
+    'reports',
     'scan',
     'settings',
     'system',
   ]);
   expect(Object.keys(api.settings)).toEqual(['ai']);
+  await api.reports.export({ reportDraftId: 'draft-id', format: 'html' });
+  expect(electron.invoke).toHaveBeenLastCalledWith('reports:export', {
+    reportDraftId: 'draft-id',
+    format: 'html',
+  });
   expect(Object.keys(api.settings.ai)).toEqual([
     'setApiKey',
     'clearApiKey',

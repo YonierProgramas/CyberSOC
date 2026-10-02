@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
   stopSettingsIpc: vi.fn(),
   registerAssistantIpc: vi.fn(),
   stopAssistantIpc: vi.fn(),
+  registerReportsIpc: vi.fn(),
+  stopReportsIpc: vi.fn(),
   createAIProvider: vi.fn(),
   createAIWorkflow: vi.fn(),
   startAI: vi.fn(),
@@ -78,6 +80,9 @@ vi.mock('../src/main/ipc/settings.ipc', () => ({
 vi.mock('../src/main/ipc/assistant.ipc', () => ({
   registerAssistantIpc: mocks.registerAssistantIpc,
 }));
+vi.mock('../src/main/ipc/reports.ipc', () => ({
+  registerReportsIpc: mocks.registerReportsIpc,
+}));
 
 beforeEach(() => {
   vi.resetModules();
@@ -96,6 +101,7 @@ beforeEach(() => {
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
   mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
   mocks.registerAssistantIpc.mockReturnValue(mocks.stopAssistantIpc);
+  mocks.registerReportsIpc.mockReturnValue(mocks.stopReportsIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
   mocks.registerQuarantineIpc.mockReturnValue(mocks.stopQuarantineIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
@@ -129,6 +135,17 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     mocks.createAIWorkflow.mock.results[0]!.value,
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.registerReportsIpc).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Function),
+    expect.stringContaining('index.html'),
+    expect.objectContaining({
+      build: expect.any(Function),
+      get: expect.any(Function),
+    }),
+  );
+  expect(mocks.registerReportsIpc.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.createMainWindow.mock.invocationCallOrder[0]!,
+  );
   expect(mocks.registerQuarantineIpc).toHaveBeenCalledOnce();
   expect(
     mocks.registerQuarantineIpc.mock.invocationCallOrder[0],
@@ -165,6 +182,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
   expect(mocks.stopAssistantIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopReportsIpc).toHaveBeenCalledOnce();
   expect(mocks.stopQuarantineIpc).toHaveBeenCalledOnce();
   expect(mocks.stopQuarantineIpc.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.closeQuarantine.mock.invocationCallOrder[0]!,
