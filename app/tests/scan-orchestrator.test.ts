@@ -32,6 +32,23 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function assessment(
+  score: number,
+): Pick<EngineResult, 'score' | 'verdict' | 'riskLevel'> {
+  return {
+    score,
+    verdict: score < 30 ? 'CLEAN' : 'SUSPICIOUS',
+    riskLevel:
+      score < 30
+        ? 'BAJO'
+        : score < 60
+          ? 'MEDIO'
+          : score < 85
+            ? 'ALTO'
+            : 'CRÍTICO',
+  };
+}
+
 describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
   let directory: string;
   let database: Database;
@@ -104,6 +121,156 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       discovered: () => discovered,
     };
   }
+
+  it('top de riesgo en vivo: cada progreso coincide con el top-10 persistido hasta entonces', async () => {
+    const scores = [
+      40, 90, 80, 90, 30, 60, 85, 90, 75, 80, 50, 100, 95, 90, 90,
+    ];
+    for (const score of scores) {
+      engine.responses.push(async (params) => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return { ...scanned(params), ...assessment(score) };
+      });
+    }
+    const { launch, progress } = setup(scores.length);
+    const { id, done } = launch();
+    await vi.advanceTimersByTimeAsync(400);
+    const early = progress.find(({ value }) => value.processed === 1)!.value;
+    const earlyCopy = structuredClone(early);
+    expect(early.status).not.toBe('COMPLETED');
+    expect(early.topRisk).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect((await done).status).toBe('COMPLETED');
+    const rows = results.listByJob(id, 0, 100);
+    for (const { value } of progress) {
+      const expected = rows
+        .slice(0, value.processed)
+        .map((row) => ({
+          resultId: row.id,
+          path: row.path,
+          fileName: row.fileName,
+          engineScore: scores[row.seq]!,
+        }))
+        .sort((a, b) => b.engineScore - a.engineScore)
+        .slice(0, 10);
+      expect(value.topRisk).toEqual(expected);
+    }
+    expect(early).toEqual(earlyCopy);
+    expect(progress.at(-1)!.value.topRisk).toHaveLength(10);
+    // El DTO cruza IPC sin estructuras de Node, funciones ni contenido del archivo.
+    expect(JSON.parse(JSON.stringify(progress.at(-1)!.value.topRisk))).toEqual(
+      progress.at(-1)!.value.topRisk,
+    );
+  });
+
+  it('top: excluye omitidos, errores y resultados sin score; conserva cero y se reinicia por trabajo', async () => {
+    engine.responses.push(
+      async (params) => ({ ...scanned(params), ...assessment(0) }),
+      async (params) => scanned(params),
+      async (params) => ({
+        ...scanned(params),
+        status: 'ERROR',
+        verdict: 'ERROR',
+        score: null,
+        riskLevel: null,
+      }),
+      async (params) => ({
+        ...scanned(params),
+        status: 'SKIPPED',
+        verdict: 'NOT_ANALYZED',
+        score: null,
+        riskLevel: null,
+      }),
+    );
+    const { launch, progress } = setup(4);
+    const first = launch();
+    await vi.advanceTimersByTimeAsync(250);
+    await first.done;
+    expect(progress.at(-1)!.value.topRisk).toEqual([
+      expect.objectContaining({
+        resultId: engine.calls[0]!.params.taskId,
+        engineScore: 0,
+      }),
+    ]);
+    const second = launch();
+    await vi.advanceTimersByTimeAsync(250);
+    await second.done;
+    expect(
+      progress
+        .filter(({ value }) => value.jobId === second.id)
+        .every(({ value }) => value.topRisk.length === 0),
+    ).toBe(true);
+  });
+
+  it('top: un suscriptor no puede alterar el ranking interno', async () => {
+    const pending = deferred<EngineResult>();
+    engine.responses.push(
+      async (params) => ({ ...scanned(params), ...assessment(70) }),
+      () => pending.promise,
+    );
+    const { launch, orchestrator, progress } = setup(2);
+    let changed = false;
+    orchestrator.on('progress', (value) => {
+      if (!changed && value.topRisk.length) {
+        value.topRisk[0]!.engineScore = -1;
+        value.topRisk[0]!.path = 'ruta-alterada';
+        changed = true;
+      }
+    });
+    const { done } = launch();
+    await vi.advanceTimersByTimeAsync(250);
+    expect(changed).toBe(true);
+    pending.resolve({ ...scanned(engine.calls[1]!.params), ...assessment(90) });
+    await vi.advanceTimersByTimeAsync(250);
+    await done;
+    expect(
+      progress.at(-1)!.value.topRisk.map((item) => item.engineScore),
+    ).toEqual([90, 70]);
+    expect(
+      progress
+        .at(-1)!
+        .value.topRisk.every((item) => item.path !== 'ruta-alterada'),
+    ).toBe(true);
+  });
+
+  it('top: nunca publica un resultado cuyo guardado falló', async () => {
+    engine.responses.push(async (params) => ({
+      ...scanned(params),
+      ...assessment(100),
+    }));
+    const { launch, progress } = setup(1, {
+      persistResult: () => {
+        throw new Error('BD no disponible');
+      },
+    });
+    const { id, done } = launch();
+    await vi.advanceTimersByTimeAsync(250);
+    expect((await done).status).toBe('FAILED');
+    expect(results.listByJob(id, 0, 100)).toEqual([]);
+    expect(progress.every(({ value }) => value.topRisk.length === 0)).toBe(
+      true,
+    );
+  });
+
+  it('top al cancelar incluye solo el archivo en curso que alcanzó a guardarse', async () => {
+    const pending = deferred<EngineResult>();
+    engine.responses.push(() => pending.promise);
+    const { launch, orchestrator, progress } = setup(20);
+    const { id, done } = launch();
+    await vi.advanceTimersByTimeAsync(50);
+    const cancel = orchestrator.cancel(id);
+    pending.resolve({ ...scanned(engine.calls[0]!.params), ...assessment(85) });
+    await vi.advanceTimersByTimeAsync(250);
+    await cancel;
+    expect((await done).status).toBe('CANCELLED');
+    expect(progress.at(-1)!.value.topRisk).toEqual([
+      expect.objectContaining({
+        resultId: engine.calls[0]!.params.taskId,
+        engineScore: 85,
+      }),
+    ]);
+    expect(engine.calls).toHaveLength(1);
+  });
 
   it('FIFO: contadores finales coinciden con filas y veredictos son NOT_EVALUATED (CA-1.2)', async () => {
     engine.responses.push(

@@ -70,6 +70,15 @@ export interface ScanProgress {
   percent: number | null;
   currentPath?: string;
   elapsedMs: number;
+  /** Top 10 por puntuación del motor, descendente y estable por llegada.
+   * Solo resultados SCANNED con puntuación; no representa cambios posteriores de IA/allowlist.
+   */
+  topRisk: Array<{
+    resultId: string;
+    path: string;
+    fileName: string;
+    engineScore: number;
+  }>;
 }
 export interface Page<T> {
   items: T[];

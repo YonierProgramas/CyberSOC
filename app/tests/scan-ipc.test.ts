@@ -139,6 +139,12 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
   });
 
   it('el renderer inicia, recibe progreso, consulta historial y pagina resultados', async () => {
+    engine.responses.push(async (params) => ({
+      ...scanned(params),
+      score: 70,
+      verdict: 'SUSPICIOUS',
+      riskLevel: 'ALTO',
+    }));
     const progress: ScanProgress[] = [];
     const finished: ScanJobDTO[] = [];
     const offProgress = api.scan.onProgress((value) => progress.push(value));
@@ -146,6 +152,15 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     const { jobId } = await api.scan.start({ kind: 'FILE', path: file });
     await vi.advanceTimersByTimeAsync(250);
     expect(progress.length).toBeGreaterThan(0);
+    expect(progress.every((value) => Array.isArray(value.topRisk))).toBe(true);
+    expect(progress.at(-1)!.topRisk).toEqual([
+      {
+        resultId: engine.calls[0]!.params.taskId,
+        path: file,
+        fileName: 'niño á 😀.txt',
+        engineScore: 70,
+      },
+    ]);
     expect(finished).toHaveLength(1);
     expect(finished[0]).toMatchObject({
       id: jobId,

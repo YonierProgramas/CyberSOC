@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events';
 import { lstat } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { z } from 'zod';
+import type { ScanProgress as IpcScanProgress } from '../../shared/ipc';
+import { TopK } from '../structures/TopK';
 import type { AppConfig } from '../config/AppConfig';
 import { ScanJob, type ScanJobStatus } from '../domain/ScanJob';
 import { RpcRemoteError, RpcTimeoutError } from '../engine/EngineClient';
@@ -47,6 +49,7 @@ export interface ScanProgress {
   percent: number | null;
   currentPath?: string;
   elapsedMs: number;
+  topRisk: IpcScanProgress['topRisk'];
 }
 
 export type ScanEngine = Pick<
@@ -98,6 +101,7 @@ interface Run {
   controller: AbortController;
   queue: ScanQueue<Task>;
   throttle: ProgressThrottle<ScanProgress>;
+  topRisk: TopK<ScanProgress['topRisk'][number]>;
   started: number;
   discoveryMs: number;
   scanningMs: number;
@@ -191,6 +195,7 @@ export class ScanOrchestrator extends EventEmitter<{
       discovery,
       queue,
       controller: new AbortController(),
+      topRisk: new TopK(10, (item) => item.engineScore),
       throttle: new ProgressThrottle((progress) =>
         this.notify('progress', progress),
       ),
@@ -439,6 +444,17 @@ export class ScanOrchestrator extends EventEmitter<{
         if (this.dependencies.persistResult)
           this.dependencies.persistResult(record, result);
         else this.dependencies.results.insertResult(record);
+        // Invariante: solo diez candidatos persistidos por trabajo, O(k) memoria.
+        // Cada llegada actualiza el min-heap en O(log k), sin releer toda la BD.
+        // La prioridad es la puntuación del motor; no decide un veredicto de RiskPolicy.
+        if (result.status === 'SCANNED' && typeof result.score === 'number') {
+          run.topRisk.add({
+            resultId: record.id,
+            path: record.path,
+            fileName: record.fileName,
+            engineScore: result.score,
+          });
+        }
         const counters = run.job.counters;
         run.job.updateCounters({
           ...counters,
@@ -525,6 +541,9 @@ export class ScanOrchestrator extends EventEmitter<{
         : null,
       currentPath: run.currentPath,
       elapsedMs: performance.now() - run.started,
+      // Snapshot O(k log k), k=10. Copias para no compartir el ranking interno
+      // con los receptores ni alterar eventos anteriores al llegar otro resultado.
+      topRisk: run.topRisk.values().map((item) => ({ ...item })),
     });
   }
 
