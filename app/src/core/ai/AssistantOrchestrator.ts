@@ -1,11 +1,15 @@
 import type { AppConfig } from '../config/AppConfig';
 import type { Database } from '../persistence/Database';
+import { ConversationRepository } from '../persistence/ConversationRepository';
 import { Queue } from '../structures/Queue';
 import {
   ASSISTANT_MESSAGE_MAX_CHARS,
   type AssistantAskQuery,
   type AssistantFocusDTO,
   type AssistantReplyDTO,
+  type ConversationDTO,
+  type ConversationQuery,
+  type OpenConversationDTO,
 } from '../../shared/ipc';
 import type {
   AIErrorKind,
@@ -66,8 +70,8 @@ const UNAVAILABLE_MESSAGES: Record<UnavailableKind, string> = {
 
 /**
  * SOC Copilot v1 (S4): responde preguntas sobre el resultado o escaneo seleccionado.
- * Solo lee SQLite (a través de AssistantFocusBuilder) y llama al proveedor: no escribe en la
- * base de datos ni ejecuta acciones, así que una respuesta nunca puede cambiar un veredicto.
+ * Lee el foco y guarda conversaciones en SQLite. No ejecuta acciones ni modifica
+ * resultados o decisiones de riesgo: una respuesta nunca puede cambiar un veredicto.
  */
 export class AssistantOrchestrator {
   // ---------------------------------------------------------------------------
@@ -93,8 +97,11 @@ export class AssistantOrchestrator {
   private generation = 0;
   private controller: AbortController | undefined;
   private readonly focusBuilder: AssistantFocusBuilder;
+  private readonly conversations: ConversationRepository;
+  private conversationId: string | undefined;
 
   constructor(private readonly options: AssistantOrchestratorOptions) {
+    this.conversations = new ConversationRepository(options.db);
     this.focusBuilder = new AssistantFocusBuilder(
       options.db,
       options.readConfig,
@@ -124,7 +131,16 @@ export class AssistantOrchestrator {
 
   /** Atiende una pregunta. Los fallos de la IA no lanzan: vuelven como `UNAVAILABLE`. */
   ask(query: AssistantAskQuery): Promise<AssistantReplyDTO> {
-    const run = this.chain.then(() => this.answer(query));
+    const generation = this.generation;
+    const run = this.chain.then(() =>
+      generation === this.generation
+        ? this.answer(query)
+        : this.reply('CANCELLED', 'La conversación cambió.', null, {
+            kind: 'NONE',
+            id: null,
+            label: null,
+          }),
+    );
     this.chain = run.catch(() => undefined);
     return run;
   }
@@ -135,6 +151,28 @@ export class AssistantOrchestrator {
     this.controller?.abort();
     this.controller = undefined;
     this.history.clear();
+    this.conversationId = undefined;
+  }
+
+  listConversations(query: ConversationQuery = {}): ConversationDTO[] {
+    return this.conversations.list(query);
+  }
+
+  openConversation(id: string): OpenConversationDTO {
+    const conversation = this.conversations.get(id);
+    if (!conversation) throw new Error('La conversación no existe.');
+    const messages = this.conversations.recentMessages(
+      id,
+      ASSISTANT_HISTORY_TURNS,
+    );
+    const turns = this.conversations.recentCompletedTurns(id);
+    // Leer primero: un ID inexistente no borra la conversación activa.
+    this.reset();
+    this.conversationId = id;
+    // Rehidratar la Queue en orden mantiene su invariante FIFO. O(t), t ≤ 10,
+    // después de la consulta: herramientas e intentos sin respuesta no son pares completos.
+    for (const turn of turns) this.remember(turn);
+    return { conversation, messages, historyTurns: this.historyTurns };
   }
 
   private async answer(query: AssistantAskQuery): Promise<AssistantReplyDTO> {
@@ -165,6 +203,16 @@ export class AssistantOrchestrator {
     });
 
     const generation = this.generation;
+    // Confirmar la pregunta antes de llamar a la red: sobrevive a un cierre o fallo.
+    // Crear conversación y primer mensaje es una única transacción.
+    const conversationId = this.options.db.transaction(() => {
+      const id =
+        this.conversationId ??
+        this.conversations.create(question.slice(0, 100)).id;
+      this.conversations.append(id, [{ role: 'user', content: question }]);
+      return id;
+    });
+    this.conversationId = conversationId;
     const controller = new AbortController();
     this.controller = controller;
     let response: AIResult<string> | null;
@@ -205,6 +253,15 @@ export class AssistantOrchestrator {
 
     const answer = cleanAnswer(response.value);
     if (answer === '') return this.unavailable('INVALID_OUTPUT', focus);
+    this.conversations.append(conversationId, [
+      {
+        role: 'assistant',
+        content: answer,
+        model: response.model,
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+      },
+    ]);
     this.remember({ question, answer });
     return this.reply('ANSWERED', answer, null, focus);
   }

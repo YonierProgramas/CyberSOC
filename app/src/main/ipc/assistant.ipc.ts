@@ -4,15 +4,72 @@ import {
   ASSISTANT_ASK,
   ASSISTANT_MESSAGE_MAX_CHARS,
   ASSISTANT_RESET,
+  ASSISTANT_LIST_CONVERSATIONS,
+  ASSISTANT_OPEN_CONVERSATION,
   type AssistantAskQuery,
   type AssistantReplyDTO,
+  type ConversationDTO,
+  type ConversationQuery,
+  type OpenConversationDTO,
 } from '../../shared/ipc';
 import { noArguments, requireTrustedSender } from './scan-validation';
 
 export interface AssistantService {
   ask(query: AssistantAskQuery): Promise<AssistantReplyDTO>;
   reset(): void;
+  listConversations(query?: ConversationQuery): ConversationDTO[];
+  openConversation(id: string): OpenConversationDTO;
 }
+
+export const conversationQuerySchema = z.strictObject({
+  limit: z.number().int().min(1).max(100).optional(),
+  offset: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
+});
+const listArguments = z.union([
+  z.tuple([]),
+  z.tuple([conversationQuerySchema]),
+]);
+const conversationIdSchema = z.string().uuid();
+const openArguments = z.tuple([conversationIdSchema]);
+const conversationSchema = z.strictObject({
+  id: conversationIdSchema,
+  title: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+const openConversationSchema = z
+  .strictObject({
+    conversation: conversationSchema,
+    messages: z.array(
+      z.strictObject({
+        id: z.string().uuid(),
+        conversationId: conversationIdSchema,
+        role: z.enum(['user', 'assistant', 'tool']),
+        content: z.string(),
+        toolCallsJson: z
+          .string()
+          .refine((value) => {
+            try {
+              JSON.parse(value);
+              return true;
+            } catch {
+              return false;
+            }
+          })
+          .nullable(),
+        model: z.string().nullable(),
+        inputTokens: z.number().int().nonnegative().nullable(),
+        outputTokens: z.number().int().nonnegative().nullable(),
+        createdAt: z.iso.datetime(),
+      }),
+    ),
+    historyTurns: z.number().int().min(0).max(10),
+  })
+  .refine((value) =>
+    value.messages.every(
+      (message) => message.conversationId === value.conversation.id,
+    ),
+  );
 
 const idSchema = z.string().min(1).max(64);
 export const assistantAskSchema = z.strictObject({
@@ -89,10 +146,39 @@ export function registerAssistantIpc(
       throw new Error('No se pudo reiniciar la conversación.');
     }
   });
+  ipcMain.handle(
+    ASSISTANT_LIST_CONVERSATIONS,
+    async (event, ...args: unknown[]) => {
+      try {
+        validate(event);
+        const [query] = listArguments.parse(args);
+        return z
+          .array(conversationSchema)
+          .max(100)
+          .parse(service.listConversations(query));
+      } catch {
+        throw new Error('No se pudieron listar las conversaciones.');
+      }
+    },
+  );
+  ipcMain.handle(
+    ASSISTANT_OPEN_CONVERSATION,
+    async (event, ...args: unknown[]) => {
+      try {
+        validate(event);
+        const [id] = openArguments.parse(args);
+        return openConversationSchema.parse(service.openConversation(id));
+      } catch {
+        throw new Error('No se pudo abrir la conversación.');
+      }
+    },
+  );
 
   return () => {
     active = false;
     ipcMain.removeHandler(ASSISTANT_ASK);
     ipcMain.removeHandler(ASSISTANT_RESET);
+    ipcMain.removeHandler(ASSISTANT_LIST_CONVERSATIONS);
+    ipcMain.removeHandler(ASSISTANT_OPEN_CONVERSATION);
   };
 }

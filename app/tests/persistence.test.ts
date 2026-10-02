@@ -108,13 +108,13 @@ describe('SQLite con una base temporal', () => {
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
         .all(),
     ).toEqual([]);
-    expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5]);
+    expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('rechaza historial desconocido sin modificarlo', () => {
     new MigrationRunner(database).run();
     database.exec(
-      "INSERT INTO schema_migrations VALUES (6, '006_future', 'unchanged')",
+      "INSERT INTO schema_migrations VALUES (7, '007_future', 'unchanged')",
     );
     const history = database.prepare('SELECT * FROM schema_migrations').all();
     expect(() => new MigrationRunner(database).run()).toThrow('historial');
@@ -139,7 +139,7 @@ describe('SQLite con una base temporal', () => {
     expect(() => database.close()).not.toThrow();
     expect(() => database.prepare('SELECT 1')).toThrow();
     database = new Database(database.path);
-    expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5]);
+    expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   it('composition root usa la ruta inyectada y migra antes de devolver la BD', () => {
@@ -150,7 +150,7 @@ describe('SQLite con una base temporal', () => {
         created
           .prepare('SELECT MAX(version) AS version FROM schema_migrations')
           .get(),
-      ).toMatchObject({ version: 5 });
+      ).toMatchObject({ version: 6 });
     } finally {
       created.close();
     }

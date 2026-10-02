@@ -32,6 +32,8 @@ import {
   SETTINGS_AI_TEST_CONNECTION,
   ASSISTANT_ASK,
   ASSISTANT_RESET,
+  ASSISTANT_LIST_CONVERSATIONS,
+  ASSISTANT_OPEN_CONVERSATION,
 } from '../shared/ipc';
 
 function subscribe<T>(
@@ -106,6 +108,12 @@ const api: CyberSocApi = {
       ipcRenderer.invoke(SYSTEM_RECONNECT_ENGINE),
   },
   assistant: {
+    listConversations: (query) =>
+      query === undefined
+        ? ipcRenderer.invoke(ASSISTANT_LIST_CONVERSATIONS)
+        : ipcRenderer.invoke(ASSISTANT_LIST_CONVERSATIONS, query),
+    openConversation: (id) =>
+      ipcRenderer.invoke(ASSISTANT_OPEN_CONVERSATION, id),
     ask: (query) => ipcRenderer.invoke(ASSISTANT_ASK, query),
     reset: () => ipcRenderer.invoke(ASSISTANT_RESET),
   },

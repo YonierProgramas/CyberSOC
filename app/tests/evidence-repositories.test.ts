@@ -167,7 +167,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
         ai_status: 'NOT_REQUIRED',
       });
       expect(v3.run()).toEqual([]);
-      expect(new MigrationRunner(old).run()).toEqual([4, 5]);
+      expect(new MigrationRunner(old).run()).toEqual([4, 5, 6]);
     } finally {
       old.close();
     }

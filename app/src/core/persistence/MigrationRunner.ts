@@ -4,6 +4,7 @@ import { scansMigration } from './migrations/002_scans';
 import { evidenceAiMigration } from './migrations/003_evidence_ai';
 import { zonesMigration } from './migrations/004_zones';
 import { quarantineMigration } from './migrations/005_quarantine';
+import { conversationsMigration } from './migrations/006_conversations';
 
 export interface Migration {
   readonly version: number;
@@ -20,6 +21,7 @@ export class MigrationRunner {
       evidenceAiMigration,
       zonesMigration,
       quarantineMigration,
+      conversationsMigration,
     ],
   ) {}
 
