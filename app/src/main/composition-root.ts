@@ -47,7 +47,10 @@ import { ScanProfiles } from '../core/zones/ScanProfiles';
 import { resolveZoneRoots } from './zone-paths';
 import { HiddenPathReader } from './HiddenPathReader';
 import { AllowlistRepository } from '../core/persistence/AllowlistRepository';
-import { QuarantineManager } from '../core/quarantine/QuarantineManager';
+import {
+  QuarantineManager,
+  type QuarantineOptions,
+} from '../core/quarantine/QuarantineManager';
 import { QuarantineVault } from '../core/quarantine/QuarantineVault';
 import { ProtectedPaths } from '../core/quarantine/paths';
 
@@ -494,7 +497,10 @@ export function createDatabase(userDataPath: string): Database {
 }
 
 /** Main es el único adaptador que puede solicitar confirmación. No existe disparo automático. */
-export function createQuarantineManager(database: Database): QuarantineManager {
+export function createQuarantineManager(
+  database: Database,
+  confirm?: QuarantineOptions['confirm'],
+): QuarantineManager {
   const userData = app.getPath('userData');
   const local = process.env.LOCALAPPDATA;
   const vaultPath =
@@ -514,27 +520,29 @@ export function createQuarantineManager(database: Database): QuarantineManager {
       app.getAppPath(),
       dirname(process.execPath),
     ]),
-    async confirm(request) {
-      const labels = {
-        QUARANTINE: 'Poner en cuarentena',
-        RESTORE: 'Restaurar',
-        RESTORE_DETECTED: 'Confirmar restauración de archivo detectado',
-        DELETE: 'Eliminar definitivamente',
-      };
-      const answer = await dialog.showMessageBox({
-        type: 'warning',
-        title: labels[request.action],
-        message: `${labels[request.action]}: ${request.path}`,
-        detail:
-          `Veredicto: ${request.verdict}.` +
-          (request.trustHash ? ' También confiarás en este SHA-256.' : ''),
-        buttons: ['Cancelar', labels[request.action]],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true,
-      });
-      return answer.response === 1;
-    },
+    confirm:
+      confirm ??
+      (async (request) => {
+        const labels = {
+          QUARANTINE: 'Poner en cuarentena',
+          RESTORE: 'Restaurar',
+          RESTORE_DETECTED: 'Confirmar restauración de archivo detectado',
+          DELETE: 'Eliminar definitivamente',
+        };
+        const answer = await dialog.showMessageBox({
+          type: 'warning',
+          title: labels[request.action],
+          message: `${labels[request.action]}: ${request.path}`,
+          detail:
+            `Veredicto: ${request.verdict}.` +
+            (request.trustHash ? ' También confiarás en este SHA-256.' : ''),
+          buttons: ['Cancelar', labels[request.action]],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+        return answer.response === 1;
+      }),
   });
 }
 

@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import type { EngineResult, Zone } from './protocol';
 import type { ScanProfileChoice } from './scan-profile';
 
@@ -232,6 +233,19 @@ export interface SystemStatus {
 }
 
 export interface CyberSocApi {
+  readonly quarantine: {
+    readonly list: (query?: QuarantineQuery) => Promise<QuarantineItemDTO[]>;
+    /** Invocar únicamente después de la confirmación explícita en la UI. */
+    readonly quarantine: (resultId: string) => Promise<QuarantineItemDTO>;
+    readonly restore: (
+      itemId: string,
+      options: QuarantineRestoreOptions,
+    ) => Promise<QuarantineItemDTO>;
+    readonly delete: (itemId: string) => Promise<void>;
+    readonly onChanged: (
+      callback: (change: QuarantineChanged) => void,
+    ) => () => void;
+  };
   readonly settings: {
     readonly ai: {
       readonly setApiKey: (key: string) => Promise<void>;
@@ -267,4 +281,86 @@ export interface CyberSocApi {
     readonly getStatus: () => Promise<SystemStatus>;
     readonly reconnectEngine: () => Promise<SystemStatus>;
   };
+}
+
+export const QUARANTINE_LIST = 'quarantine:list';
+export const QUARANTINE_QUARANTINE = 'quarantine:quarantine';
+export const QUARANTINE_RESTORE = 'quarantine:restore';
+export const QUARANTINE_DELETE = 'quarantine:delete';
+export const QUARANTINE_CHANGED = 'quarantine:changed';
+
+// La fábrica evita cargar Zod en el preload sandbox: allí solo se importan canales y tipos.
+export function createQuarantineSchemas(z: typeof import('zod').z) {
+  const quarantineStatusSchema = z.enum([
+    'PENDING',
+    'QUARANTINED',
+    'RESTORED',
+    'DELETED',
+    'FAILED',
+  ]);
+  const quarantineIdSchema = z
+    .string()
+    .min(1)
+    .max(256)
+    .refine((id) => id.trim() === id && !id.includes('\0'));
+  const quarantineQuerySchema = z.strictObject({
+    status: quarantineStatusSchema.optional(),
+  });
+  const quarantineRestoreOptionsSchema = z.strictObject({
+    trustHash: z.boolean(),
+    // La normalización y la seguridad de la ruta se comprueban en el gestor.
+    targetPath: z
+      .string()
+      .min(1)
+      .max(32767)
+      .refine((path) => !path.includes('\0'))
+      .optional(),
+  });
+  const quarantineListArgumentsSchema = z.union([
+    z.tuple([]),
+    z.tuple([quarantineQuerySchema.optional()]),
+  ]);
+  const quarantineIdArgumentsSchema = z.tuple([quarantineIdSchema]);
+  const quarantineRestoreArgumentsSchema = z.tuple([
+    quarantineIdSchema,
+    quarantineRestoreOptionsSchema,
+  ]);
+
+  // Lista explícita de campos públicos: nunca serializar registros de SQLite completos.
+  const quarantineItemSchema = z.strictObject({
+    id: quarantineIdSchema,
+    resultId: quarantineIdSchema.nullable(),
+    originalPath: z.string(),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/i),
+    sizeBytes: z.number().int().nonnegative(),
+    reason: z.string(),
+    verdictSnapshot: z.string(),
+    status: quarantineStatusSchema,
+    quarantinedAt: z.string().nullable(),
+    restoredAt: z.string().nullable(),
+    restoredTo: z.string().nullable(),
+    deletedAt: z.string().nullable(),
+    errorMessage: z.string().nullable(),
+  });
+  return {
+    status: quarantineStatusSchema,
+    query: quarantineQuerySchema,
+    restoreOptions: quarantineRestoreOptionsSchema,
+    listArguments: quarantineListArgumentsSchema,
+    idArguments: quarantineIdArgumentsSchema,
+    restoreArguments: quarantineRestoreArgumentsSchema,
+    item: quarantineItemSchema,
+  };
+}
+type QuarantineSchemas = ReturnType<typeof createQuarantineSchemas>;
+export type QuarantineStatus = z.infer<QuarantineSchemas['status']>;
+export type QuarantineQuery = z.infer<QuarantineSchemas['query']>;
+export type QuarantineRestoreOptions = z.infer<
+  QuarantineSchemas['restoreOptions']
+>;
+export type QuarantineItemDTO = z.infer<QuarantineSchemas['item']>;
+/** Invalidación para volver a consultar la lista, incluso si una operación dejó FAILED. */
+export interface QuarantineChanged {
+  itemId: string | null;
+  resultId: string | null;
 }

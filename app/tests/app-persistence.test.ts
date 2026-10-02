@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   stopScanIpc: vi.fn(),
   createAISettings: vi.fn(),
   registerSettingsIpc: vi.fn(),
+  registerQuarantineIpc: vi.fn(),
+  stopQuarantineIpc: vi.fn(),
   stopSettingsIpc: vi.fn(),
   createAIWorkflow: vi.fn(),
   startAI: vi.fn(),
@@ -60,6 +62,12 @@ vi.mock('../src/main/ipc/dialog.ipc', () => ({
 vi.mock('../src/main/ipc/scan.ipc', () => ({
   registerScanIpc: mocks.registerScanIpc,
 }));
+vi.mock('../src/main/ipc/quarantine.ipc', () => ({
+  registerQuarantineIpc: mocks.registerQuarantineIpc,
+  QuarantineUIConfirmation: class {
+    confirm = vi.fn();
+  },
+}));
 vi.mock('../src/main/ipc/settings.ipc', () => ({
   registerSettingsIpc: mocks.registerSettingsIpc,
 }));
@@ -81,6 +89,7 @@ beforeEach(() => {
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
   mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
+  mocks.registerQuarantineIpc.mockReturnValue(mocks.stopQuarantineIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
   mocks.createMainWindow.mockReturnValue({
     on: vi.fn(),
@@ -112,6 +121,10 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     mocks.createAIWorkflow.mock.results[0]!.value,
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.registerQuarantineIpc).toHaveBeenCalledOnce();
+  expect(
+    mocks.registerQuarantineIpc.mock.invocationCallOrder[0],
+  ).toBeGreaterThan(mocks.reconcileQuarantine.mock.invocationCallOrder[0]!);
   expect(mocks.registerSettingsIpc).toHaveBeenCalledExactlyOnceWith(
     expect.any(Function),
     expect.stringContaining('index.html'),
@@ -130,6 +143,10 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.stopScanIpc).toHaveBeenCalledOnce();
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopQuarantineIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopQuarantineIpc.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.closeQuarantine.mock.invocationCallOrder[0]!,
+  );
   expect(mocks.stopAI).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
   handler('will-quit')();

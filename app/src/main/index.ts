@@ -1,3 +1,7 @@
+import {
+  registerQuarantineIpc,
+  QuarantineUIConfirmation,
+} from './ipc/quarantine.ipc';
 import { app, type BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -24,6 +28,7 @@ const engine = createEngine(app.getAppPath());
 let database: Database | null = null;
 let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
+let stopQuarantineIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
 let quarantine: QuarantineManager | null = null;
@@ -40,6 +45,8 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
+  stopQuarantineIpc?.();
+  stopQuarantineIpc = null;
   stopSettingsIpc?.();
   stopSettingsIpc = null;
   stopDialogIpc?.();
@@ -75,7 +82,8 @@ app
   .whenReady()
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
-    quarantine = createQuarantineManager(database);
+    const uiConfirmation = new QuarantineUIConfirmation();
+    quarantine = createQuarantineManager(database, uiConfirmation.confirm);
     await quarantine.reconcile();
     if (quitting) return;
     aiWorker = createAIWorkflow(database);
@@ -84,6 +92,13 @@ app
     );
     aiWorker.start();
     const trustedRendererUrl = pathToFileURL(rendererPath).href;
+    stopQuarantineIpc = registerQuarantineIpc(
+      () => mainWindow,
+      trustedRendererUrl,
+      quarantine,
+      database,
+      uiConfirmation,
+    );
     stopSettingsIpc = registerSettingsIpc(
       () => mainWindow,
       trustedRendererUrl,

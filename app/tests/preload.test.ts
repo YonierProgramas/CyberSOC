@@ -25,6 +25,7 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   const api = electron.expose.mock.calls[0]![1] as CyberSocApi;
   expect(Object.keys(api).sort()).toEqual([
     'dialog',
+    'quarantine',
     'scan',
     'settings',
     'system',
@@ -97,7 +98,37 @@ it('expone system, dialog, scan y settings.ai con métodos y canales fijos', asy
   await api.scan.analyzeNow('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
 
+  expect(Object.keys(api.quarantine)).toEqual([
+    'list',
+    'quarantine',
+    'restore',
+    'delete',
+    'onChanged',
+  ]);
+  await api.quarantine.list();
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:list');
+  await api.quarantine.list({ status: 'QUARANTINED' });
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:list', {
+    status: 'QUARANTINED',
+  });
+  await api.quarantine.quarantine('r1');
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'quarantine:quarantine',
+    'r1',
+  );
+  await api.quarantine.restore('q1', {
+    trustHash: false,
+    targetPath: 'C:\\restored.txt',
+  });
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:restore', 'q1', {
+    trustHash: false,
+    targetPath: 'C:\\restored.txt',
+  });
+  await api.quarantine.delete('q1');
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:delete', 'q1');
+
   for (const [subscribe, channel] of [
+    [api.quarantine.onChanged, 'quarantine:changed'],
     [api.scan.onProgress, 'scan:progress'],
     [api.scan.onFinished, 'scan:finished'],
     [api.scan.onResultUpdated, 'ai:resultUpdated'],
