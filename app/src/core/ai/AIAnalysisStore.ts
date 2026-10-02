@@ -11,6 +11,7 @@ import type { AIStatus } from '../persistence/assessmentTypes';
 import { decideRisk, type PolicyAIAnalysis } from '../risk/RiskPolicy';
 import type { AnalysisFacts } from './AIContextBuilder';
 import type { Evidence } from '../../shared/protocol';
+import { AllowlistRepository } from '../persistence/AllowlistRepository';
 
 /** Adaptador de persistencia del flujo IA. No lee archivos ni ejecuta acciones sobre ellos. */
 export class AIAnalysisStore {
@@ -156,6 +157,9 @@ export class AIAnalysisStore {
             verdict: result.verdict as 'CLEAN' | 'SUSPICIOUS' | 'DETECTED',
             score: analysis.score,
             evidenceIds: analysis.evidence.map((item) => item.id),
+            userAllowlisted: new AllowlistRepository(this.db).has(
+              result.sha256,
+            ),
           },
           ai,
         );

@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   stopScanIpc: vi.fn(),
   createAISettings: vi.fn(),
   registerSettingsIpc: vi.fn(),
+  registerQuarantineIpc: vi.fn(),
+  stopQuarantineIpc: vi.fn(),
   stopSettingsIpc: vi.fn(),
   registerAssistantIpc: vi.fn(),
   stopAssistantIpc: vi.fn(),
@@ -25,6 +27,8 @@ const mocks = vi.hoisted(() => ({
   startAI: vi.fn(),
   stopAI: vi.fn(),
   resumeAI: vi.fn(),
+  reconcileQuarantine: vi.fn(),
+  closeQuarantine: vi.fn(),
 }));
 vi.mock('electron', () => ({
   app: {
@@ -41,6 +45,10 @@ vi.mock('../src/main/composition-root', () => ({
   createAISettings: mocks.createAISettings,
   createAIWorkflow: mocks.createAIWorkflow,
   createAIProvider: mocks.createAIProvider,
+  createQuarantineManager: () => ({
+    reconcile: mocks.reconcileQuarantine,
+    close: mocks.closeQuarantine,
+  }),
   createEngine: () => ({
     close: mocks.closeEngine,
     reconnect: mocks.reconnect,
@@ -57,6 +65,12 @@ vi.mock('../src/main/ipc/dialog.ipc', () => ({
 }));
 vi.mock('../src/main/ipc/scan.ipc', () => ({
   registerScanIpc: mocks.registerScanIpc,
+}));
+vi.mock('../src/main/ipc/quarantine.ipc', () => ({
+  registerQuarantineIpc: mocks.registerQuarantineIpc,
+  QuarantineUIConfirmation: class {
+    confirm = vi.fn();
+  },
 }));
 vi.mock('../src/main/ipc/settings.ipc', () => ({
   registerSettingsIpc: mocks.registerSettingsIpc,
@@ -75,12 +89,15 @@ beforeEach(() => {
     on: vi.fn(),
   });
   mocks.stopAI.mockResolvedValue(undefined);
+  mocks.reconcileQuarantine.mockResolvedValue(undefined);
+  mocks.closeQuarantine.mockResolvedValue(undefined);
   mocks.createScanOrchestrator.mockReturnValue({ marker: 'scan' });
   mocks.registerDialogIpc.mockReturnValue(mocks.stopDialogIpc);
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
   mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
   mocks.registerAssistantIpc.mockReturnValue(mocks.stopAssistantIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
+  mocks.registerQuarantineIpc.mockReturnValue(mocks.stopQuarantineIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
   mocks.createMainWindow.mockReturnValue({
     on: vi.fn(),
@@ -112,6 +129,10 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     mocks.createAIWorkflow.mock.results[0]!.value,
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.registerQuarantineIpc).toHaveBeenCalledOnce();
+  expect(
+    mocks.registerQuarantineIpc.mock.invocationCallOrder[0],
+  ).toBeGreaterThan(mocks.reconcileQuarantine.mock.invocationCallOrder[0]!);
   expect(mocks.registerSettingsIpc).toHaveBeenCalledExactlyOnceWith(
     expect.any(Function),
     expect.stringContaining('index.html'),
@@ -144,6 +165,10 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.stopDialogIpc).toHaveBeenCalledOnce();
   expect(mocks.stopSettingsIpc).toHaveBeenCalledOnce();
   expect(mocks.stopAssistantIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopQuarantineIpc).toHaveBeenCalledOnce();
+  expect(mocks.stopQuarantineIpc.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.closeQuarantine.mock.invocationCallOrder[0]!,
+  );
   expect(mocks.stopAI).toHaveBeenCalledOnce();
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
   handler('will-quit')();
@@ -209,4 +234,41 @@ it('no abre la ventana si falla la inicializacion de la BD', async () => {
   } finally {
     log.mockRestore();
   }
+});
+
+it('espera la reconciliación antes de abrir ventana e iniciar IA', async () => {
+  let finish!: () => void;
+  mocks.reconcileQuarantine.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await import('../src/main/index');
+  await vi.waitFor(() =>
+    expect(mocks.reconcileQuarantine).toHaveBeenCalledOnce(),
+  );
+  expect(mocks.createMainWindow).not.toHaveBeenCalled();
+  expect(mocks.startAI).not.toHaveBeenCalled();
+  finish();
+  await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
+});
+
+it('espera las operaciones de cuarentena antes de cerrar SQLite y el motor', async () => {
+  let finish!: () => void;
+  mocks.closeQuarantine.mockReturnValue(
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    }),
+  );
+  await import('../src/main/index');
+  await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
+  mocks.on.mock.calls.find(([event]) => event === 'before-quit')![1]({
+    preventDefault: vi.fn(),
+  });
+  expect(mocks.closeQuarantine).toHaveBeenCalledOnce();
+  await Promise.resolve();
+  expect(mocks.closeEngine).not.toHaveBeenCalled();
+  expect(mocks.closeDatabase).not.toHaveBeenCalled();
+  finish();
+  await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
 });

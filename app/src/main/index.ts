@@ -1,3 +1,7 @@
+import {
+  registerQuarantineIpc,
+  QuarantineUIConfirmation,
+} from './ipc/quarantine.ipc';
 import { app, type BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -14,11 +18,13 @@ import {
   createAISettings,
   createAIWorkflow,
   createAIProvider,
+  createQuarantineManager,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
 import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
 import { AssistantOrchestrator } from '../core/ai/AssistantOrchestrator';
 import { AppConfigStore } from '../core/config/AppConfig';
+import type { QuarantineManager } from '../core/quarantine/QuarantineManager';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -26,9 +32,11 @@ const engine = createEngine(app.getAppPath());
 let database: Database | null = null;
 let stopScanIpc: (() => Promise<void>) | null = null;
 let stopDialogIpc: (() => void) | null = null;
+let stopQuarantineIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
 let stopAssistantIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
+let quarantine: QuarantineManager | null = null;
 let readyToQuit = false;
 let quitting = false;
 
@@ -42,6 +50,8 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   if (quitting) return;
   quitting = true;
+  stopQuarantineIpc?.();
+  stopQuarantineIpc = null;
   stopSettingsIpc?.();
   stopSettingsIpc = null;
   stopAssistantIpc?.();
@@ -51,6 +61,7 @@ app.on('before-quit', (event) => {
   void Promise.allSettled([
     stopScanIpc?.() ?? Promise.resolve(),
     aiWorker?.stop() ?? Promise.resolve(),
+    quarantine?.close() ?? Promise.resolve(),
   ])
     .then((results) => {
       if (results.some((result) => result.status === 'rejected'))
@@ -78,12 +89,23 @@ app
   .whenReady()
   .then(async () => {
     database = createDatabase(app.getPath('userData'));
+    const uiConfirmation = new QuarantineUIConfirmation();
+    quarantine = createQuarantineManager(database, uiConfirmation.confirm);
+    await quarantine.reconcile();
+    if (quitting) return;
     aiWorker = createAIWorkflow(database);
     aiWorker.on('workerError', () =>
       console.error('El worker de IA se ha pausado.'),
     );
     aiWorker.start();
     const trustedRendererUrl = pathToFileURL(rendererPath).href;
+    stopQuarantineIpc = registerQuarantineIpc(
+      () => mainWindow,
+      trustedRendererUrl,
+      quarantine,
+      database,
+      uiConfirmation,
+    );
     stopSettingsIpc = registerSettingsIpc(
       () => mainWindow,
       trustedRendererUrl,

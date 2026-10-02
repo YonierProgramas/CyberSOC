@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 import {
+  QUARANTINE_LIST,
+  QUARANTINE_QUARANTINE,
+  QUARANTINE_RESTORE,
+  QUARANTINE_DELETE,
+  QUARANTINE_CHANGED,
+  type QuarantineChanged,
   SYSTEM_GET_STATUS,
   SYSTEM_RECONNECT_ENGINE,
   type CyberSocApi,
@@ -30,7 +36,10 @@ import {
 
 function subscribe<T>(
   channel:
-    typeof SCAN_PROGRESS | typeof SCAN_FINISHED | typeof AI_RESULT_UPDATED,
+    | typeof SCAN_PROGRESS
+    | typeof SCAN_FINISHED
+    | typeof AI_RESULT_UPDATED
+    | typeof QUARANTINE_CHANGED,
   callback: (value: T) => void,
 ): () => void {
   if (typeof callback !== 'function')
@@ -48,6 +57,19 @@ function subscribe<T>(
 }
 
 const api: CyberSocApi = {
+  quarantine: {
+    list: (query) =>
+      query === undefined
+        ? ipcRenderer.invoke(QUARANTINE_LIST)
+        : ipcRenderer.invoke(QUARANTINE_LIST, query),
+    quarantine: (resultId) =>
+      ipcRenderer.invoke(QUARANTINE_QUARANTINE, resultId),
+    restore: (itemId, options) =>
+      ipcRenderer.invoke(QUARANTINE_RESTORE, itemId, options),
+    delete: (itemId) => ipcRenderer.invoke(QUARANTINE_DELETE, itemId),
+    onChanged: (callback) =>
+      subscribe<QuarantineChanged>(QUARANTINE_CHANGED, callback),
+  },
   settings: {
     ai: {
       setApiKey: (key) => ipcRenderer.invoke(SETTINGS_AI_SET_API_KEY, key),

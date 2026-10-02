@@ -276,7 +276,7 @@ it.each([
       aiOpinion: opinion,
       reviewRequired: expected.reviewRequired,
       origin: expected.origin,
-      policyVersion: '2',
+      policyVersion: '3',
     });
   },
 );

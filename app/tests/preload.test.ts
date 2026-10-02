@@ -26,6 +26,7 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   expect(Object.keys(api).sort()).toEqual([
     'assistant',
     'dialog',
+    'quarantine',
     'scan',
     'settings',
     'system',
@@ -107,7 +108,37 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   await api.assistant.reset();
   expect(electron.invoke).toHaveBeenLastCalledWith('assistant:reset');
 
+  expect(Object.keys(api.quarantine)).toEqual([
+    'list',
+    'quarantine',
+    'restore',
+    'delete',
+    'onChanged',
+  ]);
+  await api.quarantine.list();
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:list');
+  await api.quarantine.list({ status: 'QUARANTINED' });
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:list', {
+    status: 'QUARANTINED',
+  });
+  await api.quarantine.quarantine('r1');
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'quarantine:quarantine',
+    'r1',
+  );
+  await api.quarantine.restore('q1', {
+    trustHash: false,
+    targetPath: 'C:\\restored.txt',
+  });
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:restore', 'q1', {
+    trustHash: false,
+    targetPath: 'C:\\restored.txt',
+  });
+  await api.quarantine.delete('q1');
+  expect(electron.invoke).toHaveBeenLastCalledWith('quarantine:delete', 'q1');
+
   for (const [subscribe, channel] of [
+    [api.quarantine.onChanged, 'quarantine:changed'],
     [api.scan.onProgress, 'scan:progress'],
     [api.scan.onFinished, 'scan:finished'],
     [api.scan.onResultUpdated, 'ai:resultUpdated'],

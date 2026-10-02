@@ -3,7 +3,7 @@
 import type { AIAssessment } from '../ai/schemas';
 import type { RiskLevel } from '../persistence/assessmentTypes';
 
-export const POLICY_VERSION = '2';
+export const POLICY_VERSION = '3';
 export const AI_PENDING_LABEL = 'IA pendiente / no disponible';
 
 /** Umbrales de la política v2 (plan S3, sección «RiskPolicy v2»). */
@@ -19,6 +19,7 @@ export type RiskOrigin = 'ENGINE' | 'AI_ESCALATION' | 'USER_ALLOWLIST';
 
 /** Regla de la política que decidió el resultado (para el panel «¿Cómo se decidió?»). */
 export type PolicyRule =
+  | 'USER_ALLOWLIST'
   | 'DETECTED_KEPT'
   | 'SUSPICIOUS_KEPT'
   | 'SUSPICIOUS_POSSIBLE_FALSE_POSITIVE'
@@ -41,6 +42,8 @@ export interface EngineAssessment {
   score: number;
   /** IDs de las evidencias del motor (`ev1..evN`). Sin ellos no se puede escalar. */
   evidenceIds?: readonly string[];
+  /** Hecho obtenido del repositorio de confianza humana, nunca de la IA. */
+  userAllowlisted?: boolean;
 }
 
 /** Último análisis de IA del resultado, ya pasado por `AIResponseValidator`. */
@@ -133,7 +136,7 @@ function escalationChecks(
 }
 
 /**
- * RiskPolicy v2. Función pura y asimétrica:
+ * RiskPolicy v3 (ADR-006). Primero la decisión humana por hash; luego las reglas v2:
  * - la IA nunca produce DETECTED ni baja un veredicto;
  * - solo puede escalar CLEAN → SUSPICIOUS si se cumplen TODAS las condiciones del plan, y
  *   entonces el nivel queda en MEDIO como máximo y el origen es AI_ESCALATION;
@@ -160,6 +163,27 @@ export function decideRisk(
 
   const trace: string[] = [];
   const { verdict, score } = engine;
+  // La validación de forma precede a las reglas; la allowlist precede a TODO veredicto/IA.
+  if (engine.userAllowlisted === true) {
+    return {
+      policyVersion: POLICY_VERSION,
+      engineVerdict: verdict,
+      engineScore: score,
+      aiOpinion: null,
+      aiConfidence: null,
+      finalVerdict: 'CLEAN',
+      finalLevel: 'BAJO',
+      reviewRequired: false,
+      origin: 'USER_ALLOWLIST',
+      rule: 'USER_ALLOWLIST',
+      aiPending: false,
+      trace: [
+        'El usuario confía explícitamente en este SHA-256 (allowlist).',
+        `Motor conservado para auditoría: ${verdict}, ${score} puntos.`,
+        'Veredicto final CLEAN, nivel BAJO; decisión humana anterior a cualquier opinión de IA.',
+      ],
+    };
+  }
   trace.push(`Motor: veredicto ${verdict} con ${score} puntos.`);
 
   let finalLevel = levelForScore(score);
