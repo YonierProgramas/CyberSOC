@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { HistoryPage } from './pages/HistoryPage';
+import { QuarantinePage } from './pages/QuarantinePage';
 import { ScanPage } from './pages/ScanPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { StatusPage } from './pages/StatusPage';
 
-type View = 'scan' | 'history' | 'status' | 'settings';
+type View = 'scan' | 'history' | 'quarantine' | 'status' | 'settings';
 
 export function App() {
   const [view, setView] = useState<View>('scan');
@@ -29,6 +30,14 @@ export function App() {
         </button>
         <button
           type="button"
+          data-testid="nav-quarantine"
+          aria-current={view === 'quarantine' ? 'page' : undefined}
+          onClick={() => setView('quarantine')}
+        >
+          Cuarentena
+        </button>
+        <button
+          type="button"
           data-testid="nav-status"
           aria-current={view === 'status' ? 'page' : undefined}
           onClick={() => setView('status')}
@@ -46,6 +55,7 @@ export function App() {
       </nav>
       {view === 'scan' && <ScanPage />}
       {view === 'history' && <HistoryPage />}
+      {view === 'quarantine' && <QuarantinePage />}
       {view === 'status' && <StatusPage />}
       {view === 'settings' && <SettingsPage />}
     </div>
