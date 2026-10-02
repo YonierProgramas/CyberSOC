@@ -116,14 +116,14 @@ jobs:
           for (const name of ['USERPROFILE', 'LOCALAPPDATA', 'APPDATA', 'HOMEDRIVE', 'HOMEPATH', 'SystemDrive', 'PATH']) {
             locations[name] = process.env[name];
           }
-          async function measure(name, env) {
+          async function measure(name, env, command = script) {
             const start = performance.now();
             await new Promise(resolve => execFile(
               join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
-              ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
+              ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')],
               { env, windowsHide: true, timeout: 60000 },
               error => { console.log(JSON.stringify({ name, ms: Math.round(performance.now() - start), code: error?.code ?? 0 })); resolve(); }
             ));
           }
-          (async () => { await measure('minimal', minimal); await measure('locations', locations); })();
+          (async () => { await measure('startup-minimal', minimal, 'exit 0'); await measure('startup-inherited', process.env, 'exit 0'); await measure('compile-inherited', process.env); await measure('compile-minimal', minimal); })();
           '@ | node
