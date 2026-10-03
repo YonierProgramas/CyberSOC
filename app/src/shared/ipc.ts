@@ -191,6 +191,39 @@ export interface AIResultUpdated {
 }
 export const ASSISTANT_ASK = 'assistant:ask';
 export const ASSISTANT_RESET = 'assistant:reset';
+export const ASSISTANT_LIST_CONVERSATIONS = 'assistant:listConversations';
+export const ASSISTANT_OPEN_CONVERSATION = 'assistant:openConversation';
+
+export interface ConversationQuery {
+  limit?: number;
+  offset?: number;
+}
+
+export interface ConversationDTO {
+  id: string;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConversationMessageDTO {
+  id: string;
+  conversationId: string;
+  role: 'user' | 'assistant' | 'tool';
+  content: string;
+  toolCallsJson: string | null;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  createdAt: string;
+}
+
+export interface OpenConversationDTO {
+  conversation: ConversationDTO;
+  /** Mensajes de los últimos 10 turnos; el historial completo permanece en SQLite. */
+  messages: ConversationMessageDTO[];
+  historyTurns: number;
+}
 /** Longitud máxima de la pregunta del usuario al Copilot. */
 export const ASSISTANT_MESSAGE_MAX_CHARS = 2_000;
 
@@ -335,6 +368,10 @@ export interface CyberSocApi {
   readonly assistant: {
     readonly ask: (query: AssistantAskQuery) => Promise<AssistantReplyDTO>;
     readonly reset: () => Promise<void>;
+    readonly listConversations: (
+      query?: ConversationQuery,
+    ) => Promise<ConversationDTO[]>;
+    readonly openConversation: (id: string) => Promise<OpenConversationDTO>;
   };
 }
 

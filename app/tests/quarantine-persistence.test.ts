@@ -31,7 +31,7 @@ it('005 migra desde 004 sin alterar datos y conserva restricciones del plan', ()
     '{}',
     'unchanged',
   );
-  expect(new MigrationRunner(db).run()).toEqual([5]);
+  expect(new MigrationRunner(db).run()).toEqual([5, 6]);
   expect(new MigrationRunner(db).run()).toEqual([]);
   expect(
     db

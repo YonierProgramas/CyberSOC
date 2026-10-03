@@ -104,7 +104,26 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:getJobSummary', 'j1');
   await api.scan.analyzeNow('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
-  expect(Object.keys(api.assistant)).toEqual(['ask', 'reset']);
+  expect(Object.keys(api.assistant)).toEqual([
+    'listConversations',
+    'openConversation',
+    'ask',
+    'reset',
+  ]);
+  await api.assistant.listConversations();
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'assistant:listConversations',
+  );
+  await api.assistant.listConversations({ limit: 10, offset: 2 });
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'assistant:listConversations',
+    { limit: 10, offset: 2 },
+  );
+  await api.assistant.openConversation('conversation-id');
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'assistant:openConversation',
+    'conversation-id',
+  );
   const question = {
     message: '¿Por qué fue marcado?',
     focus: { resultId: 'r1' },
