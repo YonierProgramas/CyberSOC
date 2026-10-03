@@ -12,6 +12,7 @@ import {
 import { ProgressPanel } from '../components/ProgressPanel';
 import { ResultsTable } from '../components/ResultsTable';
 import { pathLabel, useCopilotFocus } from '../copilot/focus';
+import { useShell } from '../navigation/shell';
 
 const activeStatuses = new Set<ScanJobDTO['status']>([
   'CREATED',
@@ -30,6 +31,7 @@ export function ScanPage() {
   const [layers, setLayers] = useState(allLayers);
   const [focusResultId, setFocusResultId] = useState<string | null>(null);
   const { setFocus } = useCopilotFocus();
+  const { watchJobId } = useShell();
   const jobId = useRef<string | null>(null);
   const lastResultsRefresh = useRef(0);
   const jobFocusId = job?.id ?? null;
@@ -45,6 +47,22 @@ export function ScanPage() {
     },
     [setFocus],
   );
+
+  useEffect(() => {
+    if (!watchJobId || watchJobId === jobId.current) return;
+    jobId.current = watchJobId;
+    setProgress(null);
+    setMessage(null);
+    void window.cybersoc.scan
+      .getJob(watchJobId)
+      .then((current) => {
+        if (jobId.current === current.id) {
+          setJob(current);
+          setRefreshToken((value) => value + 1);
+        }
+      })
+      .catch(() => setMessage('No se pudo abrir el escaneo del plan.'));
+  }, [watchJobId]);
 
   useEffect(() => {
     if (!jobFocusId || !jobFocusLabel) return;
@@ -180,7 +198,18 @@ export function ScanPage() {
       {message && <p role="alert">{message}</p>}
       {job && (
         <>
-          <ProgressPanel progress={progress} job={job} />
+          <ProgressPanel
+            progress={progress}
+            job={job}
+            onOpenTopRisk={(item) => {
+              setFocusResultId(item.resultId);
+              setFocus({
+                kind: 'RESULT',
+                resultId: item.resultId,
+                label: item.fileName,
+              });
+            }}
+          />
           <JobDetail job={job} elapsedMs={progress?.elapsedMs ?? null} />
           <JobSummaryCard
             jobId={job.id}

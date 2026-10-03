@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ScanJobDTO } from '../../../shared/ipc';
+import { HistoryFilterForm } from '../components/HistoryFilterForm';
 import { JobDetail } from '../components/JobDetail';
 import { JobSummaryCard } from '../components/JobSummaryCard';
+import { PlainText } from '../components/PlainText';
 import { ResultsTable } from '../components/ResultsTable';
 import { pathLabel, useCopilotFocus } from '../copilot/focus';
-import { jobStatusLabel } from '../scan/format';
+import { emptyHistoryFilters, type HistoryFilters } from '../history/filters';
+import { useShell } from '../navigation/shell';
+import { jobStatusLabel, zoneLabel } from '../scan/format';
 
 export function HistoryPage() {
   const [jobs, setJobs] = useState<ScanJobDTO[]>([]);
   const [selected, setSelected] = useState<ScanJobDTO | null>(null);
   const [focusResultId, setFocusResultId] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [filters, setFilters] = useState<HistoryFilters>(emptyHistoryFilters);
+  const [ruleId, setRuleId] = useState<string | null>(null);
   const { setFocus } = useCopilotFocus();
+  const { request } = useShell();
   const chooseResult = useCallback(
     (result: { id: string; fileName: string }) => {
       setFocus({
@@ -19,6 +26,33 @@ export function HistoryPage() {
         resultId: result.id,
         label: result.fileName,
       });
+    },
+    [setFocus],
+  );
+
+  const openJob = useCallback(
+    async (jobId: string, result?: { id: string; fileName: string }) => {
+      setFailed(false);
+      try {
+        setFocusResultId(result?.id ?? null);
+        const job = await window.cybersoc.scan.getJob(jobId);
+        setSelected(job);
+        if (result) {
+          setFocus({
+            kind: 'RESULT',
+            resultId: result.id,
+            label: result.fileName,
+          });
+        } else {
+          setFocus({
+            kind: 'JOB',
+            jobId: job.id,
+            label: pathLabel(job.targetPath),
+          });
+        }
+      } catch {
+        setFailed(true);
+      }
     },
     [setFocus],
   );
@@ -38,27 +72,58 @@ export function HistoryPage() {
     };
   }, []);
 
-  async function openJob(jobId: string) {
-    setFailed(false);
-    try {
-      setFocusResultId(null);
-      const job = await window.cybersoc.scan.getJob(jobId);
-      setSelected(job);
-      setFocus({
-        kind: 'JOB',
-        jobId: job.id,
-        label: pathLabel(job.targetPath),
-      });
-    } catch {
-      setFailed(true);
+  useEffect(() => {
+    if (!request) return;
+    if (request.kind === 'ZONE') {
+      setFilters((current) => ({ ...current, zone: request.zoneId }));
+      return;
     }
-  }
+    if (request.kind === 'RULE') {
+      setRuleId(request.ruleId);
+      return;
+    }
+    if (request.kind === 'JOB') {
+      void openJob(request.jobId);
+      return;
+    }
+    let active = true;
+    setFilters(emptyHistoryFilters);
+    void window.cybersoc.scan
+      .getResult(request.resultId)
+      .then((detail) => {
+        if (!active) return;
+        return openJob(detail.result.jobId, {
+          id: detail.result.id,
+          fileName: detail.result.fileName,
+        });
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [request, openJob]);
+
+  const zoneText = zoneLabel(filters.zone);
 
   return (
     <main className="wide">
       <p className="eyebrow">Historial</p>
       <h1>Trabajos recientes</h1>
       {failed && <p role="alert">No se pudo consultar el historial.</p>}
+      {ruleId && (
+        <section className="panel" data-testid="cited-rule">
+          <h2>Regla citada</h2>
+          <PlainText text={ruleId} />
+        </section>
+      )}
+      <HistoryFilterForm filters={filters} onChange={setFilters} />
+      {filters.zone !== '' && (
+        <p data-testid="cited-zone">
+          Zona: {zoneText === '—' ? filters.zone : zoneText}
+        </p>
+      )}
       {jobs.length === 0 ? (
         <p>Todavía no hay escaneos guardados.</p>
       ) : (
@@ -90,6 +155,7 @@ export function HistoryPage() {
             profileJson={selected.profileJson}
             focusResultId={focusResultId}
             onSelectResult={chooseResult}
+            filters={filters}
           />
         </>
       )}

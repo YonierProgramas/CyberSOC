@@ -4,9 +4,11 @@ import { fileNameOf } from '../scan/format';
 export function ProgressPanel({
   progress,
   job,
+  onOpenTopRisk,
 }: {
   progress: ScanProgress | null;
   job: ScanJobDTO | null;
+  onOpenTopRisk?: (item: ScanProgress['topRisk'][number]) => void;
 }) {
   const discovering = progress
     ? !progress.discoveryDone
@@ -74,6 +76,28 @@ export function ProgressPanel({
           'ninguno'
         )}
       </p>
+      {progress && (
+        <section data-testid="top-risk-live">
+          <h3>Top de riesgo en vivo</h3>
+          {(progress.topRisk ?? []).length === 0 ? (
+            <p>Aún no hay archivos con puntuación.</p>
+          ) : (
+            <ol>
+              {progress.topRisk.map((item) => (
+                <li key={item.resultId}>
+                  <button
+                    type="button"
+                    data-testid="top-risk-item"
+                    onClick={() => onOpenTopRisk?.(item)}
+                  >
+                    {item.fileName} · {item.engineScore}
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+      )}
     </section>
   );
 }

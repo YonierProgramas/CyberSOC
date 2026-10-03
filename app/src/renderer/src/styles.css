@@ -12,7 +12,7 @@ body {
 
 .app-shell {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   min-height: 100vh;
 }
 
@@ -44,6 +44,65 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.copilot-chips,
+.copilot-card,
+.copilot-card ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.copilot-chips {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.copilot-card {
+  border: 1px solid #3d5166;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.copilot-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.copilot-card th,
+.copilot-card td {
+  text-align: left;
+  padding: 4px 0;
+  border-bottom: 1px solid #243140;
+}
+
+.history-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.history-filters label {
+  margin: 0;
+}
+
+select {
+  font: inherit;
+  color: inherit;
+  background: #0c141d;
+  border: 1px solid #3d5166;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+button.chip {
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
 .copilot-panel textarea {

@@ -148,6 +148,18 @@ export function appliedCaps(
   };
 }
 
+export const ZONE_IDS = [
+  'DESCARGAS',
+  'ESCRITORIO',
+  'DOCUMENTOS',
+  'TEMPORALES',
+  'DATOS_APPS',
+  'EXTRAIBLE',
+  'PROGRAMAS',
+  'SISTEMA',
+  'OTRA',
+] as const;
+
 export function zoneLabel(zone: string | null): string {
   if (zone === 'DESCARGAS') return 'Descargas';
   if (zone === 'ESCRITORIO') return 'Escritorio';
