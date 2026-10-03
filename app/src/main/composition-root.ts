@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { Database } from '../core/persistence/Database';
 import { MigrationRunner } from '../core/persistence/MigrationRunner';
 import {
@@ -96,10 +96,25 @@ function prepareEvidenceMode(): string | undefined {
   const userData = join(root, 'user-data');
   mkdirSync(userData, { recursive: true });
   app.setPath('userData', userData);
+  // La ventana nace oculta. Con recordVideo, Playwright no llega a pintar
+  // esa ventana hasta que se muestra. Solo aplica a este modo.
+  app.on('browser-window-created', (_event, window) => {
+    window.show();
+  });
   dialog.showOpenDialog = (async () => {
     const path = process.env.CYBERSOC_EVIDENCE_DIALOG_PATH;
     return { canceled: !path, filePaths: path ? [path] : [] };
   }) as typeof dialog.showOpenDialog;
+  dialog.showSaveDialog = (async () => {
+    const selected = process.env.CYBERSOC_EVIDENCE_SAVE_PATH ?? '';
+    if (!selected) return { canceled: true, filePath: '' };
+    const file = resolve(selected);
+    const base = resolve(root);
+    if (file !== base && !file.startsWith(base + sep)) {
+      return { canceled: true, filePath: '' };
+    }
+    return { canceled: false, filePath: file };
+  }) as typeof dialog.showSaveDialog;
   evidenceRoot = root;
   return root;
 }
@@ -389,6 +404,16 @@ class EvidenceAIProvider extends FakeAIProvider {
   override async generateStructured<T>(
     request: StructuredRequest<T>,
   ): Promise<AIResult<T>> {
+    if (process.env.CYBERSOC_EVIDENCE_AI === 'OFFLINE') {
+      return {
+        ok: false,
+        error: {
+          kind: 'OFFLINE',
+          retryable: false,
+          message: 'Sin conexión simulada.',
+        },
+      };
+    }
     if (!Object.is(request.schema, jobSummarySchema))
       return super.generateStructured(request);
     const json = request.prompt.match(

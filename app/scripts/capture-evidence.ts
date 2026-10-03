@@ -18,6 +18,7 @@ import {
   join,
   relative,
   resolve,
+  sep,
 } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -42,14 +43,14 @@ const sprint = args[sprintIndex + 1];
 const live = args.includes('--live');
 if (
   sprintIndex < 0 ||
-  !['01', '02', '03', '04', '05'].includes(sprint) ||
+  !['01', '02', '03', '04', '05', '06'].includes(sprint) ||
   args.some(
     (arg, index) =>
       index !== sprintIndex + 1 && !['--sprint', '--live'].includes(arg),
   )
 ) {
   throw new Error(
-    'Uso: npm run evidence:capture -- --sprint <01|02|03|04|05> [--live]',
+    'Uso: npm run evidence:capture -- --sprint <01|02|03|04|05|06> [--live]',
   );
 }
 if (live && !process.env.CYBERSOC_ANTHROPIC_API_KEY) {
@@ -68,23 +69,23 @@ function findDocumentation(): string {
   throw new Error('No se encontró construccion/sprints junto al repositorio.');
 }
 
+const sprintDirectory: Record<string, string> = {
+  '01': 'sprint-01-escaneo-real',
+  '02': 'sprint-02-evidencia-ia-v1',
+  '03': 'sprint-03-motor-hibrido-ia-v2',
+  '04': 'sprint-04-cuarentena-copilot-v1',
+  '05': 'sprint-05-copilot-herramientas-reportes',
+  '06': 'sprint-06-robustez-entrega',
+};
 const destination = join(
   findDocumentation(),
   'sprints',
-  sprint === '01'
-    ? 'sprint-01-escaneo-real'
-    : sprint === '02'
-      ? 'sprint-02-evidencia-ia-v1'
-      : sprint === '03'
-        ? 'sprint-03-motor-hibrido-ia-v2'
-        : sprint === '04'
-          ? 'sprint-04-cuarentena-copilot-v1'
-          : 'sprint-05-copilot-herramientas-reportes',
+  sprintDirectory[sprint],
   'evidencias',
 );
 mkdirSync(destination, { recursive: true });
 const evidenceParent =
-  sprint === '03' || sprint === '04' || sprint === '05'
+  sprint === '03' || sprint === '04' || sprint === '05' || sprint === '06'
     ? (process.env.PUBLIC ?? join('C:\\Users', 'Public'))
     : tmpdir();
 const root = mkdtempSync(join(evidenceParent, 'cybersoc-evidence-'));
@@ -115,6 +116,18 @@ const stepSchema = z.strictObject({
     'preguntar',
     'dialogo',
     'historial',
+    'arquitectura',
+    'escanear_demo',
+    'cancelar_corto',
+    'analizar',
+    'sugerencia',
+    'chip',
+    'exportar',
+    'sin_red',
+    'metricas',
+    'ficha',
+    'pruebas',
+    'cierre',
   ]),
   selector: z
     .string()
@@ -175,7 +188,9 @@ function environment(): Record<string, string> {
         }
       : {}),
     ...(sprint === '04' ? { CYBERSOC_EVIDENCE_REPLIES: '8' } : {}),
-    ...(sprint === '05' ? { CYBERSOC_EVIDENCE_REPLIES: '40' } : {}),
+    ...(sprint === '05' || sprint === '06'
+      ? { CYBERSOC_EVIDENCE_REPLIES: '40' }
+      : {}),
     PYTHONPATH: join(engineRoot, 'src'),
     PYTHONDONTWRITEBYTECODE: '1',
   };
@@ -194,9 +209,29 @@ async function until(
   throw new Error(`Tiempo agotado: ${description}.`);
 }
 
+function packagedExecutable(): string | null {
+  const names = ['CyberSOC Defender.exe', 'cybersoc-defender.exe'];
+  for (const folder of ['dist', 'release', 'out']) {
+    for (const name of names) {
+      const candidate = join(appRoot, folder, 'win-unpacked', name);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
 async function launch(record = false): Promise<void> {
+  const executable = sprint === '06' ? packagedExecutable() : null;
+  if (sprint === '06' && record) {
+    checks.push(
+      executable
+        ? `App empaquetada: ${executable}`
+        : 'T6.2 no dejó un ejecutable empaquetado. Esta grabación usa el modo desarrollo.',
+    );
+  }
   const options = {
-    args: [appRoot],
+    ...(executable ? { executablePath: executable } : {}),
+    args: executable ? [] : [appRoot],
     cwd: appRoot,
     env: environment(),
     timeout: 30_000,
@@ -231,18 +266,44 @@ async function launch(record = false): Promise<void> {
     if (consoleNotes.length < 8)
       consoleNotes.push(`pageerror: ${error.message}`);
   });
-  await electron.evaluate(({ BrowserWindow }) =>
-    BrowserWindow.getAllWindows()[0].setSize(1680, 1000),
-  );
-  const opened = await page
-    .getByTestId('nav-status')
-    .waitFor({ timeout: 20_000 })
-    .then(() => true)
-    .catch(() => false);
+  await Promise.race([
+    electron.evaluate(({ BrowserWindow }) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        window.show();
+        window.setSize(1680, 1000);
+      }
+    }),
+    delay(5_000),
+  ]);
+  const deadline = Date.now() + 60_000;
+  let opened = false;
+  while (Date.now() < deadline) {
+    for (const candidate of electron.windows()) {
+      const url = candidate.url();
+      if (url && !url.startsWith('about:')) {
+        page = candidate;
+        opened = true;
+        break;
+      }
+    }
+    if (opened) break;
+    await delay(200);
+  }
+  if (opened) {
+    opened = await page
+      .getByTestId('nav-status')
+      .waitFor({ timeout: 20_000 })
+      .then(() => true)
+      .catch(() => false);
+  }
   if (!opened) {
-    if (record) {
+    const urls = electron
+      .windows()
+      .map((candidate) => candidate.url() || '(sin url)');
+    const detail = `ventanas=${urls.join(' || ') || 'ninguna'} console=${consoleNotes.join(' | ')}`;
+    if (record && sprint !== '06') {
       limitations.push(
-        'recordVideo dejó la ventana sin la interfaz. Se usan 01a/01b/01c.',
+        `recordVideo dejó la ventana sin la interfaz. Se usan 01a/01b/01c. ${detail}`,
       );
       await electron.close();
       electron = undefined;
@@ -250,14 +311,7 @@ async function launch(record = false): Promise<void> {
       await launch(false);
       return;
     }
-    const url = page.url();
-    const body = await page
-      .locator('body')
-      .innerText()
-      .catch(() => '');
-    throw new Error(
-      `La interfaz no apareció. url=${url} body=${body.slice(0, 400)} console=${consoleNotes.join(' | ')}`,
-    );
+    throw new Error(`La interfaz no apareció. ${detail}`);
   }
   video = record ? page.video() : null;
   await page.getByTestId('nav-status').click();
@@ -376,13 +430,21 @@ async function completed(): Promise<void> {
   );
 }
 
+function evidenceFile(file: string): string {
+  assert.equal(basename(file), file);
+  if (sprint !== '06' || !file.endsWith('.png')) return join(destination, file);
+  const folder = join(destination, '11-capturas-finales');
+  mkdirSync(folder, { recursive: true });
+  return join(folder, file);
+}
+
 async function capture(
   file: string,
   selector?: string,
   fullPage = false,
 ): Promise<void> {
   assert.equal(basename(file), file);
-  const path = join(destination, file);
+  const path = evidenceFile(file);
   if (selector) {
     const element = page.getByTestId(selector);
     await element.scrollIntoViewIfNeeded();
@@ -633,6 +695,19 @@ async function crash(file: string): Promise<void> {
 
 async function select(text: string): Promise<void> {
   if (
+    sprint === '06' &&
+    (await page.getByTestId('result-row').filter({ hasText: text }).count()) ===
+      0
+  ) {
+    await page.getByTestId('nav-history').click();
+    await page
+      .getByTestId('history-job')
+      .filter({ hasText: 'fixtures' })
+      .first()
+      .click();
+    await page.getByTestId('result-row').first().waitFor();
+  }
+  if (
     (sprint === '04' || sprint === '05') &&
     (await page.getByTestId('result-row').count()) === 0
   ) {
@@ -844,7 +919,7 @@ async function askQuestion(
   const shot = page.getByTestId('copilot-reply').last();
   await shot.scrollIntoViewIfNeeded();
   await shot.screenshot({
-    path: join(destination, file),
+    path: evidenceFile(file),
     animations: 'disabled',
   });
   generated.push(file);
@@ -955,6 +1030,9 @@ async function askCopilotOffline(shot: string): Promise<void> {
 
 async function publishVideo(file: string): Promise<void> {
   if (!video) {
+    if (sprint === '06') {
+      throw new Error('recordVideo no entregó 08-video-demo.mp4.');
+    }
     checks.push(
       'recordVideo no estuvo disponible: quedan 01a-detectado.png, 01b-cuarentena.png y 01c-restaurado.png.',
     );
@@ -984,7 +1062,12 @@ async function publishVideo(file: string): Promise<void> {
           '-DestinationPath',
           mp4,
         ],
-        { env, windowsHide: true, timeout: 75_000, stdio: 'pipe' },
+        {
+          env,
+          windowsHide: true,
+          timeout: sprint === '06' ? 180_000 : 75_000,
+          stdio: 'pipe',
+        },
       );
     } else {
       execFileSync(
@@ -999,14 +1082,332 @@ async function publishVideo(file: string): Promise<void> {
     checks.push(
       'recordVideo de Playwright convertido a MP4 real, contenedor ftyp verificado.',
     );
-  } catch {
+    if (sprint === '06') {
+      const seconds = mp4DurationSeconds(mp4);
+      const limit = 14 * 60;
+      assert(
+        seconds <= limit,
+        `El video dura ${seconds.toFixed(1)} s y el guion permite ${limit} s.`,
+      );
+      checks.push(
+        `08-video-demo.mp4 dura ${seconds.toFixed(1)} s (máximo del guion: ${limit} s).`,
+      );
+      console.log(`Video: ${seconds.toFixed(1)} s`);
+    }
+  } catch (error) {
+    if (sprint === '06') throw error;
     await recording.saveAs(join(destination, '01-video-ciclo-cuarentena.webm'));
     generated.push('01-video-ciclo-cuarentena.webm');
     limitations.push(
       `${file}: el conversor de video del sistema no pudo producir MP4; se entrega WebM.`,
     );
   }
-  await launch();
+  if (sprint !== '06') await launch();
+}
+
+function mp4DurationSeconds(file: string): number {
+  const data = readFileSync(file);
+  const index = data.indexOf(Buffer.from('mvhd'));
+  assert(index >= 8, 'El MP4 no trae la duración mvhd.');
+  const version = data[index + 4];
+  if (version === 0) {
+    const timescale = data.readUInt32BE(index + 16);
+    const duration = data.readUInt32BE(index + 20);
+    assert(timescale > 0);
+    return duration / timescale;
+  }
+  const timescale = data.readUInt32BE(index + 24);
+  const duration = Number(data.readBigUInt64BE(index + 28));
+  assert(timescale > 0);
+  return duration / timescale;
+}
+
+async function showNote(text: string): Promise<void> {
+  await page.evaluate((message) => {
+    document.getElementById('evidence-demo-note')?.remove();
+    const note = document.createElement('div');
+    note.id = 'evidence-demo-note';
+    note.setAttribute('data-testid', 'evidence-demo-note');
+    note.style.cssText = [
+      'position:fixed',
+      'inset:32px',
+      'z-index:99999',
+      'background:#0b1220',
+      'color:#f8fafc',
+      'padding:32px',
+      'overflow:auto',
+      'border:4px solid #38bdf8',
+      'font:20px/1.45 Segoe UI,sans-serif',
+      'white-space:pre-wrap',
+    ].join(';');
+    note.textContent = message;
+    document.body.appendChild(note);
+  }, text);
+  await delay(2_000);
+}
+
+async function showBanner(text: string): Promise<void> {
+  await page.evaluate((message) => {
+    document.getElementById('evidence-demo-note')?.remove();
+    const note = document.createElement('div');
+    note.id = 'evidence-demo-note';
+    note.setAttribute('data-testid', 'evidence-demo-note');
+    note.style.cssText = [
+      'position:fixed',
+      'top:0',
+      'left:0',
+      'right:0',
+      'z-index:99999',
+      'background:#7f1d1d',
+      'color:#fff',
+      'padding:12px 16px',
+      'font:16px/1.4 Segoe UI,sans-serif',
+      'pointer-events:none',
+    ].join(';');
+    note.textContent = message;
+    document.body.appendChild(note);
+  }, text);
+}
+
+async function hideNote(): Promise<void> {
+  await page.evaluate(() => {
+    document.getElementById('evidence-demo-note')?.remove();
+  });
+}
+
+async function showDiagram(): Promise<void> {
+  const diagram = join(
+    findDocumentation(),
+    'arquitectura',
+    'diagramas',
+    'arquitectura-v2.png',
+  );
+  if (!existsSync(diagram)) {
+    await showNote(
+      'Paso 2 — Arquitectura. No está arquitectura-v2.png junto a esta copia. En la sustentación se abre ese diagrama: interfaz, Core, motor Python, SQLite y la API de Claude.',
+    );
+    await hideNote();
+    return;
+  }
+  const image = readFileSync(diagram).toString('base64');
+  await page.evaluate((encoded) => {
+    document.getElementById('evidence-demo-note')?.remove();
+    const note = document.createElement('div');
+    note.id = 'evidence-demo-note';
+    note.setAttribute('data-testid', 'evidence-demo-note');
+    note.style.cssText =
+      'position:fixed;inset:16px;z-index:99999;background:#0b1220;display:flex;align-items:center;justify-content:center;';
+    const picture = document.createElement('img');
+    picture.alt = 'Arquitectura de CyberSOC Defender';
+    picture.src = `data:image/png;base64,${encoded}`;
+    picture.style.cssText =
+      'max-width:100%;max-height:100%;object-fit:contain;';
+    note.appendChild(picture);
+    document.body.appendChild(note);
+  }, image);
+  await delay(2_000);
+  await hideNote();
+  checks.push('El video muestra arquitectura-v2.png en el paso 2.');
+}
+
+async function scanDemo(): Promise<void> {
+  await scan('fixtures', 'FOLDER', 80, false);
+  await until(async () => {
+    const status = await page.getByTestId('job-status').innerText();
+    if (status.includes('Completado')) return true;
+    return Number(await page.getByTestId('processed-count').innerText()) >= 1;
+  }, 'progreso visible del escaneo de fixtures');
+  await capture('02-escaneo-progreso.png', 'progress-panel');
+  await completed();
+  await capture('03-resultados.png', 'results-panel');
+  checks.push('Escaneo de fixtures: progreso y tabla de resultados.');
+}
+
+async function cancelQuickly(): Promise<void> {
+  await scan('cancelacion', 'FOLDER', 40, false);
+  await until(
+    async () =>
+      Number(await page.getByTestId('processed-count').innerText()) >= 4,
+    'escaneo grande en curso',
+    120_000,
+  );
+  await page.getByTestId('cancel-scan').click();
+  await until(
+    async () =>
+      (await page.getByTestId('job-status').innerText()).includes('Cancelado'),
+    'estado Cancelado',
+    120_000,
+  );
+  const rows = query(
+    'SELECT files_processed AS processed, files_discovered AS discovered, status FROM scan_jobs ORDER BY rowid DESC LIMIT 1',
+  );
+  assert.equal(rows[0].status, 'CANCELLED');
+  assert(Number(rows[0].processed) < Number(rows[0].discovered));
+  checks.push(
+    `Cancelación: ${rows[0].processed} analizados de ${rows[0].discovered} descubiertos.`,
+  );
+}
+
+async function analyzeSelection(): Promise<void> {
+  const panel = page.getByTestId('ai-analysis');
+  if (!(await panel.innerText()).includes('Resumen')) {
+    await page.getByTestId('analyze-with-ai').click();
+  }
+  await until(
+    async () =>
+      (await page.getByTestId('ai-analysis').innerText()).includes('Resumen'),
+    'análisis simulado visible',
+    60_000,
+  );
+  await capture('07-analisis-ia.png', 'ai-analysis');
+  await capture('08-que-se-envio.png', 'ai-sent');
+  checks.push('Análisis con FakeAIProvider y panel Qué se envió.');
+}
+
+async function clickSuggestion(question: string): Promise<void> {
+  const before = await page.getByTestId('copilot-reply').count();
+  await page
+    .getByTestId('copilot-suggestion')
+    .filter({ hasText: question })
+    .click();
+  await until(async () => {
+    if ((await page.getByTestId('copilot-loading').count()) > 0) return false;
+    const replies = page.getByTestId('copilot-reply');
+    return (
+      (await replies.count()) > before &&
+      (await replies.last().innerText()).trim().length > 0
+    );
+  }, `sugerencia ${question}`);
+}
+
+async function openReferenceChip(): Promise<void> {
+  const chip = page
+    .getByTestId('copilot-reference')
+    .filter({ hasText: 'Resultado' })
+    .last();
+  await chip.scrollIntoViewIfNeeded();
+  await chip.click();
+  await until(
+    async () => (await page.getByTestId('result-summary').count()) > 0,
+    'el chip abre un resultado',
+  );
+  checks.push('Un chip de referencia abrió el resultado citado.');
+}
+
+async function exportReport(): Promise<void> {
+  assert(electron);
+  const target = join(root, 'reporte-demo.html');
+  await electron.evaluate((_api, value) => {
+    process.env.CYBERSOC_EVIDENCE_SAVE_PATH = value;
+  }, target);
+  await page.getByTestId('copilot-export-html').click();
+  await until(
+    async () =>
+      (await page.getByTestId('copilot-report').innerText()).includes(
+        'El reporte se guardó.',
+      ),
+    'reporte HTML guardado',
+  );
+  assert(existsSync(target));
+  checks.push(
+    'Exportación HTML del reporte, dentro del temporal de evidencia.',
+  );
+}
+
+async function offlineSegment(): Promise<void> {
+  assert(electron);
+  await electron.evaluate(() => {
+    process.env.CYBERSOC_EVIDENCE_AI = 'OFFLINE';
+  });
+  await showBanner(
+    'Paso 11 — IA sin red. Este tramo usa FakeAIProvider en modo OFFLINE. No hay llamada a Claude ni se apagó el Wi-Fi: la falta de red está simulada. El motor y RiskPolicy siguen en este equipo.',
+  );
+  await page.getByTestId('nav-history').click();
+  await page
+    .getByTestId('history-job')
+    .filter({ hasText: 'fixtures' })
+    .first()
+    .click();
+  await page
+    .getByTestId('result-row')
+    .filter({ hasText: 'CSD-TEST-002.txt' })
+    .click();
+  await until(
+    async () =>
+      (await page.getByTestId('result-summary').innerText()).includes(
+        'CSD-TEST-002.txt',
+      ),
+    'segundo detectado para la IA sin red',
+  );
+  await page.getByTestId('analyze-with-ai').click();
+  await until(async () => {
+    const text = await page.getByTestId('ai-analysis').innerText();
+    return (
+      text.includes('no disponible') ||
+      text.includes('pendiente') ||
+      text.includes('Pendiente')
+    );
+  }, 'análisis inteligente pendiente o no disponible');
+  await page.getByTestId('copilot-reset').click();
+  await page
+    .getByTestId('copilot-suggestion')
+    .filter({ hasText: '¿Por qué fue marcado?' })
+    .click();
+  await until(async () => {
+    const reply = page.getByTestId('copilot-reply');
+    if ((await reply.count()) === 0) return false;
+    return (await reply.last().innerText()).includes('Sin conexión con la IA.');
+  }, 'aviso de IA no disponible');
+  await page.getByTestId('nav-scan').click();
+  await page.getByTestId('scan-folder').waitFor();
+  await hideNote();
+  await electron.evaluate(() => {
+    delete process.env.CYBERSOC_EVIDENCE_AI;
+  });
+  checks.push(
+    'FakeAIProvider en OFFLINE, indicado en pantalla. El escaneo sigue disponible.',
+  );
+}
+
+async function showMetrics(): Promise<void> {
+  await page.getByTestId('nav-history').click();
+  await page
+    .getByTestId('history-job')
+    .filter({ hasText: 'fixtures' })
+    .first()
+    .click();
+  await page.getByTestId('structure-metrics').waitFor();
+  const metrics = await page.getByTestId('structure-metrics').innerText();
+  assert(metrics.includes('Pico de la pila'));
+  assert(metrics.includes('Pico de la cola'));
+  await capture('13-historial.png', 'job-detail');
+  checks.push('Historial con pico de pila, pico de cola y tiempo bloqueado.');
+}
+
+async function showTrieCard(): Promise<void> {
+  const card = join(
+    findDocumentation(),
+    'sprints',
+    'sprint-03-motor-hibrido-ia-v2',
+    'entrega',
+    'fichas',
+    'trie-zonas.md',
+  );
+  const excerpt = existsSync(card)
+    ? readFileSync(card, 'utf8').slice(0, 700)
+    : 'No está la ficha trie-zonas.md en esta copia.';
+  await showNote(`Paso 12 — Ficha del trie de zonas.\n\n${excerpt}`);
+  await hideNote();
+}
+
+async function showTestsNote(): Promise<void> {
+  await showNote(
+    'Paso 13 — Pruebas y CI.\n\nEl reporte E2E (01-e2e-reporte) y la tabla de evaluación de la IA se abren fuera de esta ventana.\nEl tag v1.0.0 no existe.\nEl CI de main 6d9394d falló por tiempo en una prueba de cuarentena. En local esa prueba pasa.\nNo se muestra un CI en verde que no ocurrió.',
+  );
+  await hideNote();
+  checks.push(
+    'El tramo de pruebas dice que v1.0.0 no existe y que el CI de main falló por tiempo.',
+  );
 }
 
 function writeEvidenceText(file: string): void {
@@ -1080,7 +1481,10 @@ try {
     ],
     { env, windowsHide: true, timeout: 30_000, stdio: 'pipe' },
   );
-  await launch(sprint === '01' || sprint === '04');
+  await launch(sprint === '01' || sprint === '04' || sprint === '06');
+  if (sprint === '06' && !video) {
+    throw new Error('Hace falta recordVideo para 08-video-demo.mp4.');
+  }
   for (const step of steps) {
     console.log(
       `Paso: ${step.accion}${step.archivo ? ` → ${step.archivo}` : ''}`,
@@ -1184,6 +1588,44 @@ try {
       case 'consultar':
         writeEvidenceText(z.string().parse(step.archivo));
         break;
+      case 'arquitectura':
+        await showDiagram();
+        break;
+      case 'escanear_demo':
+        await scanDemo();
+        break;
+      case 'cancelar_corto':
+        await cancelQuickly();
+        break;
+      case 'analizar':
+        await analyzeSelection();
+        break;
+      case 'sugerencia':
+        await clickSuggestion(z.string().parse(step.parametros?.texto));
+        break;
+      case 'chip':
+        await openReferenceChip();
+        break;
+      case 'exportar':
+        await exportReport();
+        break;
+      case 'sin_red':
+        await offlineSegment();
+        break;
+      case 'metricas':
+        await showMetrics();
+        break;
+      case 'ficha':
+        await showTrieCard();
+        break;
+      case 'pruebas':
+        await showTestsNote();
+        break;
+      case 'cierre':
+        await page.getByTestId('nav-scan').click();
+        await page.getByTestId('scan-folder').waitFor();
+        await delay(1_000);
+        break;
     }
   }
   if (sprint === '04') {
@@ -1221,6 +1663,34 @@ try {
       '13-plan-escaneo.png',
     ])
       assert(existsSync(join(destination, file)), `Falta ${file}`);
+  }
+  if (sprint === '06') {
+    const shots = [
+      '01-inicio.png',
+      '02-escaneo-progreso.png',
+      '03-resultados.png',
+      '04-detalle-evidencia.png',
+      '05-como-se-decidio.png',
+      '06-capas-aplicadas.png',
+      '07-analisis-ia.png',
+      '08-que-se-envio.png',
+      '09-copilot.png',
+      '10-reporte.png',
+      '11-plan-escaneo.png',
+      '12-cuarentena.png',
+      '13-historial.png',
+      '14-configuracion.png',
+    ];
+    for (const file of shots) {
+      assert(
+        existsSync(join(destination, '11-capturas-finales', file)),
+        `Falta ${file}`,
+      );
+    }
+    assert(
+      existsSync(join(destination, '08-video-demo.mp4')),
+      'Falta 08-video-demo.mp4',
+    );
   }
 } catch (error) {
   if (page! && !page.isClosed()) {
