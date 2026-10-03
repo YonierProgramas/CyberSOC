@@ -1,0 +1,96 @@
+[
+  { "accion": "capturar", "archivo": "01-inicio.png" },
+  { "accion": "arquitectura" },
+  { "accion": "escanear_demo" },
+  { "accion": "cancelar_corto" },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "result-summary",
+    "parametros": { "texto": "Detectado" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "evidence-panel",
+    "archivo": "04-detalle-evidencia.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "decision-panel",
+    "archivo": "05-como-se-decidio.png"
+  },
+  {
+    "accion": "capturar",
+    "selector": "layers-applied",
+    "archivo": "06-capas-aplicadas.png"
+  },
+  { "accion": "analizar" },
+  {
+    "accion": "sugerencia",
+    "parametros": { "texto": "¿Por qué fue marcado?" }
+  },
+  {
+    "accion": "sugerencia",
+    "parametros": { "texto": "¿Qué capa lo detectó?" }
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-reply",
+    "parametros": { "texto": "¿Qué capas revisaron Descargas?" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "copilot-panel",
+    "archivo": "09-copilot.png"
+  },
+  { "accion": "chip" },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-report",
+    "parametros": { "texto": "Hazme un reporte de los sospechosos de hoy" }
+  },
+  {
+    "accion": "capturar",
+    "selector": "copilot-report",
+    "archivo": "10-reporte.png"
+  },
+  { "accion": "exportar" },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-plan",
+    "parametros": { "texto": "¿Cómo escaneo mi carpeta Descargas?" }
+  },
+  {
+    "accion": "dialogo",
+    "selector": "copilot-plan-dialog",
+    "archivo": "11-plan-escaneo.png",
+    "parametros": { "texto": "PLAN" }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "cuarentena",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "abrir_cuarentena",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  { "accion": "capturar", "archivo": "12-cuarentena.png" },
+  {
+    "accion": "restaurar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  { "accion": "sin_red" },
+  { "accion": "configurar", "archivo": "14-configuracion.png" },
+  { "accion": "metricas" },
+  { "accion": "ficha" },
+  { "accion": "pruebas" },
+  { "accion": "cierre" },
+  { "accion": "guardar_video", "archivo": "08-video-demo.mp4" }
+]
