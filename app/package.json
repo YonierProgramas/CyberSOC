@@ -16,7 +16,8 @@
     "calibrate": "node --experimental-transform-types --import ./tests/ai-eval/register.mjs scripts/calibrate.ts",
     "bench:queue": "node --experimental-strip-types scripts/benchmark-queue.ts",
     "perf:scan": "node --experimental-strip-types scripts/perf-scan.ts",
-    "evidence:capture": "electron-vite build --mode development && node --experimental-strip-types scripts/capture-evidence.ts"
+    "evidence:capture": "electron-vite build --mode development && node --experimental-strip-types scripts/capture-evidence.ts",
+    "test:e2e": "electron-vite build --mode development && playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.129.0",
