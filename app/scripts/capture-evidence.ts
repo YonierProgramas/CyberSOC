@@ -18,7 +18,6 @@ import {
   join,
   relative,
   resolve,
-  sep,
 } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';

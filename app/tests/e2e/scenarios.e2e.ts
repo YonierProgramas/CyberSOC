@@ -145,21 +145,84 @@ test('4. cuarentena y restauración conservan el hash', async () => {
     `SELECT sha256 FROM scan_results WHERE file_name = 'CSD-TEST-001.txt'`,
   );
   expect(stored[0]?.sha256).toBe(before);
-  await session.page.getByTestId('quarantine-file').click();
-  await session.page.getByTestId('quarantine-confirm').click();
-  await expect(session.page.getByTestId('quarantine-dialog')).toHaveCount(0, {
-    timeout: 30_000,
+  // Solo el proceso Electron de esta prueba simula las respuestas del diálogo.
+  // No se añade un bypass al producto: H1 debe pedir permiso incluso en modo evidencia.
+  await session.app.evaluate(({ dialog }) => {
+    const originalDialog = dialog.showMessageBox;
+    const state = {
+      answers: [0, 1, 1, 1],
+      titles: [] as string[],
+      restore: () => {
+        dialog.showMessageBox = originalDialog;
+      },
+    };
+    Object.assign(globalThis, { __t610NativeDialogs: state });
+    dialog.showMessageBox = (async (options: Electron.MessageBoxOptions) => {
+      if (
+        options.defaultId !== 0 ||
+        options.cancelId !== 0 ||
+        options.buttons?.[0] !== 'Cancelar'
+      ) {
+        throw new Error('La decisión nativa no es cancelar por defecto');
+      }
+      state.titles.push(options.title ?? '');
+      const response = state.answers.shift();
+      if (response === undefined) throw new Error('Diálogo nativo inesperado');
+      return { response, checkboxChecked: false };
+    }) as typeof dialog.showMessageBox;
   });
-  await session.page.getByTestId('nav-quarantine').click();
-  const row = session.page
-    .getByTestId('quarantine-row')
-    .filter({ hasText: 'CSD-TEST-001.txt' });
-  await expect(row).toBeVisible();
-  await row.getByTestId('quarantine-restore').click();
-  await session.page.getByTestId('quarantine-restore-confirm').click();
-  await session.page.getByTestId('quarantine-restore-detected-confirm').click();
-  await expect(row).toContainText('Restaurado', { timeout: 30_000 });
-  expect(sha256File(original)).toBe(before);
+  try {
+    // Rechazar en main conserva el original y no crea un ítem en la bóveda.
+    await session.page.getByTestId('quarantine-file').click();
+    await session.page.getByTestId('quarantine-confirm').click();
+    await expect(session.page.getByTestId('quarantine-dialog')).toHaveCount(0);
+    expect(sha256File(original)).toBe(before);
+    expect(query(session.root, 'SELECT id FROM quarantine_items')).toHaveLength(
+      0,
+    );
+    await session.page.getByTestId('quarantine-file').click();
+    await session.page.getByTestId('quarantine-confirm').click();
+    await expect(session.page.getByTestId('quarantine-dialog')).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await session.page.getByTestId('nav-quarantine').click();
+    const row = session.page
+      .getByTestId('quarantine-row')
+      .filter({ hasText: 'CSD-TEST-001.txt' });
+    await expect(row).toBeVisible();
+    await row.getByTestId('quarantine-restore').click();
+    await session.page.getByTestId('quarantine-restore-confirm').click();
+    await session.page
+      .getByTestId('quarantine-restore-detected-confirm')
+      .click();
+    await expect(row).toContainText('Restaurado', { timeout: 30_000 });
+    expect(sha256File(original)).toBe(before);
+    const native = await session.app.evaluate(() => {
+      const state = (
+        globalThis as typeof globalThis & {
+          __t610NativeDialogs: { answers: number[]; titles: string[] };
+        }
+      ).__t610NativeDialogs;
+      return { remaining: state.answers.length, titles: state.titles };
+    });
+    expect(native).toEqual({
+      remaining: 0,
+      titles: [
+        'Poner en cuarentena',
+        'Poner en cuarentena',
+        'Restaurar',
+        'Confirmar restauración de archivo detectado',
+      ],
+    });
+  } finally {
+    await session.app.evaluate(() => {
+      const state = globalThis as typeof globalThis & {
+        __t610NativeDialogs?: { restore: () => void };
+      };
+      state.__t610NativeDialogs?.restore();
+      delete state.__t610NativeDialogs;
+    });
+  }
 });
 
 test('5. el Copilot simulado muestra chips de referencia', async () => {
