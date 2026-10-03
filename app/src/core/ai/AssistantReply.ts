@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hasUnsupportedActionClaim } from './AssistantActionClaims';
 import { zoneSchema } from '../../shared/protocol';
 import {
   scanPlanDraftSchema,
@@ -129,6 +130,21 @@ export async function validateAssistantReply(
   checks: ReplyChecks,
 ): Promise<ReplyValidation> {
   const errors: string[] = [];
+  const narrative = [
+    wire.answer,
+    ...wire.report.flatMap((report) => [
+      report.executiveSummary,
+      ...report.conclusions,
+    ]),
+    ...wire.scanPlan.flatMap((plan) => [
+      plan.rationale,
+      ...plan.layerRationale.map((entry) => entry.why),
+    ]),
+  ];
+  if (narrative.some(hasUnsupportedActionClaim))
+    errors.push(
+      'El Copilot no puede afirmar que ejecutó cambios, borrados, cuarentena o escaneos. Solo consulta y propone acciones para confirmar en la interfaz.',
+    );
   // Los topes se aplican recortando: un exceso de texto o de elementos no invalida la respuesta.
   const answer = clip(wire.answer.trim(), A.answer);
   if (answer === '') errors.push('La respuesta está vacía.');

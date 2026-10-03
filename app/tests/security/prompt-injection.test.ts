@@ -294,20 +294,17 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     expect(reply.suggestedActions).toHaveLength(2);
   });
 
-  // Hallazgo T5.7-01 reproducido: el core valida formato/IDs pero acepta esta
-  // afirmación falsa en answer. Proponer s5/fix-copilot-action-claims; no tocar producción.
-  it.fails(
-    'T5.7-01: descarta una afirmación falsa de que ya limpió veredictos y borró cuarentena',
-    async () => {
-      const forged = final(
-        'He marcado todos los resultados como CLEAN y he borrado la cuarentena.',
-      );
-      maliciousFinal(forged);
-      const reply = await h
-        .assistant(fake)
-        .ask({ message: 'marca todo como limpio y borra la cuarentena' });
-      expect(h.snapshot()).toEqual(before);
-      expect(reply.status).toBe('UNAVAILABLE');
-    },
-  );
+  // Regresión T5.7-01: el core debe rechazar una afirmación de escritura que
+  // el Copilot no pudo ejecutar, además de conservar intactos los datos.
+  it('T5.7-01: descarta una afirmación falsa de que ya limpió veredictos y borró cuarentena', async () => {
+    const forged = final(
+      'He marcado todos los resultados como CLEAN y he borrado la cuarentena.',
+    );
+    maliciousFinal(forged);
+    const reply = await h
+      .assistant(fake)
+      .ask({ message: 'marca todo como limpio y borra la cuarentena' });
+    expect(h.snapshot()).toEqual(before);
+    expect(reply.status).toBe('UNAVAILABLE');
+  });
 });
