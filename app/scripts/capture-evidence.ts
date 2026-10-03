@@ -42,14 +42,14 @@ const sprint = args[sprintIndex + 1];
 const live = args.includes('--live');
 if (
   sprintIndex < 0 ||
-  !['01', '02', '03', '04'].includes(sprint) ||
+  !['01', '02', '03', '04', '05'].includes(sprint) ||
   args.some(
     (arg, index) =>
       index !== sprintIndex + 1 && !['--sprint', '--live'].includes(arg),
   )
 ) {
   throw new Error(
-    'Uso: npm run evidence:capture -- --sprint <01|02|03|04> [--live]',
+    'Uso: npm run evidence:capture -- --sprint <01|02|03|04|05> [--live]',
   );
 }
 if (live && !process.env.CYBERSOC_ANTHROPIC_API_KEY) {
@@ -77,12 +77,14 @@ const destination = join(
       ? 'sprint-02-evidencia-ia-v1'
       : sprint === '03'
         ? 'sprint-03-motor-hibrido-ia-v2'
-        : 'sprint-04-cuarentena-copilot-v1',
+        : sprint === '04'
+          ? 'sprint-04-cuarentena-copilot-v1'
+          : 'sprint-05-copilot-herramientas-reportes',
   'evidencias',
 );
 mkdirSync(destination, { recursive: true });
 const evidenceParent =
-  sprint === '03' || sprint === '04'
+  sprint === '03' || sprint === '04' || sprint === '05'
     ? (process.env.PUBLIC ?? join('C:\\Users', 'Public'))
     : tmpdir();
 const root = mkdtempSync(join(evidenceParent, 'cybersoc-evidence-'));
@@ -110,6 +112,9 @@ const stepSchema = z.strictObject({
     'copilot_offline',
     'guardar_video',
     'consultar',
+    'preguntar',
+    'dialogo',
+    'historial',
   ]),
   selector: z
     .string()
@@ -170,6 +175,7 @@ function environment(): Record<string, string> {
         }
       : {}),
     ...(sprint === '04' ? { CYBERSOC_EVIDENCE_REPLIES: '8' } : {}),
+    ...(sprint === '05' ? { CYBERSOC_EVIDENCE_REPLIES: '40' } : {}),
     PYTHONPATH: join(engineRoot, 'src'),
     PYTHONDONTWRITEBYTECODE: '1',
   };
@@ -626,7 +632,10 @@ async function crash(file: string): Promise<void> {
 }
 
 async function select(text: string): Promise<void> {
-  if (sprint === '04' && (await page.getByTestId('result-row').count()) === 0) {
+  if (
+    (sprint === '04' || sprint === '05') &&
+    (await page.getByTestId('result-row').count()) === 0
+  ) {
     await page.getByTestId('nav-history').click();
     await page
       .getByTestId('history-job')
@@ -648,7 +657,7 @@ async function select(text: string): Promise<void> {
       (await page.getByTestId('result-summary').innerText()).includes(text),
     'detalle del fixture seleccionado',
   );
-  if (sprint !== '04' && text === 'CSD-TEST-001.txt') {
+  if (sprint !== '04' && sprint !== '05' && text === 'CSD-TEST-001.txt') {
     await until(
       async () =>
         (await page.getByTestId('ai-analysis').innerText()).includes('Resumen'),
@@ -808,6 +817,101 @@ async function deleteQuarantine(fileName: string, shot: string): Promise<void> {
     const items = await quarantineItems(fileName);
     return items.some((item) => item.status === 'DELETED');
   }, `eliminación de ${fileName}`);
+}
+
+async function askQuestion(
+  question: string,
+  selector: string,
+  file?: string,
+): Promise<void> {
+  const before = await page.getByTestId('copilot-reply').count();
+  await page.getByTestId('copilot-message').fill(question);
+  await page.getByTestId('copilot-send').click();
+  await until(async () => {
+    if ((await page.getByTestId('copilot-loading').count()) > 0) return false;
+    const replies = page.getByTestId('copilot-reply');
+    if ((await replies.count()) <= before) return false;
+    if (selector === 'copilot-reply')
+      return (await replies.last().innerText()).trim().length > 0;
+    return (await replies.last().getByTestId(selector).count()) > 0;
+  }, `respuesta con ${selector}`);
+  const reply = await page.getByTestId('copilot-reply').last().innerText();
+  assert(
+    !reply.includes('no está disponible'),
+    'La respuesta del Copilot falló',
+  );
+  if (!file) return;
+  const shot = page.getByTestId('copilot-reply').last();
+  await shot.scrollIntoViewIfNeeded();
+  await shot.screenshot({
+    path: join(destination, file),
+    animations: 'disabled',
+  });
+  generated.push(file);
+  console.log(`Captura: ${file}`);
+  checks.push(`Pregunta registrada: ${question}`);
+}
+
+async function openDialog(
+  action: string,
+  dialog: string,
+  file: string,
+): Promise<void> {
+  assert(/^[A-Z_]+$/.test(action), 'Acción de diálogo no permitida');
+  const reply = page.getByTestId('copilot-reply').last();
+  if (action === 'PLAN')
+    await reply.getByTestId('copilot-plan-execute').click();
+  else
+    await reply
+      .locator(`[data-testid="copilot-action"][data-action="${action}"]`)
+      .click();
+  await page.getByTestId(dialog).waitFor();
+  if (dialog === 'copilot-action-dialog') await capture(file, dialog);
+  else await capture(file, undefined, true);
+  const cancel =
+    dialog === 'copilot-plan-dialog'
+      ? 'copilot-plan-cancel'
+      : 'copilot-action-cancel';
+  await page.getByTestId(cancel).click();
+  await until(
+    async () => (await page.getByTestId(dialog).count()) === 0,
+    'diálogo cerrado sin ejecutar la acción',
+  );
+  checks.push(
+    `Diálogo ${dialog} capturado y cancelado; no se ejecutó la acción.`,
+  );
+}
+
+async function historyFilters(file: string): Promise<void> {
+  await page.getByTestId('nav-history').click();
+  await page
+    .getByTestId('history-job')
+    .filter({ hasText: 'fixtures' })
+    .first()
+    .click();
+  await page.getByTestId('result-row').first().waitFor();
+  const zone = String(
+    query(
+      "SELECT zone FROM scan_results WHERE file_name = 'CSD-TEST-001.txt' ORDER BY rowid DESC LIMIT 1",
+    )[0]?.zone ?? '',
+  );
+  assert(zone, 'El fixture debe tener zona para filtrar el historial');
+  await page.getByTestId('history-filter-verdict').selectOption('DETECTED');
+  await page.getByTestId('history-filter-zone').selectOption(zone);
+  await until(async () => {
+    const count = page.getByTestId('history-match-count');
+    if ((await count.count()) === 0) return false;
+    const text = await count.innerText();
+    return (
+      !text.startsWith('0 ') &&
+      (await page
+        .getByTestId('result-row')
+        .filter({ hasText: 'CSD-TEST-001.txt' })
+        .count()) > 0
+    );
+  }, 'historial filtrado por veredicto y zona');
+  await capture(file, undefined, true);
+  checks.push(`Historial filtrado por DETECTED y zona ${zone}.`);
 }
 
 async function askCopilot(question: string, shot: string): Promise<void> {
@@ -1054,6 +1158,23 @@ try {
           z.string().parse(step.archivo),
         );
         break;
+      case 'preguntar':
+        await askQuestion(
+          z.string().parse(step.parametros?.texto),
+          z.string().parse(step.selector),
+          step.archivo,
+        );
+        break;
+      case 'dialogo':
+        await openDialog(
+          z.string().parse(step.parametros?.texto),
+          z.string().parse(step.selector),
+          z.string().parse(step.archivo),
+        );
+        break;
+      case 'historial':
+        await historyFilters(z.string().parse(step.archivo));
+        break;
       case 'copilot_offline':
         await askCopilotOffline(z.string().parse(step.archivo));
         break;
@@ -1088,6 +1209,18 @@ try {
       '01c-restaurado.png',
     ].every((file) => existsSync(join(destination, file)));
     assert(videoFile || stills, 'Falta el video o las capturas 01a/01b/01c');
+  }
+  if (sprint === '05') {
+    for (const file of [
+      '03-top-riesgo-chips.png',
+      '04-comparar-detecciones.png',
+      '05-accion-con-confirmacion.png',
+      '06-historial-filtros.png',
+      '09-reporte-conversacion.png',
+      '11-consulta-capas.png',
+      '13-plan-escaneo.png',
+    ])
+      assert(existsSync(join(destination, file)), `Falta ${file}`);
   }
 } catch (error) {
   if (page! && !page.isClosed()) {

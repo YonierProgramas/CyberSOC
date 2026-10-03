@@ -31,6 +31,7 @@ import type {
   AIErrorKind,
   AIProvider,
   AIResult,
+  AssistantMessage,
   AssistantStep,
   AssistantTurnRequest,
   StructuredRequest,
@@ -415,9 +416,9 @@ class EvidenceAIProvider extends FakeAIProvider {
   }
 
   /**
-   * Texto fijo a partir del foco real. OFFLINE simula que Claude no responde. Con la
-   * respuesta estructurada del Copilot v2 (T5.5), la entrega sin referencias ni acciones,
-   * igual que la API: validada contra `request.output`. No llama herramientas.
+   * Solo en modo evidencia. OFFLINE simula que Claude no responde. Las preguntas del
+   * guion S5 piden la herramienta que corresponde y arman la respuesta con sus IDs reales.
+   * El resto sigue siendo texto del foco, sin herramientas.
    */
   override async runAssistantTurn<T = string>(
     request: AssistantTurnRequest<T>,
@@ -432,34 +433,431 @@ class EvidenceAIProvider extends FakeAIProvider {
         },
       };
     }
-    const last = [...request.messages]
-      .reverse()
-      .find(
-        (message) =>
-          message.role === 'user' && typeof message.content === 'string',
-      )?.content;
-    const json = (typeof last === 'string' ? last : '').match(
-      /<contexto>\n([\s\S]*?)\n<\/contexto>/,
-    )?.[1];
-    const text = evidenceAssistantText(json);
-    const value = request.output
-      ? request.output.parse({
-          answer: text,
-          references: [],
-          suggestedActions: [],
-          report: [],
-          scanPlan: [],
-        })
-      : (text as T);
-    return {
-      ok: true,
-      value: { kind: 'FINAL', value, text },
-      model: this.model,
-      usage: { inputTokens: 0, outputTokens: 0 },
-      latencyMs: 0,
-      rawText: text,
-    };
+    const scripted = evidenceCopilotDecision(request.messages);
+    if (scripted?.kind === 'tools' && request.toolChoice !== 'none') {
+      const id = `toolu_evidence_${evidenceToolPayloads(request.messages).length + 1}`;
+      const call = { id, name: scripted.name, input: scripted.input };
+      return {
+        ok: true,
+        value: {
+          kind: 'TOOL_CALLS',
+          calls: [call],
+          content: [{ type: 'tool_use', ...call }],
+        },
+        model: this.model,
+        usage: { inputTokens: 0, outputTokens: 0 },
+        latencyMs: 0,
+        rawText: '',
+      };
+    }
+    const wire =
+      scripted?.kind === 'final'
+        ? scripted.wire
+        : evidencePlainWire(request.messages);
+    const text = JSON.stringify(wire);
+    try {
+      const value = request.output ? request.output.parse(wire) : (text as T);
+      return {
+        ok: true,
+        value: { kind: 'FINAL', value, text },
+        model: this.model,
+        usage: { inputTokens: 0, outputTokens: 0 },
+        latencyMs: 0,
+        rawText: text,
+      };
+    } catch {
+      return {
+        ok: false,
+        error: {
+          kind: 'INVALID_OUTPUT',
+          retryable: true,
+          message: 'El guion de evidencia no cumplió el esquema.',
+        },
+      };
+    }
   }
+}
+
+interface EvidenceTool {
+  name: string;
+  ok: boolean;
+  data: unknown;
+}
+
+type EvidenceDecision =
+  | { kind: 'tools'; name: string; input: Record<string, unknown> }
+  | { kind: 'final'; wire: Record<string, unknown> };
+
+function evidencePlainWire(
+  messages: readonly AssistantMessage[],
+): Record<string, unknown> {
+  const last = [...messages]
+    .reverse()
+    .find(
+      (message) =>
+        message.role === 'user' && typeof message.content === 'string',
+    )?.content;
+  const json = (typeof last === 'string' ? last : '').match(
+    /<contexto>\n([\s\S]*?)\n<\/contexto>/,
+  )?.[1];
+  return {
+    answer: evidenceAssistantText(json),
+    references: [],
+    suggestedActions: [],
+    report: [],
+    scanPlan: [],
+  };
+}
+
+function evidenceCopilotDecision(
+  messages: readonly AssistantMessage[],
+): EvidenceDecision | null {
+  const question = evidenceQuestion(messages)
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase();
+  const focus = evidenceFocus(messages);
+  const tools = evidenceToolPayloads(messages);
+  if (question.includes('mayor riesgo')) return evidenceTop(focus, tools);
+  if (question.includes('diferencia') || question.includes('compara'))
+    return evidenceCompare(focus, tools);
+  if (question.includes('reporte')) return evidenceReport(focus, tools);
+  if (question.includes('capa')) return evidenceLayers(focus, tools);
+  if (
+    question.includes('escaneo') ||
+    question.includes('como la escaneo') ||
+    question.includes('usb')
+  )
+    return evidencePlan(tools);
+  return null;
+}
+
+function evidenceTop(
+  focus: { jobId: string | null },
+  tools: readonly EvidenceTool[],
+): EvidenceDecision {
+  const done = tools.find(
+    (tool) => tool.name === 'get_top_risk_results' && tool.ok,
+  );
+  if (!done)
+    return {
+      kind: 'tools',
+      name: 'get_top_risk_results',
+      input: { jobId: focus.jobId, k: 10 },
+    };
+  const rows = arrayField(done.data, 'rows');
+  const detected = rows.find((row) => {
+    const verdict = textField(row, 'verdict');
+    return verdict === 'DETECTED' || verdict === 'SUSPICIOUS';
+  });
+  const detectedId = detected ? textField(detected, 'id') : '';
+  const jobId = textField(isRecord(done.data) ? done.data : {}, 'jobId');
+  const listed = rows
+    .map(
+      (row) =>
+        `${textField(row, 'fileName')} (${textField(row, 'engineScore')}, ${textField(row, 'verdict')})`,
+    )
+    .join('; ');
+  return {
+    kind: 'final',
+    wire: {
+      answer: listed
+        ? `Estos son los archivos con mayor riesgo según el motor: ${listed}.`
+        : 'El motor no tiene archivos con puntuación en este escaneo.',
+      references: [
+        ...rows.slice(0, 10).flatMap((row) => {
+          const id = textField(row, 'id');
+          return id ? [{ type: 'result', id }] : [];
+        }),
+        ...(jobId ? [{ type: 'job', id: jobId }] : []),
+      ],
+      suggestedActions: detectedId
+        ? [{ action: 'QUARANTINE', targetId: detectedId }]
+        : [],
+      report: [],
+      scanPlan: [],
+    },
+  };
+}
+
+function evidenceCompare(
+  focus: { jobId: string | null },
+  tools: readonly EvidenceTool[],
+): EvidenceDecision {
+  const top = tools.find(
+    (tool) => tool.name === 'get_top_risk_results' && tool.ok,
+  );
+  if (!top)
+    return {
+      kind: 'tools',
+      name: 'get_top_risk_results',
+      input: { jobId: focus.jobId, k: 10 },
+    };
+  const ids = arrayField(top.data, 'rows')
+    .map((row) => textField(row, 'id'))
+    .filter((id) => id !== '');
+  const first = ids[0];
+  const second = ids[1];
+  const compared = tools.find(
+    (tool) => tool.name === 'compare_results' && tool.ok,
+  );
+  if (!compared && first && second)
+    return {
+      kind: 'tools',
+      name: 'compare_results',
+      input: { resultIdA: first, resultIdB: second },
+    };
+  const data = isRecord(compared?.data) ? compared.data : {};
+  const left = isRecord(data.a) ? data.a : {};
+  const right = isRecord(data.b) ? data.b : {};
+  return {
+    kind: 'final',
+    wire: {
+      answer: compared
+        ? `Comparación con compare_results. ${textField(left, 'fileName')} quedó ${textField(left, 'verdict')} con ${textField(left, 'engineScore')} puntos. ${textField(right, 'fileName')} quedó ${textField(right, 'verdict')} con ${textField(right, 'engineScore')} puntos. Mismo veredicto: ${data.sameVerdict === true ? 'sí' : 'no'}. Diferencia de puntuación: ${textField(data, 'scoreDelta')}.`
+        : 'No hay dos detecciones con puntuación para comparar.',
+      references: ids.slice(0, 2).map((id) => ({ type: 'result', id })),
+      suggestedActions: [],
+      report: [],
+      scanPlan: [],
+    },
+  };
+}
+
+function evidenceReport(
+  focus: { jobId: string | null },
+  tools: readonly EvidenceTool[],
+): EvidenceDecision {
+  const built = tools.find((tool) => tool.name === 'build_report' && tool.ok);
+  if (!built)
+    return {
+      kind: 'tools',
+      name: 'build_report',
+      input: {
+        jobId: focus.jobId,
+        zone: null,
+        verdicts: ['DETECTED', 'SUSPICIOUS'],
+        from: null,
+        to: null,
+      },
+    };
+  const data = isRecord(built.data) ? built.data : {};
+  const cited = arrayField(data, 'results')
+    .map((row) => textField(row, 'id'))
+    .filter((id) => id !== '')
+    .slice(0, 5);
+  const draftId = textField(data, 'reportDraftId');
+  return {
+    kind: 'final',
+    wire: {
+      answer: `El Core calculó ${textField(data, 'total')} resultados detectados o sospechosos. Este resumen no cambia esas cifras.`,
+      references: cited.map((id) => ({ type: 'result', id })),
+      suggestedActions: draftId
+        ? [{ action: 'EXPORT_REPORT', targetId: draftId }]
+        : [],
+      report: draftId
+        ? [
+            {
+              reportDraftId: draftId,
+              executiveSummary:
+                'Resumen de demostración: las cifras salen de SQLite y esta redacción solo las acompaña.',
+              conclusions: [
+                'Conviene revisar cada archivo citado antes de tomar una acción.',
+              ],
+              citedResultIds: cited,
+            },
+          ]
+        : [],
+      scanPlan: [],
+    },
+  };
+}
+
+function evidenceLayers(
+  focus: { resultId: string | null },
+  tools: readonly EvidenceTool[],
+): EvidenceDecision {
+  if (!focus.resultId)
+    return {
+      kind: 'final',
+      wire: {
+        answer: 'Selecciona un archivo para consultar qué capa lo revisó.',
+        references: [],
+        suggestedActions: [],
+        report: [],
+        scanPlan: [],
+      },
+    };
+  const report = tools.find(
+    (tool) => tool.name === 'get_layer_report' && tool.ok,
+  );
+  if (!report)
+    return {
+      kind: 'tools',
+      name: 'get_layer_report',
+      input: { resultId: focus.resultId, jobId: null, zone: null },
+    };
+  const layers = arrayField(report.data, 'rows')
+    .map((row) => `${textField(row, 'layer')} en ${textField(row, 'status')}`)
+    .join(', ');
+  return {
+    kind: 'final',
+    wire: {
+      answer: layers
+        ? `Según get_layer_report, estas capas revisaron el archivo: ${layers}.`
+        : 'get_layer_report no devolvió capas para este archivo.',
+      references: [{ type: 'result', id: focus.resultId }],
+      suggestedActions: [],
+      report: [],
+      scanPlan: [],
+    },
+  };
+}
+
+function evidencePlan(tools: readonly EvidenceTool[]): EvidenceDecision {
+  const zones = tools.find((tool) => tool.name === 'list_zones' && tool.ok);
+  if (!zones) return { kind: 'tools', name: 'list_zones', input: {} };
+  const rows = arrayField(zones.data, 'rows').filter(
+    (row) => stringList(row, 'paths').length > 0,
+  );
+  const target =
+    rows.find((row) => textField(row, 'zoneId') === 'EXTRAIBLE') ??
+    rows.find((row) => textField(row, 'zoneId') === 'DESCARGAS') ??
+    rows[0];
+  if (!target)
+    return {
+      kind: 'final',
+      wire: {
+        answer: 'list_zones no devolvió una carpeta que se pueda escanear.',
+        references: [],
+        suggestedActions: [],
+        report: [],
+        scanPlan: [],
+      },
+    };
+  const zoneId = textField(target, 'zoneId');
+  const driveId = textField(target, 'driveId');
+  const layers = [
+    'HASH',
+    'SIGNATURES',
+    'FILETYPE',
+    'RULES',
+    'HEURISTICS',
+    'PE',
+    'SCRIPTS',
+  ];
+  return {
+    kind: 'final',
+    wire: {
+      answer: driveId
+        ? `Plan para la unidad ${driveId}. El escaneo no empieza hasta que confirmes Ejecutar plan.`
+        : `No hay una unidad extraíble conectada. El plan usa la zona ${zoneId}, que sí devolvió list_zones. El escaneo no empieza hasta que confirmes.`,
+      references: [{ type: 'zone', id: zoneId }],
+      suggestedActions: [{ action: 'RUN_SCAN_PLAN', targetId: '' }],
+      report: [],
+      scanPlan: [
+        {
+          schema: 'cybersoc.scan-plan/v1',
+          targets: [{ zoneId, driveId }],
+          layers,
+          includeHidden: true,
+          maxFileSizeMB: 512,
+          rationale:
+            'Esta zona puede traer ejecutables y accesos directos. El escaneo solo empieza si la persona lo confirma.',
+          layerRationale: layers.map((layer) => ({
+            layer,
+            why: `La capa ${layer} revisa esa parte del archivo.`,
+          })),
+        },
+      ],
+    },
+  };
+}
+
+function evidenceQuestion(messages: readonly AssistantMessage[]): string {
+  const marker = 'Pregunta del usuario:\n';
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const content = messages[index]?.content;
+    if (typeof content !== 'string') continue;
+    const at = content.lastIndexOf(marker);
+    if (at >= 0) return content.slice(at + marker.length).trim();
+  }
+  return '';
+}
+
+function evidenceFocus(messages: readonly AssistantMessage[]): {
+  resultId: string | null;
+  jobId: string | null;
+} {
+  const empty = { resultId: null, jobId: null };
+  const text = [...messages]
+    .reverse()
+    .find((message) => typeof message.content === 'string')?.content;
+  if (typeof text !== 'string') return empty;
+  const json = text.match(/<contexto>\n([\s\S]*?)\n<\/contexto>/)?.[1];
+  try {
+    const focus = JSON.parse(json ?? '') as {
+      kind?: string;
+      result?: { file?: { resultId?: string } };
+      job?: { job?: { jobId?: string } };
+    };
+    return {
+      resultId: focus.result?.file?.resultId ?? null,
+      jobId: focus.job?.job?.jobId ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+function evidenceToolPayloads(
+  messages: readonly AssistantMessage[],
+): EvidenceTool[] {
+  const names = new Map<string, string>();
+  const found: EvidenceTool[] = [];
+  for (const message of messages) {
+    if (typeof message.content === 'string') continue;
+    for (const block of message.content) {
+      if (block.type === 'tool_use') names.set(block.id, block.name);
+      if (block.type !== 'tool_result') continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(block.content);
+      } catch {
+        continue;
+      }
+      const record = isRecord(parsed) ? parsed : {};
+      found.push({
+        name: names.get(block.tool_use_id) ?? '',
+        ok: record.ok === true,
+        data: record.data,
+      });
+    }
+  }
+  return found;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function arrayField(data: unknown, key: string): Record<string, unknown>[] {
+  if (!isRecord(data) || !Array.isArray(data[key])) return [];
+  return data[key].filter(isRecord);
+}
+
+function stringList(row: Record<string, unknown>, key: string): string[] {
+  const value = row[key];
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : [];
+}
+
+function textField(row: Record<string, unknown>, key: string): string {
+  const value = row[key];
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  return '';
 }
 
 function evidenceAssistantText(json: string | undefined): string {

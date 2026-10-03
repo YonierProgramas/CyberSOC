@@ -1,0 +1,68 @@
+[
+  {
+    "accion": "escanear",
+    "parametros": { "ruta": "fixtures", "tipo": "FOLDER" }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "esperar",
+    "selector": "result-summary",
+    "parametros": { "texto": "Detectado" }
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-reference",
+    "archivo": "03-top-riesgo-chips.png",
+    "parametros": { "texto": "Muéstrame los archivos con mayor riesgo" }
+  },
+  {
+    "accion": "dialogo",
+    "selector": "copilot-action-dialog",
+    "archivo": "05-accion-con-confirmacion.png",
+    "parametros": { "texto": "QUARANTINE" }
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-reply",
+    "archivo": "04-comparar-detecciones.png",
+    "parametros": {
+      "texto": "¿Qué diferencias existen entre estas dos detecciones?"
+    }
+  },
+  {
+    "accion": "historial",
+    "archivo": "06-historial-filtros.png"
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-report",
+    "archivo": "09-reporte-conversacion.png",
+    "parametros": {
+      "texto": "Hazme un reporte de los detectados y sospechosos de este escaneo"
+    }
+  },
+  {
+    "accion": "seleccionar",
+    "parametros": { "texto": "CSD-TEST-001.txt" }
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-reply",
+    "archivo": "11-consulta-capas.png",
+    "parametros": { "texto": "¿Qué capa detectó este archivo?" }
+  },
+  {
+    "accion": "preguntar",
+    "selector": "copilot-plan",
+    "parametros": { "texto": "Voy a revisar mi USB, ¿cómo la escaneo?" }
+  },
+  {
+    "accion": "dialogo",
+    "selector": "copilot-plan-dialog",
+    "archivo": "13-plan-escaneo.png",
+    "parametros": { "texto": "PLAN" }
+  }
+]

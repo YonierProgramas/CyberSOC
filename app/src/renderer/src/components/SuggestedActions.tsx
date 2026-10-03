@@ -153,7 +153,12 @@ export function SuggestedActions({
           {needsTarget && <p>Esta acción no trae un destino.</p>}
           {dialogMessage && <p role="alert">{dialogMessage}</p>}
           <div className="actions">
-            <button type="button" onClick={close} disabled={busy}>
+            <button
+              type="button"
+              data-testid="copilot-action-cancel"
+              onClick={close}
+              disabled={busy}
+            >
               Cancelar
             </button>
             {pending.action === 'EXPORT_REPORT' ? (

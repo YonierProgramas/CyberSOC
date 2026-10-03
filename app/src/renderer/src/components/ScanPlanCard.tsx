@@ -120,7 +120,12 @@ export function ScanPlanCard({
           <p>Capas: {plan.profile.layers.join(', ')}</p>
           {message && <p role="alert">{message}</p>}
           <div className="actions">
-            <button type="button" onClick={onClose} disabled={busy}>
+            <button
+              type="button"
+              data-testid="copilot-plan-cancel"
+              onClick={onClose}
+              disabled={busy}
+            >
               Cancelar
             </button>
             <button
