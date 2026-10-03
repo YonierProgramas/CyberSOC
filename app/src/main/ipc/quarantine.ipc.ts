@@ -1,6 +1,11 @@
 import { z } from 'zod';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import {
+  dialog,
+  ipcMain,
+  type BrowserWindow,
+  type IpcMainInvokeEvent,
+} from 'electron';
 import type { Database } from '../../core/persistence/Database';
 import { ScanResultRepository } from '../../core/persistence/ScanResultRepository';
 import {
@@ -24,28 +29,57 @@ import {
 } from '../../shared/ipc';
 import { requireTrustedSender, trustedWindow } from './scan-validation';
 
-/** La UI confirma antes de invocar. Solo la petición IPC validada habilita su acción.
+/** El contexto IPC habilita pedir permiso; nunca equivale a consentimiento humano.
  * AsyncLocalStorage mantiene aisladas las confirmaciones de operaciones concurrentes.
  * Fuera de ese contexto el gestor sigue rechazando cualquier disparo automático.
+ * Cada paso (incluido RESTORE_DETECTED) requiere su propio diálogo nativo en main.
  */
 export class QuarantineUIConfirmation {
   private readonly context = new AsyncLocalStorage<{
     action: 'QUARANTINE' | 'RESTORE' | 'DELETE';
     active: boolean;
+    validate: () => void;
   }>();
   readonly confirm = async (request: Confirmation): Promise<boolean> => {
     const context = this.context.getStore();
-    return (
-      context?.active === true &&
-      (request.action === context.action ||
-        (context.action === 'RESTORE' && request.action === 'RESTORE_DETECTED'))
-    );
+    if (
+      context?.active !== true ||
+      !(
+        request.action === context.action ||
+        (context.action === 'RESTORE' && request.action === 'RESTORE_DETECTED')
+      )
+    )
+      return false;
+    context.validate();
+    const labels = {
+      QUARANTINE: 'Poner en cuarentena',
+      RESTORE: 'Restaurar',
+      RESTORE_DETECTED: 'Confirmar restauración de archivo detectado',
+      DELETE: 'Eliminar definitivamente el archivo de la bóveda',
+    };
+    const answer = await dialog.showMessageBox({
+      type: 'warning',
+      title: labels[request.action],
+      message: labels[request.action],
+      detail:
+        `Ruta: ${JSON.stringify(request.path)}\nVeredicto: ${request.verdict}.` +
+        (request.trustHash ? '\nTambién confiarás en este SHA-256.' : ''),
+      buttons: ['Cancelar', labels[request.action]],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    });
+    // El renderer puede cerrarse o navegar mientras espera la decisión humana.
+    if (!context.active) return false;
+    context.validate();
+    return answer.response === 1;
   };
   async run<T>(
     action: 'QUARANTINE' | 'RESTORE' | 'DELETE',
     operation: () => Promise<T>,
+    validate: () => void = () => {},
   ): Promise<T> {
-    const context = { action, active: true };
+    const context = { action, active: true, validate };
     return this.context.run(context, async () => {
       try {
         return await operation();
@@ -131,8 +165,10 @@ export function registerQuarantineIpc(
           if (!results.get(resultId))
             throw new QuarantineError('NOT_FOUND', '');
           change = { resultId, itemId: null };
-          const item = await confirmation.run('QUARANTINE', () =>
-            manager.quarantine(resultId),
+          const item = await confirmation.run(
+            'QUARANTINE',
+            () => manager.quarantine(resultId),
+            () => validate(event),
           );
           change.itemId = item.id;
           validate(event);
@@ -146,13 +182,19 @@ export function registerQuarantineIpc(
         if (!item) throw new QuarantineError('NOT_FOUND', '');
         change = { itemId, resultId: item.resultId };
         if (options) {
-          const restored = await confirmation.run('RESTORE', () =>
-            manager.restore(itemId, options),
+          const restored = await confirmation.run(
+            'RESTORE',
+            () => manager.restore(itemId, options),
+            () => validate(event),
           );
           validate(event);
           return dto(restored);
         }
-        await confirmation.run('DELETE', () => manager.delete(itemId));
+        await confirmation.run(
+          'DELETE',
+          () => manager.delete(itemId),
+          () => validate(event),
+        );
         validate(event);
         return undefined;
       } catch (error) {

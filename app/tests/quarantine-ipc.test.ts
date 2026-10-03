@@ -26,8 +26,9 @@ import { createQuarantineSchemas } from '../src/shared/ipc';
 const electron = vi.hoisted(() => ({
   handle: vi.fn(),
   removeHandler: vi.fn(),
+  showMessageBox: vi.fn(),
 }));
-vi.mock('electron', () => ({ ipcMain: electron }));
+vi.mock('electron', () => ({ ipcMain: electron, dialog: electron }));
 const url = 'file:///app/index.html';
 const frame = { url };
 const webContents = {
@@ -91,6 +92,7 @@ function call(
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  electron.showMessageBox.mockReset().mockResolvedValue({ response: 1 });
   frame.url = url;
   webContents.isDestroyed.mockReturnValue(false);
   db = new Database(':memory:');
@@ -407,3 +409,187 @@ it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimin
     await rm(root, { recursive: true, force: true });
   }
 }, 20_000);
+
+it.each(['QUARANTINE', 'RESTORE', 'DELETE'] as const)(
+  'H1: un contexto IPC válido no sustituye el permiso nativo para %s',
+  async (action) => {
+    electron.showMessageBox.mockResolvedValue({ response: 0 });
+    expect(
+      await gate.run(action, () =>
+        gate.confirm({
+          action,
+          path: record.originalPath,
+          verdict: 'DETECTED',
+        }),
+      ),
+    ).toBe(false);
+    expect(electron.showMessageBox).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        defaultId: 0,
+        cancelId: 0,
+        buttons: expect.arrayContaining(['Cancelar']),
+      }),
+    );
+  },
+);
+
+it('H1: restaurar DETECTED requiere dos decisiones nativas independientes', async () => {
+  electron.showMessageBox
+    .mockResolvedValueOnce({ response: 1 })
+    .mockResolvedValueOnce({ response: 0 });
+  const responses = await gate.run('RESTORE', async () => [
+    await gate.confirm({
+      action: 'RESTORE',
+      path: record.originalPath,
+      verdict: 'DETECTED',
+      trustHash: true,
+    }),
+    await gate.confirm({
+      action: 'RESTORE_DETECTED',
+      path: record.originalPath,
+      verdict: 'DETECTED',
+      trustHash: true,
+    }),
+  ]);
+  expect(responses).toEqual([true, false]);
+  expect(electron.showMessageBox).toHaveBeenCalledTimes(2);
+  expect(electron.showMessageBox.mock.calls[1]![0]).toMatchObject({
+    title: expect.stringContaining('detectado'),
+    detail: expect.stringContaining('SHA-256'),
+  });
+});
+
+it('H1: fallo del diálogo nunca autoriza la operación', async () => {
+  electron.showMessageBox.mockRejectedValueOnce(
+    new Error('native dialog unavailable'),
+  );
+  await expect(
+    gate.run('DELETE', () =>
+      gate.confirm({
+        action: 'DELETE',
+        path: record.originalPath,
+        verdict: 'DETECTED',
+      }),
+    ),
+  ).rejects.toThrow();
+});
+
+it.each(['navigate', 'close', 'dispose'] as const)(
+  'H1: revoca la petición durante el diálogo nativo al ocurrir %s',
+  async (reason) => {
+    let answer!: (response: { response: number }) => void;
+    electron.showMessageBox.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const effect = vi.fn();
+    service.quarantine.mockImplementationOnce(async () => {
+      const approved = await gate.confirm({
+        action: 'QUARANTINE',
+        path: record.originalPath,
+        verdict: 'DETECTED',
+      });
+      if (!approved) throw new QuarantineError('CANCELLED', '');
+      effect();
+      return record;
+    });
+    const pending = call('quarantine', ['r1']);
+    // Instalar el observador antes de rechazar para evitar promesas sin manejar.
+    const outcome = pending.then(
+      () => false,
+      () => true,
+    );
+    await vi.waitFor(() =>
+      expect(electron.showMessageBox).toHaveBeenCalledTimes(1),
+    );
+    if (reason === 'navigate') frame.url = 'https://otro.example';
+    if (reason === 'close') webContents.isDestroyed.mockReturnValue(true);
+    if (reason === 'dispose') stop();
+    answer({ response: 1 });
+    expect(await outcome).toBe(true);
+    expect(effect).not.toHaveBeenCalled();
+  },
+);
+
+it.each(['quarantine', 'restore', 'restore-detected', 'delete'] as const)(
+  'H1: cancelar %s desde IPC conserva archivos, blob, veredictos y allowlist',
+  async (operation) => {
+    const temp = await realpath(tmpdir());
+    const root = await mkdtemp(join(temp, 'cybersoc-ipc-h1-'));
+    const path = join(root, 'benigno.txt');
+    const bytes = Buffer.from('Texto benigno para regresión H1.');
+    const hash = createHash('sha256').update(bytes).digest('hex');
+    const vault = new QuarantineVault(join(root, 'vault'));
+    const manager = new QuarantineManager({
+      database: db,
+      vault,
+      protectedPaths: new ProtectedPaths([vault.root]),
+      confirm: gate.confirm,
+    });
+    stop();
+    electron.handle.mockClear();
+    stop = registerQuarantineIpc(() => window, url, manager, db, gate);
+    try {
+      await writeFile(path, bytes);
+      new ScanResultRepository(db).insertResult({
+        id: 'h1',
+        jobId: 'j1',
+        seq: 2,
+        path,
+        fileName: 'benigno.txt',
+        status: 'SCANNED',
+        sha256: hash,
+        sizeBytes: bytes.length,
+        verdict: 'DETECTED',
+      });
+      let itemId: string | null = null;
+      let blob: Buffer | null = null;
+      if (operation !== 'quarantine') {
+        const item = createQuarantineSchemas(z).item.parse(
+          await call('quarantine', ['h1']),
+        );
+        itemId = item.id;
+        blob = await readFile(vault.path(itemId));
+      }
+      const snapshot = () =>
+        JSON.stringify(
+          ['scan_jobs', 'scan_results', 'quarantine_items', 'allowlist'].map(
+            (table) =>
+              db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all(),
+          ),
+        );
+      const before = snapshot();
+      electron.showMessageBox.mockClear();
+      electron.showMessageBox.mockResolvedValue({ response: 0 });
+      if (operation === 'restore-detected')
+        electron.showMessageBox.mockResolvedValueOnce({ response: 1 });
+      const pending =
+        operation === 'quarantine'
+          ? call('quarantine', ['h1'])
+          : operation === 'delete'
+            ? call('delete', [itemId])
+            : call('restore', [itemId, { trustHash: true }]);
+      await expect(pending).rejects.toThrow('CANCELLED');
+      expect(snapshot()).toBe(before);
+      expect(manager.allowlist.has(hash)).toBe(false);
+      expect(electron.showMessageBox).toHaveBeenCalledTimes(
+        operation === 'restore-detected' ? 2 : 1,
+      );
+      if (itemId) {
+        await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(await readFile(vault.path(itemId))).toEqual(blob);
+      } else expect(await readFile(path)).toEqual(bytes);
+      expect(
+        manager.audit.list().some((row) => row.action.endsWith('_FAILED')),
+      ).toBe(true);
+    } finally {
+      await manager.close();
+      expect(dirname(root)).toBe(temp);
+      expect(basename(root)).toMatch(/^cybersoc-ipc-h1-/);
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+  20000,
+);
