@@ -1,6 +1,7 @@
 import { app, dialog } from 'electron';
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { Database } from '../core/persistence/Database';
@@ -30,9 +31,16 @@ import type {
   AIErrorKind,
   AIProvider,
   AIResult,
+  AssistantStep,
   AssistantTurnRequest,
   StructuredRequest,
 } from '../core/ai/AIProvider';
+import { createToolRegistry } from '../core/ai/tools';
+import type { ToolRegistry } from '../core/ai/tools/ToolRegistry';
+import { ToolReadRepository } from '../core/persistence/ToolReadRepository';
+import { ToolCatalogRepository } from '../core/persistence/ToolCatalogRepository';
+import { loadToolCatalog } from '../core/ai/ToolCatalogLoader';
+import type { ReportBuilder } from '../core/reports/ReportBuilder';
 import { jobSummaryContextSchema, jobSummarySchema } from '../core/ai/schemas';
 import { AIAnalysisStore } from '../core/ai/AIAnalysisStore';
 import { AISecurityService } from '../core/ai/AISecurityService';
@@ -206,6 +214,56 @@ export function createAIProvider(
   }
 }
 
+/**
+ * Herramientas de SOLO lectura del Copilot v2 (T5.3) con datos reales: SQLite, catálogo de
+ * reglas y firmas del motor, zonas resueltas de este equipo y unidades extraíbles conectadas.
+ * La IA nunca aporta rutas: todas salen de aquí.
+ */
+export function createAssistantTools(
+  database: Database,
+  engine: Pick<EngineProcess, 'driveInfo'>,
+  reports: ReportBuilder,
+  appRoot = app.getAppPath(),
+): ToolRegistry {
+  const roots = resolveZoneRoots((name) => app.getPath(name), process.env);
+  let catalog: ToolCatalogRepository;
+  try {
+    catalog = loadToolCatalog(join(appRoot, '..', 'engine', 'data'));
+  } catch {
+    // Sin catálogo, get_rule_info y lookup_hash responden NOT_FOUND; el chat sigue.
+    console.error('No se pudo cargar el catálogo de reglas y firmas.');
+    catalog = new ToolCatalogRepository([], []);
+  }
+  return createToolRegistry(
+    {
+      reads: new ToolReadRepository(database),
+      catalog,
+      zoneRoots: () => roots,
+      removableDrives: () => removableDrives(engine),
+    },
+    reports,
+  );
+}
+
+/** Unidades D: a Z: que existen y que el motor clasifica como REMOVABLE. */
+async function removableDrives(
+  engine: Pick<EngineProcess, 'driveInfo'>,
+): Promise<{ driveId: string; path: string }[]> {
+  if (process.platform !== 'win32') return [];
+  const drives: { driveId: string; path: string }[] = [];
+  for (const letter of 'DEFGHIJKLMNOPQRSTUVWXYZ') {
+    const path = `${letter}:\\`;
+    try {
+      await access(path);
+      if ((await engine.driveInfo(path)).driveType === 'REMOVABLE')
+        drives.push({ driveId: `${letter}:`, path });
+    } catch {
+      // Letra sin unidad o motor desconectado: no se ofrece como destino.
+    }
+  }
+  return drives;
+}
+
 export function createAISettings(
   database: Database,
   options: {
@@ -356,10 +414,14 @@ class EvidenceAIProvider extends FakeAIProvider {
       .generateStructured(request);
   }
 
-  /** Texto fijo a partir del foco real. OFFLINE simula que Claude no responde. */
-  override async runAssistantTurn(
-    request: AssistantTurnRequest,
-  ): Promise<AIResult<string>> {
+  /**
+   * Texto fijo a partir del foco real. OFFLINE simula que Claude no responde. Con la
+   * respuesta estructurada del Copilot v2 (T5.5), la entrega sin referencias ni acciones,
+   * igual que la API: validada contra `request.output`. No llama herramientas.
+   */
+  override async runAssistantTurn<T = string>(
+    request: AssistantTurnRequest<T>,
+  ): Promise<AIResult<AssistantStep<T>>> {
     if (process.env.CYBERSOC_EVIDENCE_AI === 'OFFLINE') {
       return {
         ok: false,
@@ -370,12 +432,28 @@ class EvidenceAIProvider extends FakeAIProvider {
         },
       };
     }
-    const content = request.messages.at(-1)?.content ?? '';
-    const json = content.match(/<contexto>\n([\s\S]*?)\n<\/contexto>/)?.[1];
+    const last = [...request.messages]
+      .reverse()
+      .find(
+        (message) =>
+          message.role === 'user' && typeof message.content === 'string',
+      )?.content;
+    const json = (typeof last === 'string' ? last : '').match(
+      /<contexto>\n([\s\S]*?)\n<\/contexto>/,
+    )?.[1];
     const text = evidenceAssistantText(json);
+    const value = request.output
+      ? request.output.parse({
+          answer: text,
+          references: [],
+          suggestedActions: [],
+          report: [],
+          scanPlan: [],
+        })
+      : (text as T);
     return {
       ok: true,
-      value: text,
+      value: { kind: 'FINAL', value, text },
       model: this.model,
       usage: { inputTokens: 0, outputTokens: 0 },
       latencyMs: 0,

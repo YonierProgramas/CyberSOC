@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
   registerReportsIpc: vi.fn(),
   stopReportsIpc: vi.fn(),
   createAIProvider: vi.fn(),
+  createAssistantTools: vi.fn(),
   createAIWorkflow: vi.fn(),
   startAI: vi.fn(),
   stopAI: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('../src/main/composition-root', () => ({
   createAISettings: mocks.createAISettings,
   createAIWorkflow: mocks.createAIWorkflow,
   createAIProvider: mocks.createAIProvider,
+  createAssistantTools: mocks.createAssistantTools,
   createQuarantineManager: () => ({
     reconcile: mocks.reconcileQuarantine,
     close: mocks.closeQuarantine,
@@ -101,6 +103,10 @@ beforeEach(() => {
   mocks.createAISettings.mockReturnValue({ marker: 'settings' });
   mocks.registerSettingsIpc.mockReturnValue(mocks.stopSettingsIpc);
   mocks.registerAssistantIpc.mockReturnValue(mocks.stopAssistantIpc);
+  mocks.createAssistantTools.mockReturnValue({
+    definitions: () => [],
+    execute: vi.fn(),
+  });
   mocks.registerReportsIpc.mockReturnValue(mocks.stopReportsIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
   mocks.registerQuarantineIpc.mockReturnValue(mocks.stopQuarantineIpc);
@@ -168,6 +174,11 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     mocks.createMainWindow.mock.invocationCallOrder[0]!,
   );
   expect(mocks.createAIProvider).not.toHaveBeenCalled(); // solo se crea al preguntar
+  // T5.5: el Copilot recibe las herramientas reales de solo lectura sobre la misma BD.
+  expect(mocks.createAssistantTools).toHaveBeenCalledOnce();
+  expect(mocks.createAssistantTools.mock.calls[0]![0]).toBe(
+    mocks.createDatabase.mock.results[0]!.value,
+  );
   expect(mocks.registerScanIpc.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.createMainWindow.mock.invocationCallOrder[0]!,
   );

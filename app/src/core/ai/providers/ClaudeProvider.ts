@@ -14,6 +14,10 @@ import type {
   AIError,
   AIProvider,
   AIResult,
+  AssistantBlock,
+  AssistantMessage,
+  AssistantStep,
+  AssistantToolSpec,
   AssistantTurnRequest,
   StructuredRequest,
 } from '../AIProvider';
@@ -157,15 +161,25 @@ export class ClaudeProvider implements AIProvider {
   }
 
   /**
-   * Turno del Copilot: system prompt + conversación, respuesta de texto libre (sin herramientas
-   * ni salidas estructuradas). Los errores se mapean igual que en `generateStructured`.
+   * Un paso del Copilot. Sin `tools` ni `output` es el turno de texto de S4. Con `tools`
+   * (siempre `strict: true`) y `output` (`output_config.format`) es el paso de S5: según la
+   * documentación de salidas estructuradas, ambos se combinan en la misma petición; el modelo
+   * llama herramientas (stop_reason `tool_use`) o entrega el JSON final (`end_turn`).
+   * Los errores se mapean igual que en `generateStructured`.
    */
-  async runAssistantTurn(req: AssistantTurnRequest): Promise<AIResult<string>> {
+  async runAssistantTurn<T = string>(
+    req: AssistantTurnRequest<T>,
+  ): Promise<AIResult<AssistantStep<T>>> {
     if (req.messages.length === 0 || req.messages.at(-1)!.role !== 'user') {
       throw new TypeError(
         'ClaudeProvider: la conversación debe terminar con un mensaje del usuario.',
       );
     }
+    // Con tool_choice 'none' las herramientas no pueden llamarse: se declaran sin strict
+    // para no sumar su gramática a la de output_config (la API rechaza la combinación de
+    // las 14 herramientas estrictas con el esquema de salida: "compiled grammar is too large").
+    const declareOnly = req.toolChoice === 'none';
+    const tools = req.tools?.map((spec) => toClaudeTool(spec, !declareOnly));
     const started = performance.now();
     const signals = this.createSignal(req.signal);
     let response: Anthropic.Message;
@@ -175,11 +189,22 @@ export class ClaudeProvider implements AIProvider {
           model: req.model ?? this.model,
           max_tokens: req.maxTokens,
           system: req.system,
-          // Copia de solo los dos campos: ningún dato extra del llamador llega a la API.
-          messages: req.messages.map(({ role, content }) => ({
-            role,
-            content,
-          })),
+          // Copia campo a campo: ningún dato extra del llamador llega a la API.
+          messages: req.messages.map(toClaudeMessage),
+          ...(tools?.length ? { tools } : {}),
+          ...(tools?.length && declareOnly
+            ? { tool_choice: { type: 'none' as const } }
+            : {}),
+          ...(req.output
+            ? {
+                output_config: {
+                  format: {
+                    type: 'json_schema' as const,
+                    schema: toClaudeJsonSchema(req.output),
+                  },
+                },
+              }
+            : {}),
         },
         { signal: signals.signal },
       );
@@ -195,27 +220,71 @@ export class ClaudeProvider implements AIProvider {
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
     };
+    const meta = {
+      model: response.model,
+      usage,
+      latencyMs: elapsed(started),
+    };
     const failure = (error: AIError): { ok: false; error: AIError } => ({
       ok: false,
-      error: {
-        ...error,
-        rawText: text,
-        usage,
-        model: response.model,
-        latencyMs: elapsed(started),
-      },
+      error: { ...error, rawText: text, ...meta },
     });
+
+    if (response.stop_reason === 'tool_use') {
+      const calls = response.content
+        .filter(
+          (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
+        )
+        .map(({ id, name, input }) => ({ id, name, input }));
+      if (!tools?.length || calls.length === 0)
+        return failure(
+          invalidOutput('Llamada a herramienta inesperada.').error,
+        );
+      const content: AssistantBlock[] = [];
+      for (const block of response.content) {
+        if (block.type === 'text' && block.text !== '')
+          content.push({ type: 'text', text: block.text });
+        else if (block.type === 'tool_use')
+          content.push({
+            type: 'tool_use',
+            id: block.id,
+            name: block.name,
+            input: block.input,
+          });
+      }
+      return {
+        ok: true,
+        value: { kind: 'TOOL_CALLS', calls, content },
+        rawText: text,
+        ...meta,
+      };
+    }
+
     const stopError = mapStopReason(response.stop_reason);
     if (stopError) return failure(stopError);
     if (text.trim() === '')
       return failure(invalidOutput('La respuesta llegó vacía.').error);
+    if (!req.output)
+      return {
+        ok: true,
+        value: { kind: 'FINAL', value: text as T, text },
+        rawText: text,
+        ...meta,
+      };
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return failure(invalidOutput('La respuesta no es JSON válido.').error);
+    }
+    const parsed = req.output.safeParse(json);
+    if (!parsed.success)
+      return failure(invalidOutput('La respuesta no cumple el esquema.').error);
     return {
       ok: true,
-      value: text,
-      model: response.model,
-      usage,
-      latencyMs: elapsed(started),
+      value: { kind: 'FINAL', value: parsed.data, text },
       rawText: text,
+      ...meta,
     };
   }
 
@@ -423,6 +492,85 @@ export function toClaudeJsonSchema(schema: z.ZodType): Record<string, unknown> {
     unrepresentable: 'throw',
   });
   return cleanSchema(json);
+}
+
+/**
+ * Esquema de una herramienta estricta: quita lo que el modo estricto no admite (longitudes,
+ * patrones, maxItems…; el Core los vuelve a validar con zod al ejecutar) y aplana uniones
+ * anidadas como `anyOf[anyOf[T, null], null]` en `anyOf[T, null]`. La API limita a 16 los
+ * parámetros con unión por petición, sumando todas las herramientas y el esquema de salida.
+ */
+export function toClaudeToolSchema(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  return flattenUnions(cleanSchema(schema)) as Record<string, unknown>;
+}
+
+function flattenUnions(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(flattenUnions);
+  if (typeof node !== 'object' || node === null) return node;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node))
+    out[key] = flattenUnions(value);
+  if (Array.isArray(out.anyOf)) {
+    const options: unknown[] = [];
+    const seen = new Set<string>();
+    const add = (option: unknown) => {
+      const record = option as Record<string, unknown>;
+      // Una opción que solo es otra unión se despliega en la de afuera.
+      if (Object.keys(record).length === 1 && Array.isArray(record.anyOf)) {
+        record.anyOf.forEach(add);
+        return;
+      }
+      const key = JSON.stringify(option);
+      if (!seen.has(key)) {
+        seen.add(key);
+        options.push(option);
+      }
+    };
+    out.anyOf.forEach(add);
+    out.anyOf = options;
+  }
+  return out;
+}
+
+function toClaudeTool(
+  spec: AssistantToolSpec,
+  strict: boolean,
+): Anthropic.Tool {
+  return {
+    name: spec.name,
+    description: spec.description,
+    strict,
+    input_schema: toClaudeToolSchema(
+      spec.input_schema,
+    ) as Anthropic.Tool.InputSchema,
+  };
+}
+
+function toClaudeMessage(message: AssistantMessage): Anthropic.MessageParam {
+  if (typeof message.content === 'string')
+    return { role: message.role, content: message.content };
+  return {
+    role: message.role,
+    content: message.content.map((block): Anthropic.ContentBlockParam =>
+      block.type === 'text'
+        ? { type: 'text', text: block.text }
+        : block.type === 'tool_use'
+          ? {
+              type: 'tool_use',
+              id: block.id,
+              name: block.name,
+              input: block.input,
+            }
+          : {
+              type: 'tool_result',
+              tool_use_id: block.tool_use_id,
+              content: block.content,
+              ...(block.is_error ? { is_error: true } : {}),
+            },
+    ),
+  };
 }
 
 function cleanSchema(node: unknown): Record<string, unknown> {

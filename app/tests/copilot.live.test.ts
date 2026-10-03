@@ -14,6 +14,7 @@ vi.mock('electron', async () => ({
   safeStorage: {},
 }));
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
+import { copilotDeps } from './fixtures/copilot';
 
 // CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.
 const skip =
@@ -50,7 +51,7 @@ describe.skipIf(skip)('live — SOC Copilot v1 sobre la API de Claude', () => {
       id: claude.id,
       healthCheck: () => claude.healthCheck(),
       generateStructured: (req) => claude.generateStructured(req),
-      async runAssistantTurn(req: AssistantTurnRequest) {
+      async runAssistantTurn<T = string>(req: AssistantTurnRequest<T>) {
         const result = await claude.runAssistantTurn(req);
         usage.push(
           result.ok
@@ -81,6 +82,7 @@ describe.skipIf(skip)('live — SOC Copilot v1 sobre la API de Claude', () => {
       db: harness.db,
       provider: () => recording,
       readConfig: () => config,
+      ...copilotDeps(harness.db),
     });
     const lines = [
       `Fecha UTC: ${new Date().toISOString()}`,
@@ -100,7 +102,7 @@ describe.skipIf(skip)('live — SOC Copilot v1 sobre la API de Claude', () => {
         `--- Turno ${index + 1} ---`,
         `Usuario: ${question}`,
         `Estado: ${reply.status}${reply.errorKind ? ` (${reply.errorKind})` : ''} · turnos en la ventana: ${reply.historyTurns}`,
-        `Uso: ${JSON.stringify(usage[index])}`,
+        `Herramientas: ${JSON.stringify(reply.toolCalls)} · llamadas a Claude acumuladas: ${usage.length}`,
         'SOC Copilot:',
         reply.text,
         '',

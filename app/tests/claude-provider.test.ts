@@ -5,6 +5,7 @@ import {
   ClaudeProvider,
   parseRetryAfterMs,
   toClaudeJsonSchema,
+  toClaudeToolSchema,
 } from '../src/core/ai/providers/ClaudeProvider';
 import {
   ANALYSIS_MAX_TOKENS,
@@ -513,7 +514,11 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     });
     expect(result).toMatchObject({
       ok: true,
-      value: 'Fue marcado por ev1.',
+      value: {
+        kind: 'FINAL',
+        value: 'Fue marcado por ev1.',
+        text: 'Fue marcado por ev1.',
+      },
       usage: { inputTokens: 21, outputTokens: 9 },
     });
     expect(calls).toHaveLength(1);
@@ -619,6 +624,294 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     expect(result).toMatchObject({
       ok: false,
       error: { kind: 'TIMEOUT', retryable: false },
+    });
+  });
+});
+
+describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida estructurada (S5)', () => {
+  const Output = z.strictObject({ answer: z.string().min(1) });
+  const tool = {
+    name: 'get_result_detail',
+    description: 'Detalle de un resultado.',
+    strict: true as const,
+    input_schema: {
+      type: 'object',
+      properties: {
+        resultId: {
+          type: 'string',
+          minLength: 1,
+          maxLength: 128,
+          pattern: '^r',
+        },
+        jobId: {
+          anyOf: [
+            { anyOf: [{ type: 'string', maxLength: 128 }, { type: 'null' }] },
+            { type: 'null' },
+          ],
+        },
+      },
+      required: ['resultId', 'jobId'],
+      additionalProperties: false,
+    },
+  };
+  const turn = {
+    system: 'reglas v2',
+    messages: [{ role: 'user' as const, content: 'pregunta' }],
+    maxTokens: 2048,
+    tools: [tool],
+    output: Output,
+  };
+
+  function toolUse(): Response {
+    return json(200, {
+      id: 'msg_tool',
+      type: 'message',
+      role: 'assistant',
+      model: MODEL,
+      content: [
+        { type: 'text', text: 'Consulto el resultado.' },
+        {
+          type: 'tool_use',
+          id: 'toolu_01',
+          name: 'get_result_detail',
+          input: { resultId: 'r1', jobId: null },
+        },
+      ],
+      stop_reason: 'tool_use',
+      stop_sequence: null,
+      usage: { input_tokens: 50, output_tokens: 20 },
+    });
+  }
+
+  it('envía tools con strict: true y output_config.format en la MISMA petición', async () => {
+    const { claude, calls } = provider(() => message('{"answer":"ok"}'));
+    await claude.runAssistantTurn(turn);
+    const body = calls[0]!.body as {
+      tools: Array<{
+        name: string;
+        strict: boolean;
+        input_schema: Record<string, unknown>;
+      }>;
+      output_config: {
+        format: { type: string; schema: Record<string, unknown> };
+      };
+    };
+    expect(body.tools).toHaveLength(1);
+    expect(body.tools[0]).toMatchObject({
+      name: 'get_result_detail',
+      strict: true,
+    });
+    expect(body.output_config.format.type).toBe('json_schema');
+    expect(body.output_config.format.schema).toMatchObject({
+      type: 'object',
+      required: ['answer'],
+      additionalProperties: false,
+    });
+    // El esquema de la herramienta llega limpio: sin longitudes ni patrones y sin uniones anidadas.
+    expect(body.tools[0]!.input_schema).toEqual({
+      type: 'object',
+      properties: {
+        resultId: { type: 'string' },
+        jobId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+      },
+      required: ['resultId', 'jobId'],
+      additionalProperties: false,
+    });
+  });
+
+  it('stop_reason tool_use → TOOL_CALLS con las llamadas y el contenido para reenviar', async () => {
+    const { claude } = provider(() => toolUse());
+    const result = await claude.runAssistantTurn(turn);
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        kind: 'TOOL_CALLS',
+        calls: [
+          {
+            id: 'toolu_01',
+            name: 'get_result_detail',
+            input: { resultId: 'r1', jobId: null },
+          },
+        ],
+        content: [
+          { type: 'text', text: 'Consulto el resultado.' },
+          {
+            type: 'tool_use',
+            id: 'toolu_01',
+            name: 'get_result_detail',
+            input: { resultId: 'r1', jobId: null },
+          },
+        ],
+      },
+      usage: { inputTokens: 50, outputTokens: 20 },
+    });
+  });
+
+  it('reenvía tool_use y tool_result (con is_error) en el formato de la API', async () => {
+    const { claude, calls } = provider(() => message('{"answer":"listo"}'));
+    const history = [
+      { role: 'user' as const, content: 'pregunta' },
+      {
+        role: 'assistant' as const,
+        content: [
+          {
+            type: 'tool_use' as const,
+            id: 'toolu_01',
+            name: 'get_result_detail',
+            input: { resultId: 'r1', jobId: null },
+          },
+        ],
+      },
+      {
+        role: 'user' as const,
+        content: [
+          {
+            type: 'tool_result' as const,
+            tool_use_id: 'toolu_01',
+            content: '{"ok":false}',
+            is_error: true,
+          },
+          {
+            type: 'tool_result' as const,
+            tool_use_id: 'toolu_02',
+            content: '{"ok":true}',
+          },
+        ],
+      },
+    ];
+    await claude.runAssistantTurn({ ...turn, messages: history });
+    expect((calls[0]!.body as { messages: unknown[] }).messages).toEqual(
+      history,
+    );
+  });
+
+  it('end_turn → FINAL validado con el esquema de salida', async () => {
+    const { claude } = provider(() =>
+      message('{"answer":"Fue por ev1 (SIGNATURES)."}'),
+    );
+    await expect(claude.runAssistantTurn(turn)).resolves.toMatchObject({
+      ok: true,
+      value: { kind: 'FINAL', value: { answer: 'Fue por ev1 (SIGNATURES).' } },
+    });
+  });
+
+  it.each([
+    ['texto que no es JSON', 'hola', 'La respuesta no es JSON válido.'],
+    [
+      'JSON fuera del esquema',
+      '{"answer":""}',
+      'La respuesta no cumple el esquema.',
+    ],
+    [
+      'campos extra',
+      '{"answer":"x","verdict":"CLEAN"}',
+      'La respuesta no cumple el esquema.',
+    ],
+  ])('%s → INVALID_OUTPUT', async (_name, text, messageText) => {
+    const { claude } = provider(() => message(text));
+    await expect(claude.runAssistantTurn(turn)).resolves.toMatchObject({
+      ok: false,
+      error: { kind: 'INVALID_OUTPUT', message: messageText, rawText: text },
+    });
+  });
+
+  it("toolChoice 'none' (fase 2): herramientas solo declaradas, sin strict, y tool_choice none", async () => {
+    const { claude, calls } = provider(() => message('{"answer":"ok"}'));
+    await claude.runAssistantTurn({ ...turn, toolChoice: 'none' });
+    const body = calls[0]!.body as {
+      tools: Array<{ strict: boolean }>;
+      tool_choice: unknown;
+      output_config: unknown;
+    };
+    expect(body.tools[0]!.strict).toBe(false);
+    expect(body.tool_choice).toEqual({ type: 'none' });
+    expect(body.output_config).toBeDefined();
+  });
+
+  it('fase 1 (sin output): herramientas estrictas y sin output_config ni tool_choice', async () => {
+    const { claude, calls } = provider(() => message('Texto libre.'));
+    const result = await claude.runAssistantTurn({
+      system: 's',
+      messages: turn.messages,
+      maxTokens: 100,
+      tools: [tool],
+    });
+    const body = calls[0]!.body as Record<string, unknown>;
+    expect((body.tools as Array<{ strict: boolean }>)[0]!.strict).toBe(true);
+    expect(body).not.toHaveProperty('output_config');
+    expect(body).not.toHaveProperty('tool_choice');
+    expect(result).toMatchObject({
+      ok: true,
+      value: { kind: 'FINAL', value: 'Texto libre.', text: 'Texto libre.' },
+    });
+  });
+
+  it('tool_use sin herramientas declaradas → INVALID_OUTPUT', async () => {
+    const { claude } = provider(() => toolUse());
+    await expect(
+      claude.runAssistantTurn({
+        system: 's',
+        messages: turn.messages,
+        maxTokens: 100,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { kind: 'INVALID_OUTPUT' } });
+  });
+});
+
+describe('toClaudeToolSchema', () => {
+  it('aplana uniones anidadas, quita duplicados de null y conserva enums', () => {
+    expect(
+      toClaudeToolSchema({
+        type: 'object',
+        properties: {
+          zone: {
+            anyOf: [
+              {
+                anyOf: [
+                  { type: 'string', enum: ['DESCARGAS', 'SISTEMA'] },
+                  { type: 'null' },
+                ],
+              },
+              { type: 'null' },
+            ],
+          },
+          verdicts: {
+            anyOf: [
+              {
+                minItems: 1,
+                maxItems: 5,
+                type: 'array',
+                items: { type: 'string', enum: ['CLEAN'] },
+              },
+              { type: 'null' },
+            ],
+          },
+        },
+        required: ['zone', 'verdicts'],
+        additionalProperties: false,
+      }),
+    ).toEqual({
+      type: 'object',
+      properties: {
+        zone: {
+          anyOf: [
+            { type: 'string', enum: ['DESCARGAS', 'SISTEMA'] },
+            { type: 'null' },
+          ],
+        },
+        verdicts: {
+          anyOf: [
+            {
+              minItems: 1,
+              type: 'array',
+              items: { type: 'string', enum: ['CLEAN'] },
+            },
+            { type: 'null' },
+          ],
+        },
+      },
+      required: ['zone', 'verdicts'],
+      additionalProperties: false,
     });
   });
 });

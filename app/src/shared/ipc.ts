@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { EngineResult, Zone } from './protocol';
-import type { ScanProfileChoice } from './scan-profile';
+import type { ScanProfile, ScanProfileChoice } from './scan-profile';
 
 // Serializable boundary types intentionally do not import the Node/Electron core.
 export type ScanJobStatus =
@@ -255,10 +255,69 @@ export interface AssistantReplyDTO {
     | 'INVALID_OUTPUT'
     | 'INCOMPLETE'
     | 'UNSAFE'
+    | 'TOOL_LIMIT'
     | null;
   focus: AssistantFocusDTO;
   /** Turnos guardados en la ventana del historial después de esta pregunta (máximo 10). */
   historyTurns: number;
+  /** Chips: IDs reales citados (S5). Ya validados por el Core. */
+  references: AssistantReferenceDTO[];
+  /** Botones: cada acción exige confirmación del usuario en la UI. */
+  suggestedActions: AssistantActionDTO[];
+  /** Tarjeta de reporte: cifras del Core + redacción marcada "Generado por IA". */
+  report: AssistantReportCardDTO | null;
+  /** Tarjeta de plan de escaneo: NUNCA se ejecuta sin "Ejecutar plan" + confirmación. */
+  scanPlan: ScanPlanCardDTO | null;
+  /** Herramientas de solo lectura que consultó la IA en esta pregunta. */
+  toolCalls: AssistantToolCallDTO[];
+  /** Motivos (del Core) por los que se descartó la respuesta final, si se descartó. */
+  rejected: string[];
+}
+
+export interface AssistantReferenceDTO {
+  type: 'result' | 'job' | 'rule' | 'zone';
+  id: string;
+}
+
+export interface AssistantActionDTO {
+  action:
+    | 'OPEN_RESULT'
+    | 'QUARANTINE'
+    | 'ANALYZE_WITH_AI'
+    | 'OPEN_QUARANTINE'
+    | 'EXPORT_REPORT'
+    | 'RUN_SCAN_PLAN';
+  targetId: string | null;
+}
+
+export interface AssistantReportCardDTO {
+  reportDraftId: string;
+  /** Cifras calculadas por el Core desde SQLite, nunca por la IA. */
+  total: number;
+  verdicts: { verdict: string; count: number }[];
+  executiveSummary: string;
+  conclusions: string[];
+  citedResultIds: string[];
+  label: 'Generado por IA';
+}
+
+export interface ScanPlanCardDTO {
+  schema: 'cybersoc.scan-plan/v1';
+  targets: {
+    zoneId: Zone;
+    driveId: string | null;
+    paths: string[];
+  }[];
+  profile: ScanProfile;
+  rationale: string;
+  layerRationale: { layer: ScanProfile['layers'][number]; why: string }[];
+}
+
+export interface AssistantToolCallDTO {
+  name: string;
+  ok: boolean;
+  /** Código de error de la herramienta (UNKNOWN_TOOL, INVALID_ARGUMENTS…) o null. */
+  code: string | null;
 }
 
 export const SETTINGS_AI_SET_API_KEY = 'settings.ai:setApiKey';

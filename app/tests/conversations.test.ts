@@ -13,7 +13,12 @@ import { ConversationRepository } from '../src/core/persistence/ConversationRepo
 import { AssistantOrchestrator } from '../src/core/ai/AssistantOrchestrator';
 import { appConfigSchema } from '../src/core/config/AppConfig';
 import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
-import type { AIResult, AssistantTurnRequest } from '../src/core/ai/AIProvider';
+import type {
+  AIResult,
+  AssistantStep,
+  AssistantTurnRequest,
+} from '../src/core/ai/AIProvider';
+import { copilotDeps, final } from './fixtures/copilot';
 
 let root: string;
 let db: Database;
@@ -24,6 +29,7 @@ function makeAssistant(provider: FakeAIProvider | null = new FakeAIProvider()) {
     db,
     provider: () => provider,
     readConfig: () => config,
+    ...copilotDeps(db),
   });
 }
 beforeEach(() => {
@@ -189,7 +195,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     const fake = new FakeAIProvider();
     let assistant = makeAssistant(fake);
     for (let i = 1; i <= 12; i++) {
-      fake.enqueueReply(`R${i}`, {
+      fake.enqueueFinal(final(`R${i}`), {
         model: 'claude-test',
         usage: { inputTokens: i * 10, outputTokens: i },
       });
@@ -217,7 +223,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     expect(assistant.turns().map((t) => t.question)).toEqual(
       Array.from({ length: 10 }, (_, i) => `P${i + 3}`),
     );
-    fake.enqueueReply('R13');
+    fake.enqueueFinal(final('R13'));
     await assistant.ask({ message: 'P13' });
     expect(fake.assistantRequests.at(-1)!.messages).toHaveLength(21);
     expect(fake.assistantRequests.at(-1)!.messages[0]).toEqual({
@@ -231,7 +237,9 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
   });
 
   it('nueva conversación conserva el historial y un ID inexistente no modifica la activa', async () => {
-    const fake = new FakeAIProvider().enqueueReply('A1').enqueueReply('B1');
+    const fake = new FakeAIProvider()
+      .enqueueFinal(final('A1'))
+      .enqueueFinal(final('B1'));
     const assistant = makeAssistant(fake);
     await assistant.ask({ message: 'conversación A' });
     const first = assistant.listConversations()[0]!.id;
@@ -264,7 +272,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     expect(JSON.stringify(repo.recentMessages(id))).not.toContain(
       'error-interno-privado',
     );
-    fake.enqueueReply('sí funciona');
+    fake.enqueueFinal(final('sí funciona'));
     await assistant.ask({ message: '¿ahora?' });
     assistant.openConversation(id);
     expect(assistant.turns()).toEqual([
@@ -285,7 +293,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     const fake = new FakeAIProvider();
     const assistant = makeAssistant(fake);
     for (let i = 0; i < 10; i++) {
-      fake.enqueueReply(`R${i}`);
+      fake.enqueueFinal(final(`R${i}`));
       await assistant.ask({ message: `P${i}` });
     }
     const before = assistant.turns();
@@ -305,8 +313,8 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
       { role: 'assistant', content: 'respuesta guardada' },
     ]);
     const fake = new FakeAIProvider();
-    let finish!: (value: AIResult<string>) => void;
-    let received: AssistantTurnRequest | undefined;
+    let finish!: (value: AIResult<AssistantStep<unknown>>) => void;
+    let received: AssistantTurnRequest<unknown> | undefined;
     vi.spyOn(fake, 'runAssistantTurn').mockImplementation((request) => {
       received = request;
       return new Promise((resolve) => {
@@ -321,7 +329,11 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     expect(received!.signal!.aborted).toBe(true);
     finish({
       ok: true,
-      value: 'respuesta tardía',
+      value: {
+        kind: 'FINAL',
+        value: final('respuesta tardía'),
+        text: 'respuesta tardía',
+      },
       model: 'fake',
       usage: { inputTokens: 1, outputTokens: 1 },
       latencyMs: 0,

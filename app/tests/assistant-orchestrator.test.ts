@@ -13,6 +13,7 @@ import { appConfigSchema } from '../src/core/config/AppConfig';
 import type {
   AIProvider,
   AIResult,
+  AssistantStep,
   AssistantTurnRequest,
 } from '../src/core/ai/AIProvider';
 import { FakeAIProvider } from '../src/core/ai/providers/FakeAIProvider';
@@ -28,7 +29,8 @@ import {
 import {
   ASSISTANT_MAX_TOKENS,
   ASSISTANT_SYSTEM_PROMPT,
-} from '../src/core/ai/prompts/assistant.v1';
+} from '../src/core/ai/prompts/assistant.v2';
+import { copilotDeps, final } from './fixtures/copilot';
 import type { AIAssessment } from '../src/core/ai/schemas';
 
 const date = '2026-10-01T12:00:00.000Z';
@@ -123,8 +125,8 @@ function insertResult(id: string, fileName: string): void {
 }
 
 /** JSON que viajó entre <contexto> y </contexto> en el último mensaje del turno. */
-function sentFocus(request: AssistantTurnRequest): AssistantFocus {
-  const last = request.messages.at(-1)!.content;
+function sentFocus(request: AssistantTurnRequest<unknown>): AssistantFocus {
+  const last = request.messages.at(-1)!.content as string;
   const json = /<contexto>\n([\s\S]*?)\n<\/contexto>/.exec(last)![1]!;
   return JSON.parse(json) as AssistantFocus;
 }
@@ -162,6 +164,7 @@ beforeEach(() => {
     db,
     provider: () => fake,
     readConfig: () => config,
+    ...copilotDeps(db),
   });
 });
 
@@ -172,7 +175,7 @@ afterEach(() => {
 
 describe('AssistantOrchestrator: foco', () => {
   it('con foco en un resultado envía evidencias, capas, zona, perfil, decisión y el último análisis válido', async () => {
-    fake.enqueueReply('Fue marcado por ev1 (SIGNATURES).');
+    fake.enqueueFinal(final('Fue marcado por ev1 (SIGNATURES).'));
     const reply = await assistant.ask({
       message: '¿Por qué fue marcado?',
       focus: { resultId: 'res-1' },
@@ -184,6 +187,12 @@ describe('AssistantOrchestrator: foco', () => {
       errorKind: null,
       focus: { kind: 'RESULT', id: 'res-1', label: 'factura.pdf.exe' },
       historyTurns: 1,
+      references: [],
+      suggestedActions: [],
+      report: null,
+      scanPlan: null,
+      toolCalls: [],
+      rejected: [],
     });
     const request = fake.assistantRequests[0]!;
     expect(request.system).toBe(ASSISTANT_SYSTEM_PROMPT);
@@ -225,7 +234,7 @@ describe('AssistantOrchestrator: foco', () => {
   });
 
   it('con foco en un escaneo envía el contexto del resumen del escaneo', async () => {
-    fake.enqueueReply('El escaneo encontró 1 archivo detectado.');
+    fake.enqueueFinal(final('El escaneo encontró 1 archivo detectado.'));
     const reply = await assistant.ask({
       message: 'Resúmeme el escaneo',
       focus: { jobId: 'job-1' },
@@ -245,7 +254,7 @@ describe('AssistantOrchestrator: foco', () => {
   });
 
   it('sin foco responde y envía un contexto NONE', async () => {
-    fake.enqueueReply('En general, un antivirus compara firmas.');
+    fake.enqueueFinal(final('En general, un antivirus compara firmas.'));
     const reply = await assistant.ask({ message: '¿Qué es una firma?' });
     expect(reply).toMatchObject({
       status: 'ANSWERED',
@@ -276,7 +285,7 @@ describe('AssistantOrchestrator: foco', () => {
     );
     expect(fake.assistantRequests).toHaveLength(0);
     // Un error no bloquea la fila de preguntas.
-    fake.enqueueReply('ok');
+    fake.enqueueFinal(final('ok'));
     await expect(assistant.ask({ message: 'hola' })).resolves.toMatchObject({
       status: 'ANSWERED',
     });
@@ -301,7 +310,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
   it('el turno 11 expulsa al primero y la IA recibe solo los 10 más recientes', async () => {
     expect(ASSISTANT_HISTORY_TURNS).toBe(10);
     for (let i = 1; i <= 10; i++) {
-      fake.enqueueReply(`R${i}`);
+      fake.enqueueFinal(final(`R${i}`));
       const reply = await assistant.ask({ message: `P${i}` });
       expect(reply.historyTurns).toBe(i);
     }
@@ -310,7 +319,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
     );
 
     // Turno 11: entra P11 y sale P1 (el más antiguo).
-    fake.enqueueReply('R11');
+    fake.enqueueFinal(final('R11'));
     const eleventh = await assistant.ask({ message: 'P11' });
     expect(eleventh.historyTurns).toBe(10);
     const turns = assistant.turns();
@@ -321,7 +330,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
     expect(assistant.turns()).toEqual(turns);
 
     // El turno 12 envía 10 turnos de historial (20 mensajes) + la pregunta nueva.
-    fake.enqueueReply('R12');
+    fake.enqueueFinal(final('R12'));
     await assistant.ask({ message: 'P12' });
     const sent = fake.assistantRequests.at(-1)!.messages;
     expect(sent).toHaveLength(21);
@@ -333,7 +342,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
   });
 
   it('el historial guarda la pregunta sin el contexto y el foco se envía en cada turno', async () => {
-    fake.enqueueReply('R1').enqueueReply('R2');
+    fake.enqueueFinal(final('R1')).enqueueFinal(final('R2'));
     await assistant.ask({ message: 'P1', focus: { resultId: 'res-1' } });
     await assistant.ask({ message: 'P2', focus: { jobId: 'job-1' } });
     const sent = fake.assistantRequests[1]!.messages;
@@ -342,7 +351,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
   });
 
   it('reset vacía la ventana', async () => {
-    fake.enqueueReply('R1').enqueueReply('R2');
+    fake.enqueueFinal(final('R1')).enqueueFinal(final('R2'));
     await assistant.ask({ message: 'P1' });
     assistant.reset();
     expect(assistant.historyTurns).toBe(0);
@@ -351,14 +360,14 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
   });
 
   it('reset durante una pregunta la cancela y no guarda su turno', async () => {
-    let received: AssistantTurnRequest | undefined;
+    let received: AssistantTurnRequest<unknown> | undefined;
     const slow: AIProvider = {
       id: 'fake',
       healthCheck: () => fake.healthCheck(),
       generateStructured: (req) => fake.generateStructured(req),
-      runAssistantTurn: (req) =>
-        new Promise<AIResult<string>>((resolve) => {
-          received = req;
+      runAssistantTurn: <T>(req: AssistantTurnRequest<T>) =>
+        new Promise<AIResult<AssistantStep<T>>>((resolve) => {
+          received = req as AssistantTurnRequest<unknown>;
           req.signal?.addEventListener('abort', () =>
             resolve({
               ok: false,
@@ -375,6 +384,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
       db,
       provider: () => slow,
       readConfig: () => config,
+      ...copilotDeps(db),
     });
     const pending = local.ask({ message: 'P1' });
     await expect.poll(() => received).toBeDefined();
@@ -388,7 +398,7 @@ describe('AssistantOrchestrator: ventana deslizante de 10 turnos (Queue)', () =>
   });
 
   it('atiende las preguntas en orden aunque lleguen juntas', async () => {
-    fake.enqueueReply('R1').enqueueReply('R2');
+    fake.enqueueFinal(final('R1')).enqueueFinal(final('R2'));
     const [a, b] = await Promise.all([
       assistant.ask({ message: 'P1' }),
       assistant.ask({ message: 'P2' }),
@@ -411,7 +421,7 @@ describe('AssistantOrchestrator: IA no disponible (CA-4.7)', () => {
     ['AUTH', 'rechazó la credencial'],
     ['UNSAFE', 'no puede responder'],
     ['INCOMPLETE', 'se cortó'],
-    ['INVALID_OUTPUT', 'no válida'],
+    ['INVALID_OUTPUT', 'validación de CyberSOC'],
   ] as const)(
     'proveedor caído (%s) → mensaje claro, sin turno guardado',
     async (kind, fragment) => {
@@ -443,6 +453,7 @@ describe('AssistantOrchestrator: IA no disponible (CA-4.7)', () => {
       db,
       provider: () => null,
       readConfig: () => config,
+      ...copilotDeps(db),
     });
     await expect(local.ask({ message: 'hola' })).resolves.toMatchObject({
       status: 'UNAVAILABLE',
@@ -458,6 +469,7 @@ describe('AssistantOrchestrator: IA no disponible (CA-4.7)', () => {
         throw new Error('No se pudo preparar el proveedor de IA.');
       },
       readConfig: () => config,
+      ...copilotDeps(db),
     });
     await expect(local.ask({ message: 'hola' })).resolves.toMatchObject({
       status: 'UNAVAILABLE',
@@ -470,7 +482,7 @@ describe('AssistantOrchestrator: IA no disponible (CA-4.7)', () => {
   });
 
   it('una respuesta vacía o solo con caracteres de control no se guarda', async () => {
-    fake.enqueueReply('\u0000\u0007  ');
+    fake.enqueueFinal(final('\u0000\u0007  '));
     await expect(assistant.ask({ message: 'hola' })).resolves.toMatchObject({
       status: 'UNAVAILABLE',
       errorKind: 'INVALID_OUTPUT',

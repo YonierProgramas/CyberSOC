@@ -20,6 +20,7 @@ import {
   createAISettings,
   createAIWorkflow,
   createAIProvider,
+  createAssistantTools,
   createQuarantineManager,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
@@ -131,6 +132,9 @@ app
         // Por pregunta: usa siempre la API key y la configuración vigentes.
         provider: () => createAIProvider(db),
         readConfig: () => new AppConfigStore(db).load(),
+        // T5.5: herramientas de solo lectura con datos reales y borradores de reporte.
+        tools: createAssistantTools(db, engine, reports, app.getAppPath()),
+        reports,
       }),
     );
     const scan = createScanOrchestrator(database, engine, aiWorker);

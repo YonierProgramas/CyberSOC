@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import {
   registerAssistantIpc,
+  assistantReplySchema,
   type AssistantService,
 } from '../src/main/ipc/assistant.ipc';
 import {
@@ -34,6 +35,12 @@ const reply: AssistantReplyDTO = {
   errorKind: null,
   focus: { kind: 'RESULT', id: 'r1', label: 'factura.pdf.exe' },
   historyTurns: 1,
+  references: [{ type: 'result', id: 'r1' }],
+  suggestedActions: [{ action: 'OPEN_RESULT', targetId: 'r1' }],
+  report: null,
+  scanPlan: null,
+  toolCalls: [{ name: 'get_result_detail', ok: true, code: null }],
+  rejected: [],
 };
 let service: AssistantService;
 let stop: () => void;
@@ -294,5 +301,52 @@ it('no filtra errores internos ni campos adicionales del historial', async () =>
   }));
   await expect(
     call(ASSISTANT_OPEN_CONVERSATION, event, conversation.id),
+  ).rejects.toThrow();
+});
+
+it('T5.5: las tarjetas de reporte y de plan pasan; un plan con ruta inyectada no llega al renderer', async () => {
+  const withCards: AssistantReplyDTO = {
+    ...reply,
+    report: {
+      reportDraftId: '6f1c5c9e-2c4b-4c8e-9a3e-1d2b3c4d5e6f',
+      total: 1,
+      verdicts: [{ verdict: 'DETECTED', count: 1 }],
+      executiveSummary: 'Un archivo detectado por firma.',
+      conclusions: ['r1 coincide con una firma de prueba.'],
+      citedResultIds: ['r1'],
+      label: 'Generado por IA',
+    },
+    scanPlan: {
+      schema: 'cybersoc.scan-plan/v1',
+      targets: [{ zoneId: 'EXTRAIBLE', driveId: 'E:', paths: ['E:\\'] }],
+      profile: {
+        layers: ['HASH', 'SIGNATURES', 'SCRIPTS'],
+        includeHidden: true,
+        maxFileSizeMB: 512,
+      },
+      rationale: 'Las USB suelen traer scripts.',
+      layerRationale: [{ layer: 'SCRIPTS', why: 'Autoarranque.' }],
+    },
+  };
+  expect(
+    assistantReplySchema.safeParse(withCards).error?.issues,
+  ).toBeUndefined();
+  service.ask = vi.fn(async () => withCards);
+  await expect(
+    call(ASSISTANT_ASK, event, { message: 'hola' }),
+  ).resolves.toEqual(withCards);
+  // Un campo extra (p. ej. una ruta que no viene de list_zones) se bloquea en la frontera.
+  const injected = {
+    ...withCards,
+    scanPlan: {
+      ...withCards.scanPlan!,
+      targets: [
+        { zoneId: 'EXTRAIBLE', driveId: 'E:', paths: ['E:\\'], path: 'C:\\' },
+      ],
+    },
+  } as unknown as AssistantReplyDTO;
+  service.ask = vi.fn(async () => injected);
+  await expect(
+    call(ASSISTANT_ASK, event, { message: 'hola' }),
   ).rejects.toThrow();
 });

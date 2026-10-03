@@ -202,7 +202,7 @@ describe('FakeAIProvider.runAssistantTurn', () => {
 
     await expect(fake.runAssistantTurn(turn)).resolves.toMatchObject({
       ok: true,
-      value: 'respuesta 1',
+      value: { kind: 'FINAL', value: 'respuesta 1', text: 'respuesta 1' },
       usage: { inputTokens: 3, outputTokens: 2 },
     });
     await expect(fake.runAssistantTurn(turn)).resolves.toMatchObject({

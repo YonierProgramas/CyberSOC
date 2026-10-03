@@ -4,6 +4,7 @@ import type {
   AIProvider,
   AIResult,
   AIUsage,
+  AssistantStep,
   AssistantTurnRequest,
   StructuredRequest,
 } from '../AIProvider';
@@ -46,6 +47,12 @@ type Scripted =
 
 type ScriptedReply =
   | { kind: 'reply'; text: string; options: ValueOptions }
+  | { kind: 'final'; value: unknown; options: ValueOptions }
+  | {
+      kind: 'tools';
+      calls: readonly { name: string; input: unknown; id?: string }[];
+      options: ValueOptions;
+    }
   | { kind: 'error'; error: AIError };
 
 export interface FakeAIProviderOptions {
@@ -63,7 +70,8 @@ export class FakeAIProvider implements AIProvider {
   /** Peticiones recibidas, en orden, para inspeccionarlas desde las pruebas. */
   readonly requests: StructuredRequest<unknown>[] = [];
   /** Turnos del asistente recibidos, en orden. */
-  readonly assistantRequests: AssistantTurnRequest[] = [];
+  readonly assistantRequests: AssistantTurnRequest<unknown>[] = [];
+  private toolCallSeq = 0;
   private readonly script: Scripted[] = [];
   private readonly replies: ScriptedReply[] = [];
   private healthError: AIError | null = null;
@@ -97,6 +105,21 @@ export class FakeAIProvider implements AIProvider {
   /** Programa la respuesta de texto del siguiente turno del asistente. */
   enqueueReply(text: string, options: ValueOptions = {}): this {
     this.replies.push({ kind: 'reply', text, options });
+    return this;
+  }
+
+  /** Programa la respuesta final estructurada del Copilot v2 (se valida contra `output`). */
+  enqueueFinal(value: unknown, options: ValueOptions = {}): this {
+    this.replies.push({ kind: 'final', value, options });
+    return this;
+  }
+
+  /** Programa un paso en el que el modelo pide una o más herramientas. */
+  enqueueToolCalls(
+    calls: readonly { name: string; input: unknown; id?: string }[],
+    options: ValueOptions = {},
+  ): this {
+    this.replies.push({ kind: 'tools', calls, options });
     return this;
   }
 
@@ -205,8 +228,10 @@ export class FakeAIProvider implements AIProvider {
     };
   }
 
-  async runAssistantTurn(req: AssistantTurnRequest): Promise<AIResult<string>> {
-    this.assistantRequests.push(req);
+  async runAssistantTurn<T = string>(
+    req: AssistantTurnRequest<T>,
+  ): Promise<AIResult<AssistantStep<T>>> {
+    this.assistantRequests.push(req as AssistantTurnRequest<unknown>);
     if (req.signal?.aborted) {
       return {
         ok: false,
@@ -224,13 +249,70 @@ export class FakeAIProvider implements AIProvider {
       );
     }
     if (next.kind === 'error') return { ok: false, error: { ...next.error } };
-    return {
-      ok: true,
-      value: next.text,
+    const meta = {
       model: next.options.model ?? req.model ?? this.model,
       usage: { ...(next.options.usage ?? { inputTokens: 0, outputTokens: 0 }) },
       latencyMs: next.options.latencyMs ?? 0,
-      rawText: next.text,
+    };
+    if (next.kind === 'tools') {
+      // Igual que la API: sin herramientas declaradas no puede haber llamadas.
+      if (!req.tools?.length || req.toolChoice === 'none')
+        return {
+          ok: false,
+          error: {
+            kind: 'INVALID_OUTPUT',
+            retryable: true,
+            message: 'Llamada a herramienta inesperada.',
+          },
+        };
+      const calls = next.calls.map((call, index) => ({
+        id: call.id ?? `toolu_fake_${++this.toolCallSeq}_${index}`,
+        name: call.name,
+        input: call.input,
+      }));
+      return {
+        ok: true,
+        value: {
+          kind: 'TOOL_CALLS',
+          calls,
+          content: calls.map((call) => ({ type: 'tool_use', ...call })),
+        },
+        rawText: '',
+        ...meta,
+      };
+    }
+    const text = next.kind === 'final' ? JSON.stringify(next.value) : next.text;
+    if (!req.output)
+      return {
+        ok: true,
+        value: { kind: 'FINAL', value: text as T, text },
+        rawText: text,
+        ...meta,
+      };
+    // Mismo procesamiento que ClaudeProvider: JSON y esquema de salida.
+    const failure = (message: string): AIResult<AssistantStep<T>> => ({
+      ok: false,
+      error: {
+        kind: 'INVALID_OUTPUT',
+        retryable: true,
+        message,
+        rawText: text,
+        ...meta,
+      },
+    });
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return failure('La respuesta no es JSON válido.');
+    }
+    const parsed = req.output.safeParse(json);
+    if (!parsed.success) return failure('La respuesta no cumple el esquema.');
+    return {
+      ok: true,
+      value: { kind: 'FINAL', value: parsed.data, text },
+      rawText: text,
+      ...meta,
     };
   }
 }
