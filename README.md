@@ -282,4 +282,4 @@ El **CI de GitHub Actions** (`windows-latest`) se ejecuta en cada push a `main` 
 
 Los planes de sprint, las decisiones de arquitectura (ADR), los manuales técnico y de usuario, las evidencias y los informes se mantienen en la carpeta `construccion/` del equipo, **fuera de este repositorio**. Este repositorio contiene solo código, configuración, pruebas y datos de prueba.
 
-**Tecnologías:** Electron 44, React 19, TypeScript 5.9, Vite / electron-vite, Zod, `node:sqlite`, pino, Vitest, Playwright, Python 3.12, Pydantic, PyYAML, pefile, uv, `@anthropic-ai/sdk`
+**Tecnologías:** Electron 44, React 19, TypeScript 5.9, Vite / electron-vite, Zod, `node:sqlite`, pino, Vitest, Playwright, Python 3.12, Pydantic, PyYAML, pefile, uv, `@anthropic-ai/sdk`.
