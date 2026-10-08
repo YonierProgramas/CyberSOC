@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1260" viewBox="0 0 1800 1260" role="img" aria-labelledby="title desc">
+  <title id="title">CyberSOC Defender — arquitectura v3 contrastada con el código</title>
+  <desc id="desc">Tres papeles principales: renderer, main y motor Python. Main consulta SQLite, cifra cuarentena, exporta reportes y usa Claude. El motor analiza en lectura y puede crear un auxiliar PE. No se envía contenido de archivos a la IA; las herramientas del Copilot pueden enviar rutas reales.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0 0 L8 4 L0 8 Z" fill="#7087a5"/></marker>
+    <style>
+      text { font-family: 'Segoe UI', Arial, sans-serif; fill: #20364e; }
+      .title { font-size: 34px; font-weight: 700; }
+      .sub { font-size: 19px; fill: #52657d; }
+      .head { font-size: 23px; font-weight: 700; }
+      .body { font-size: 19px; }
+      .small { font-size: 17px; fill: #52657d; }
+      .label { font-size: 16px; font-weight: 600; fill: #354d6c; }
+      .line { fill: none; stroke: #7087a5; stroke-width: 2.5; marker-end: url(#arrow); }
+      .card { fill: white; stroke: #cfdae6; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="1800" height="1260" fill="#f3f6fa"/>
+  <text x="48" y="58" class="title">CyberSOC Defender</text>
+  <text x="48" y="91" class="sub">Arquitectura v3 · Base integrada 6d9394d · Revisión documental: 3 oct 2026</text>
+  <rect x="1280" y="35" width="470" height="58" rx="12" fill="#e1edf8"/>
+  <text x="1515" y="61" class="label" text-anchor="middle">El motor detecta · RiskPolicy decide</text>
+  <text x="1515" y="83" class="label" text-anchor="middle">La IA explica y propone · el usuario confirma</text>
+
+  <rect x="48" y="138" width="390" height="478" rx="16" class="card"/>
+  <rect x="48" y="138" width="390" height="65" rx="16" fill="#dceef4"/>
+  <text x="72" y="178" class="head">1 · Renderer</text>
+  <text x="72" y="233" class="small">Electron · React · TypeScript</text>
+  <text x="72" y="274" class="body">Escaneo, progreso y top de riesgo</text>
+  <text x="72" y="306" class="body">Resultados, evidencias y capas</text>
+  <text x="72" y="338" class="body">¿Cómo se decidió? · Qué se envió</text>
+  <text x="72" y="370" class="body">Historial y cuarentena</text>
+  <text x="72" y="402" class="body">Copilot: referencias, reporte y plan</text>
+  <text x="72" y="434" class="body">Configuración de la API key</text>
+  <path d="M72 463 H414" stroke="#cfdae6"/>
+  <text x="72" y="493" class="small">Sin Node ni acceso directo a SQLite.</text>
+  <text x="72" y="520" class="small">Sin conexiones externas del renderer.</text>
+  <text x="72" y="552" class="small">Preload: puente de métodos explícitos;</text>
+  <text x="72" y="579" class="small">no es otro servicio de aplicación.</text>
+
+  <rect x="565" y="138" width="605" height="478" rx="16" class="card"/>
+  <rect x="565" y="138" width="605" height="65" rx="16" fill="#e5e3fa"/>
+  <text x="589" y="178" class="head">2 · Main / Core</text>
+  <text x="589" y="233" class="small">TypeScript · composición y estado de la aplicación</text>
+  <text x="589" y="274" class="body">ScanOrchestrator: un trabajo activo, cancelación</text>
+  <text x="589" y="306" class="body">Stack DFS + Set · Queue acotada · TopK (10)</text>
+  <text x="589" y="338" class="body">PathTrie: zona por prefijo más largo · Map de perfiles</text>
+  <text x="589" y="370" class="body">RiskPolicy v3: allowlist → motor → IA acotada</text>
+  <text x="589" y="402" class="body">IA: PriorityQueue, contexto, validación y reintentos</text>
+  <text x="589" y="434" class="body">Copilot: Queue de 10 turnos + Map de herramientas</text>
+  <text x="589" y="466" class="body">ReportBuilder: cifras SQLite, borrador en memoria</text>
+  <text x="589" y="498" class="body">SecretStore: safeStorage · estado con last4</text>
+  <text x="589" y="542" class="small">IPC validado con Zod; supervisa el motor hijo.</text>
+  <text x="589" y="573" class="small">Cuarentena sí lee bytes para hash/cifrado/restauración.</text>
+
+  <rect x="1298" y="138" width="454" height="478" rx="16" class="card"/>
+  <rect x="1298" y="138" width="454" height="65" rx="16" fill="#f7e8cb"/>
+  <text x="1322" y="178" class="head">3 · Motor Python</text>
+  <text x="1322" y="233" class="small">3.12 · hijo de main · Pydantic</text>
+  <text x="1322" y="274" class="body">Una pasada de lectura en chunks de 1 MiB</text>
+  <text x="1322" y="306" class="body">SHA-256 · cabecera · histograma (256)</text>
+  <text x="1322" y="345" class="body">HASH · SIGNATURES · FILETYPE</text>
+  <text x="1322" y="377" class="body">RULES · HEURISTICS · PE · SCRIPTS</text>
+  <text x="1322" y="416" class="body">RiskScorer v2: puntos, topes y desglose</text>
+  <text x="1322" y="448" class="body">Evidencias ev1…evN + traza por capa</text>
+  <path d="M1322 471 H1728" stroke="#cfdae6"/>
+  <text x="1322" y="502" class="small">PE: auxiliar transitorio, 8 MiB / 2 s.</text>
+  <text x="1322" y="529" class="small">No ejecuta las muestras.</text>
+  <text x="1322" y="560" class="small">Sin SQLite, red explícita ni escrituras</text>
+  <text x="1322" y="587" class="small">de archivos del usuario.</text>
+
+  <path d="M438 293 H565" class="line"/>
+  <text x="501" y="250" class="label" text-anchor="middle">IPC</text>
+  <text x="501" y="273" class="small" text-anchor="middle">intenciones</text>
+  <path d="M565 352 H438" class="line"/>
+  <text x="501" y="380" class="small" text-anchor="middle">eventos</text>
+  <path d="M1170 293 H1298" class="line"/>
+  <text x="1234" y="246" class="label" text-anchor="middle">JSON-RPC</text>
+  <text x="1234" y="269" class="small" text-anchor="middle">stdio · UTF-8</text>
+  <path d="M1298 352 H1170" class="line"/>
+  <text x="1234" y="380" class="small" text-anchor="middle">resultados</text>
+
+  <path d="M867 616 V655 H248 V692" class="line"/>
+  <path d="M867 655 H725 V692" class="line"/>
+  <path d="M945 616 V655 H1181 V692" class="line"/>
+  <path d="M1525 616 V692" class="line"/>
+  <text x="248" y="642" class="label" text-anchor="middle">ClaudeProvider · HTTPS</text>
+  <text x="725" y="642" class="label" text-anchor="middle">Repositorios · transacciones</text>
+  <text x="1181" y="642" class="label" text-anchor="middle">Acción confirmada</text>
+  <text x="1545" y="651" class="label">Lectura de bytes</text>
+
+  <rect x="48" y="700" width="400" height="283" rx="16" class="card"/>
+  <text x="72" y="740" class="head">API de Claude</text>
+  <text x="72" y="773" class="small">Servicio externo · Haiku configurado</text>
+  <text x="72" y="813" class="body">Análisis y resumen estructurados</text>
+  <text x="72" y="845" class="body">Copilot: explica, consulta y propone</text>
+  <text x="72" y="887" class="small">Sin contenido de archivos.</text>
+  <text x="72" y="914" class="small">Las herramientas pueden enviar</text>
+  <text x="72" y="941" class="small">rutas reales; no todo está anonimizado.</text>
+
+  <rect x="478" y="700" width="493" height="283" rx="16" class="card"/>
+  <text x="502" y="740" class="head">SQLite local</text>
+  <text x="502" y="773" class="small">node:sqlite · WAL · migraciones 001–006</text>
+  <text x="502" y="813" class="body">Trabajos, resultados, evidencias y capas</text>
+  <text x="502" y="845" class="body">RiskPolicy, contextos e intentos de IA</text>
+  <text x="502" y="877" class="body">Cuarentena, auditoría y allowlist</text>
+  <text x="502" y="909" class="body">Conversaciones, mensajes y settings</text>
+  <text x="502" y="950" class="small">Solo main accede; herramientas hacen consultas.</text>
+
+  <rect x="1001" y="700" width="360" height="283" rx="16" class="card"/>
+  <text x="1025" y="740" class="head">Bóveda y exportaciones</text>
+  <text x="1025" y="783" class="body">CSQ1 · AES-256-GCM</text>
+  <text x="1025" y="815" class="body">Verifica copia antes de retirar</text>
+  <text x="1025" y="843" class="body">el original confirmado.</text>
+  <text x="1025" y="883" class="small">Restauración sin sobrescribir.</text>
+  <text x="1025" y="920" class="body">HTML / CSV / JSON</text>
+  <text x="1025" y="950" class="small">Guardar mediante diálogo del usuario.</text>
+
+  <rect x="1391" y="700" width="361" height="283" rx="16" class="card"/>
+  <text x="1415" y="740" class="head">Archivos y catálogos</text>
+  <text x="1415" y="783" class="body">Archivos locales y extraíbles</text>
+  <text x="1415" y="823" class="body">Firmas JSON por SHA-256</text>
+  <text x="1415" y="855" class="body">Reglas YAML locales</text>
+  <text x="1415" y="899" class="small">HASH/SIGNATURES obligatorias.</text>
+  <text x="1415" y="929" class="small">RAN · SKIPPED · DISABLED</text>
+  <text x="1415" y="956" class="small">ERROR y motivo en la traza.</text>
+
+  <rect x="48" y="1020" width="1704" height="184" rx="16" fill="#e8edf4"/>
+  <text x="72" y="1059" class="head">Fronteras y límites que deben mantenerse visibles</text>
+  <text x="72" y="1096" class="body">IA fuera del camino crítico; no crea DETECTED ni ejecuta acciones. La confianza por hash es una decisión humana.</text>
+  <text x="72" y="1128" class="body">El plan inicia una primera ruta tras confirmar. Reportes: cifras de SQLite; narración marcada «Generado por IA».</text>
+  <text x="72" y="1160" class="body">No hay sandbox de red del motor a nivel de Windows: una ruta UNC puede implicar SMB. No equivale a aislamiento total.</text>
+  <text x="48" y="1234" class="small">Tres papeles principales, más auxiliares de Electron y PE. T6.3 (confirmación nativa adicional) y empaquetado: no integrados en esta base.</text>
+</svg>
