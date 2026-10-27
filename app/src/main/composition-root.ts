@@ -63,6 +63,7 @@ import {
 } from '../core/quarantine/QuarantineManager';
 import { QuarantineVault } from '../core/quarantine/QuarantineVault';
 import { ProtectedPaths } from '../core/quarantine/paths';
+import { resolveEnginePaths } from './engine-paths';
 
 let evidenceRoot: string | undefined;
 
@@ -244,7 +245,12 @@ export function createAssistantTools(
   const roots = resolveZoneRoots((name) => app.getPath(name), process.env);
   let catalog: ToolCatalogRepository;
   try {
-    catalog = loadToolCatalog(join(appRoot, '..', 'engine', 'data'));
+    catalog = loadToolCatalog(
+      join(
+        resolveEnginePaths(appRoot, app.isPackaged, process.resourcesPath).root,
+        'data',
+      ),
+    );
   } catch {
     // Sin catálogo, get_rule_info y lookup_hash responden NOT_FOUND; el chat sigue.
     console.error('No se pudo cargar el catálogo de reglas y firmas.');
@@ -1124,6 +1130,11 @@ export function createEngine(
   if (root) userDataPath = join(root, 'user-data');
   const logger = createLogger(join(userDataPath, 'logs'));
   logger.info({ component: 'core' }, 'Logging started');
+  const paths = resolveEnginePaths(
+    appRoot,
+    app.isPackaged,
+    process.resourcesPath,
+  );
   return new EngineProcess({
     // La alternativa de desarrollo pertenece a main; el proceso Python no la necesita.
     spawnProcess: ((
@@ -1150,22 +1161,11 @@ export function createEngine(
       }
       return child;
     }) as typeof spawn,
-    cwd: appRoot,
+    cwd: paths.cwd,
     command: () =>
-      process.env.CYBERSOC_ENGINE_CMD !== undefined
+      !app.isPackaged && process.env.CYBERSOC_ENGINE_CMD !== undefined
         ? parseEngineCommand(process.env.CYBERSOC_ENGINE_CMD)
-        : {
-            file: join(
-              appRoot,
-              '..',
-              'engine',
-              '.venv',
-              process.platform === 'win32'
-                ? 'Scripts/python.exe'
-                : 'bin/python',
-            ),
-            args: ['-m', 'cybersoc_engine'],
-          },
+        : paths.command,
     logger: asEngineLogger(logger),
   });
 }
