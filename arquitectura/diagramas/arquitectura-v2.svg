@@ -1,0 +1,349 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1090" viewBox="0 0 1600 1090" font-family="Segoe UI, DejaVu Sans Condensed, Arial, sans-serif" xmlns:c2pa="http://c2pa.org/manifest"><metadata><c2pa:manifest>AAAWgmp1bWIAAAAeanVtZGMycGEAEQAQgAAAqgA4m3EDYzJwYQAAABZcanVtYgAAAEdqdW1kYzJtYQARABCAAACqADibcQN1cm46YzJwYTplOGIzM2Y3OS00ZjA0LTQ1MzMtOTAzYy05MjUyZmE2YzU5MTAAAAADl2p1bWIAAAApanVtZGMyYXMAEQAQgAAAqgA4m3EDYzJwYS5hc3NlcnRpb25zAAAAALxqdW1iAAAARGp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuaW5ncmVkaWVudC52MwAAAAAYYzJzaNYDrrXgvvjFmNF/yQJQccgAAABwY2JvcqNpZGM6Zm9ybWF0bWltYWdlL3N2Zyt4bWxqaW5zdGFuY2VJRHgseG1wOmlpZDozZjZlMDY1OS05OWYzLTRjMDktOTA5NS05NmJkMjZhZmU1NWJscmVsYXRpb25zaGlwaHBhcmVudE9mAAAB4mp1bWIAAABBanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5hY3Rpb25zLnYyAAAAABhjMnNoNOyVlngX48OQmDY2Z6ijNgAAAZljYm9yomdhY3Rpb25zgqJmYWN0aW9ua2MycGEub3BlbmVkanBhcmFtZXRlcnOha2luZ3JlZGllbnRzgaJjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFgg9/iRF8T42JYnWa7E6pciBRWWTJ+xAL3U83QgSM9M3wakZmFjdGlvbngdY29tLmFudGhyb3BpYy5jbGF1ZGUucHJvdmlkZWRqcGFyYW1ldGVyc6F4H2NvbS5hbnRocm9waWMub3JpZ2luLWNvbmZpZGVuY2VndW5rbm93bmtkZXNjcmlwdGlvbnhmQ2xhdWRlIHByb3ZpZGVkIHRoaXMgZmlsZSBhdCB0aGUgcmVxdWVzdCBvZiBhIHVzZXIgYW5kIG1heSBoYXZlIGNyZWF0ZWQgb3IgbW9kaWZpZWQgdGhlIGZpbGUgY29udGVudHMubXNvZnR3YXJlQWdlbnShZG5hbWVmQ2xhdWRlcmFsbEFjdGlvbnNJbmNsdWRlZPUAAADIanVtYgAAAEBqdW1kY2JvcgARABCAAACqADibcRNjMnBhLmhhc2guZGF0YQAAAAAYYzJzaN2S2Nuwx6D7Jw6QXLrw2vcAAACAY2JvcqVjYWxnZnNoYTI1NmNwYWRNAAAAAAAAAAAAAAAAAGRoYXNoWCC1AdtrCPB8r8DccOy7vb/oEFNp09WMr43e7MrphMtJyGRuYW1lbmp1bWJmIG1hbmlmZXN0amV4Y2x1c2lvbnOBomVzdGFydBjbZmxlbmd0aBkeBAAAAj5qdW1iAAAAJ2p1bWRjMmNsABEAEIAAAKoAOJtxA2MycGEuY2xhaW0udjIAAAACD2Nib3KlY2FsZ2ZzaGEyNTZpc2lnbmF0dXJleE1zZWxmI2p1bWJmPS9jMnBhL3VybjpjMnBhOmU4YjMzZjc5LTRmMDQtNDUzMy05MDNjLTkyNTJmYTZjNTkxMC9jMnBhLnNpZ25hdHVyZWppbnN0YW5jZUlEeCx4bXA6aWlkOmVmZjc5ZjdhLWMzMWYtNGM4Yy05ZDEwLWIzNjQzMjQ3MmEwN3JjcmVhdGVkX2Fzc2VydGlvbnODomN1cmx4LXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaW5ncmVkaWVudC52M2RoYXNoWCD3+JEXxPjYlidZrsTqlyIFFZZMn7EAvdTzdCBIz0zfBqJjdXJseCpzZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmFjdGlvbnMudjJkaGFzaFggr0vPG3ZI9KYaFga5GRoz2bPU5yjuBPhR3X1RKgO+MXiiY3VybHgpc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5oYXNoLmRhdGFkaGFzaFggCZF4v3lscXAY4ykTtHKudnbxuquPZmPqKSMb8qBDSaJ0Y2xhaW1fZ2VuZXJhdG9yX2luZm+jZG5hbWVvQW50aHJvcGljIEZpbGVzZ3ZlcnNpb25lMS4wLjBrc3BlY1ZlcnNpb25lMi40LjAAABA4anVtYgAAAChqdW1kYzJjcwARABCAAACqADibcQNjMnBhLnNpZ25hdHVyZQAAABAIY2JvctKEWQISogEmGCFZAgowggIGMIIBjaADAgECAhRA5aAK7sI50L64g/oGQgU9Z1UTADAKBggqhkjOPQQDAzBJMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEuMCwGA1UEAxMlQW50aHJvcGljIENvbnRlbnQgQ3JlZGVudGlhbHMgUm9vdCBDQTAeFw0yNjA4MDcxODQzNTZaFw0yODA4MDYxOTQzNTZaMEQxFzAVBgNVBAoTDkFudGhyb3BpYywgUEJDMSkwJwYDVQQDEyBBbnRocm9waWMgQ2xhdWRlIENvbnRlbnQgU2lnbmluZzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJh6CmvLUBgFFNU0vUKlOVtE6djd17L5SuwX0LemFisBM3dkd/3cyjxFA3Qo5S46fX0/ihY0VZ7mfb9KF703t5OjWDBWMA4GA1UdDwEB/wQEAwIHgDAVBgNVHSUEDjAMBgorBgEEAYPoXgIBMAwGA1UdEwEB/wQCMAAwHwYDVR0jBBgwFoAUzlHiBIFOZFsj+OPEz5o+nMHXXMIwCgYIKoZIzj0EAwMDZwAwZAIwMXMdFJ4BetLLVY7ORuE9noqbbAZOZn/aArXyTwFAZfKrPzxF2vPoJNf1+UCdg1XGAjBwX1zd9WGqYkqmL5SFqw1QySjr1zJfpJM9+1rdDwSPLMOPOjKuiXjoU/pUUeG9RwmhY3BhZFkNngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPZYQDI1wwHGzYlsc+/v6wqKO9ighiQCvzdlmByp6qOoqBOtabYUiVKbqB5ZFo0+pHEGBj6yOcMkRL6ac7cqZ0kBj08=</c2pa:manifest></metadata>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#060a17"/><stop offset="1" stop-color="#0e1433"/></linearGradient>
+<linearGradient id="tg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a5b4fc"/><stop offset="1" stop-color="#818cf8"/></linearGradient>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1"/></marker>
+<marker id="ahs" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#cbd5e1"/></marker>
+<marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#fb7185"/></marker>
+<marker id="ahAs" viewBox="0 0 10 10" refX="1" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M10,0 L0,5 L10,10 z" fill="#fb7185"/></marker>
+</defs>
+<rect width="1600" height="1090" fill="url(#bg)"/>
+<text x="28" y="64" font-size="44" font-weight="bold"><tspan fill="#ffffff">CyberSOC </tspan><tspan fill="url(#tg)">Defender</tspan></text>
+<text x="30" y="96" font-size="19" fill="#7dd3fc" font-weight="normal" text-anchor="start" >Arquitectura de una app antivirus con IA integrada</text>
+<text x="1572" y="52" font-size="18" fill="#ffffff" font-weight="bold" text-anchor="end" >La IA planifica, analiza y responde</text>
+<text x="1572" y="76" font-size="14" fill="#94a3b8" font-weight="normal" text-anchor="end" >El motor detecta · la Risk Policy decide · el usuario actúa</text>
+<text x="1572" y="98" font-size="12" fill="#64748b" font-weight="normal" text-anchor="end" >Diagrama v2 · IA: API de Claude (Anthropic)</text>
+<rect x="20" y="120" width="170" height="470" rx="14" fill="none" stroke="#22c55e" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="20" y="120" width="170" height="470" rx="14" fill="#22c55e" fill-opacity="0.07" stroke="#22c55e" stroke-width="1.8"/>
+<circle cx="44" cy="147" r="13" fill="#22c55e"/>
+<text x="44" y="152" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >1</text>
+<text x="66" y="153" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Usuario</text>
+<circle cx="105" cy="178" r="15" fill="#e2e8f0"/>
+<path d="M78,222 Q78,198 105,198 Q132,198 132,222 Z" fill="#e2e8f0"/>
+<text x="32" y="250" font-size="12.5" fill="#86efac" font-weight="bold" text-anchor="start" >Selecciona</text>
+<rect x="32" y="258" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="278.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Archivo</text>
+<rect x="32" y="298" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="318.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Carpeta</text>
+<rect x="32" y="338" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="358.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Unidad / USB</text>
+<text x="32" y="400" font-size="12.5" fill="#86efac" font-weight="bold" text-anchor="start" >Pregunta</text>
+<rect x="32" y="408" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="428.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >al Copilot</text>
+<text x="32" y="468" font-size="12.5" fill="#86efac" font-weight="bold" text-anchor="start" >Confirma</text>
+<rect x="32" y="476" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="496.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >planes de escaneo</text>
+<rect x="32" y="516" width="146" height="32" rx="8" fill="#22c55e" fill-opacity="0.05" stroke="#22c55e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="536.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >cuarentena</text>
+<rect x="250" y="120" width="280" height="470" rx="14" fill="none" stroke="#3b82f6" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="250" y="120" width="280" height="470" rx="14" fill="#3b82f6" fill-opacity="0.07" stroke="#3b82f6" stroke-width="1.8"/>
+<circle cx="274" cy="147" r="13" fill="#3b82f6"/>
+<text x="274" y="152" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >2</text>
+<text x="296" y="153" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Interfaz de Escritorio</text>
+<text x="296" y="173" font-size="12.5" fill="#93c5fd" font-weight="normal" text-anchor="start" >Renderer · TypeScript + React</text>
+<rect x="262" y="188" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="209.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Escaneo y progreso</text>
+<rect x="262" y="229" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="250.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Resultados y evidencia</text>
+<rect x="262" y="270" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="291.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >¿Cómo se decidió? (traza)</text>
+<rect x="262" y="311" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="332.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Capas aplicadas por archivo</text>
+<rect x="262" y="352" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="373.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Qué se envió a la IA</text>
+<rect x="262" y="393" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="414.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Cuarentena</text>
+<rect x="262" y="434" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="455.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Historial y reportes</text>
+<rect x="262" y="475" width="256" height="34" rx="8" fill="#3b82f6" fill-opacity="0.05" stroke="#3b82f6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="274" y="496.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Configuración (API key)</text>
+<text x="262" y="540" font-size="12" fill="#93c5fd" font-weight="normal" text-anchor="start" >Sandbox: sin acceso a disco,</text>
+<text x="262" y="556" font-size="12" fill="#93c5fd" font-weight="normal" text-anchor="start" >red ni secretos</text>
+<rect x="600" y="120" width="350" height="470" rx="14" fill="none" stroke="#8b5cf6" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="600" y="120" width="350" height="470" rx="14" fill="#8b5cf6" fill-opacity="0.07" stroke="#8b5cf6" stroke-width="1.8"/>
+<circle cx="624" cy="147" r="13" fill="#8b5cf6"/>
+<text x="624" y="152" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >3</text>
+<text x="646" y="153" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Core / Orquestador</text>
+<text x="646" y="173" font-size="12.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Main · TypeScript · dueño del estado</text>
+<rect x="612" y="184" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="199" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Gestor de trabajos</text>
+<text x="624" y="214" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Queue FIFO acotada</text>
+<rect x="612" y="227" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="242" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Explorador de archivos</text>
+<text x="624" y="257" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >DFS con Stack + Set de visitados</text>
+<rect x="612" y="270" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="285" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Zonas y perfiles de capas</text>
+<text x="624" y="300" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Trie de rutas + Map zona → perfil</text>
+<rect x="612" y="313" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="328" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Coordinador de escaneo</text>
+<text x="624" y="343" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >progreso en vivo y cancelación segura</text>
+<rect x="612" y="356" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.16" stroke="#8b5cf6" stroke-opacity="0.9" stroke-width="1.2"/>
+<text x="624" y="371" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Risk Policy</text>
+<text x="624" y="386" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >decisión final determinista, con traza</text>
+<rect x="612" y="399" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="414" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >AI Context Builder</text>
+<text x="624" y="429" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >solo metadatos, rutas anonimizadas</text>
+<rect x="612" y="442" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="457" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Cola de IA</text>
+<text x="624" y="472" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >PriorityQueue por riesgo</text>
+<rect x="612" y="485" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="500" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Orquestador del Copilot</text>
+<text x="624" y="515" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >herramientas de solo lectura</text>
+<rect x="612" y="528" width="326" height="38" rx="8" fill="#8b5cf6" fill-opacity="0.05" stroke="#8b5cf6" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="543" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >SecretStore</text>
+<text x="624" y="558" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >API key cifrada (DPAPI)</text>
+<rect x="1030" y="120" width="260" height="470" rx="14" fill="none" stroke="#f59e0b" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="1030" y="120" width="260" height="470" rx="14" fill="#f59e0b" fill-opacity="0.07" stroke="#f59e0b" stroke-width="1.8"/>
+<circle cx="1054" cy="147" r="13" fill="#f59e0b"/>
+<text x="1054" y="152" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >4</text>
+<text x="1076" y="153" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Motor de Análisis</text>
+<text x="1076" y="173" font-size="12.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >Python · solo lectura</text>
+<text x="1076" y="189" font-size="12.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >sin red · sin base de datos</text>
+<rect x="1042" y="196" width="236" height="32" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="216.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Lectura única en streaming</text>
+<rect x="1042" y="236" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="241" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="255" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >HASH</text>
+<text x="1141" y="256" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >SHA-256</text>
+<rect x="1042" y="272" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="277" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="291" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >SIGNATURES</text>
+<text x="1141" y="292" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Firmas locales (dict)</text>
+<rect x="1042" y="308" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="313" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="327" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >FILETYPE</text>
+<text x="1141" y="328" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Tipo real y nombre</text>
+<rect x="1042" y="344" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="349" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="363" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >RULES</text>
+<text x="1141" y="364" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Reglas YAML</text>
+<rect x="1042" y="380" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="385" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="399" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >HEURISTICS</text>
+<text x="1141" y="400" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Entropía y ubicación</text>
+<rect x="1042" y="416" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="421" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="435" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >PE</text>
+<text x="1141" y="436" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Ejecutables</text>
+<rect x="1042" y="452" width="236" height="30" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<rect x="1049" y="457" width="84" height="20" rx="5" fill="#f59e0b"/>
+<text x="1091" y="471" font-size="10.5" fill="#1c1203" font-weight="bold" text-anchor="middle" >SCRIPTS</text>
+<text x="1141" y="472" font-size="12" fill="#f8fafc" font-weight="normal" text-anchor="start" >Scripts ofuscados</text>
+<text x="1042" y="506" font-size="11.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >Capas activas según el perfil de la zona</text>
+<rect x="1042" y="516" width="236" height="44" rx="8" fill="#f59e0b" fill-opacity="0.05" stroke="#f59e0b" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="531" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Puntuación + evidencia</text>
+<text x="1054" y="546" font-size="11.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >+ traza de capas por archivo</text>
+<rect x="1350" y="120" width="230" height="160" rx="14" fill="none" stroke="#94a3b8" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="1350" y="120" width="230" height="160" rx="14" fill="#94a3b8" fill-opacity="0.07" stroke="#94a3b8" stroke-width="1.8"/>
+<text x="1366" y="153" font-size="16" fill="#ffffff" font-weight="bold" text-anchor="start" >Archivos del usuario</text>
+<text x="1366" y="173" font-size="12.5" fill="#cbd5e1" font-weight="normal" text-anchor="start" >Disco · carpetas · USB</text>
+<path d="M1368,196 h34 l8,9 h62 v52 h-104 z" fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8"/>
+<text x="1484" y="222" font-size="12" fill="#e2e8f0" font-weight="normal" text-anchor="start" >Solo se leen:</text>
+<text x="1484" y="238" font-size="12" fill="#e2e8f0" font-weight="normal" text-anchor="start" >el motor nunca</text>
+<text x="1484" y="254" font-size="12" fill="#e2e8f0" font-weight="normal" text-anchor="start" >los modifica</text>
+<rect x="1350" y="310" width="230" height="280" rx="14" fill="none" stroke="#14b8a6" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="1350" y="310" width="230" height="280" rx="14" fill="#14b8a6" fill-opacity="0.07" stroke="#14b8a6" stroke-width="1.8"/>
+<circle cx="1374" cy="337" r="13" fill="#14b8a6"/>
+<text x="1374" y="342" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >!</text>
+<text x="1396" y="343" font-size="16" fill="#ffffff" font-weight="bold" text-anchor="start" >Reglas de seguridad</text>
+<text x="1366" y="372" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >1. Quien ve el contenido</text>
+<text x="1382" y="394" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >(Python) no tiene red.</text>
+<text x="1366" y="416" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >2. Quien tiene red (Core)</text>
+<text x="1382" y="438" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >no ve contenido.</text>
+<text x="1366" y="460" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >3. A la IA solo van</text>
+<text x="1382" y="482" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >metadatos y evidencias.</text>
+<text x="1366" y="504" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >4. La IA opina y propone;</text>
+<text x="1382" y="526" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >la Risk Policy decide;</text>
+<text x="1382" y="548" font-size="13" fill="#e2e8f0" font-weight="normal" text-anchor="start" >el usuario actúa.</text>
+<rect x="20" y="640" width="510" height="265" rx="14" fill="none" stroke="#0ea5e9" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="20" y="640" width="510" height="265" rx="14" fill="#0ea5e9" fill-opacity="0.07" stroke="#0ea5e9" stroke-width="1.8"/>
+<circle cx="44" cy="667" r="13" fill="#0ea5e9"/>
+<text x="44" y="672" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >6</text>
+<text x="66" y="673" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Asistente de IA Integrado</text>
+<text x="66" y="693" font-size="12.5" fill="#7dd3fc" font-weight="normal" text-anchor="start" >SOC Copilot · consulta datos reales con herramientas</text>
+<rect x="32" y="704" width="232" height="30" rx="8" fill="#0ea5e9" fill-opacity="0.05" stroke="#0ea5e9" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="723.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Explica esta detección</text>
+<rect x="32" y="740" width="232" height="30" rx="8" fill="#0ea5e9" fill-opacity="0.05" stroke="#0ea5e9" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="759.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >¿Qué capa lo detectó?</text>
+<rect x="32" y="776" width="232" height="30" rx="8" fill="#0ea5e9" fill-opacity="0.05" stroke="#0ea5e9" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="795.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Planifica el escaneo de mi USB</text>
+<rect x="32" y="812" width="232" height="30" rx="8" fill="#0ea5e9" fill-opacity="0.05" stroke="#0ea5e9" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="831.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Hazme un reporte de la semana</text>
+<rect x="32" y="848" width="232" height="30" rx="8" fill="#0ea5e9" fill-opacity="0.05" stroke="#0ea5e9" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="44" y="867.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Muéstrame los de mayor riesgo</text>
+<rect x="276" y="700" width="242" height="30" rx="10" fill="#0ea5e9" fill-opacity="0.25"/>
+<text x="286" y="720" font-size="11.5" fill="#ffffff" font-weight="normal" text-anchor="start" >¿Por qué se marcó factura.pdf.exe?</text>
+<rect x="276" y="738" width="242" height="154" rx="10" fill="#0f172a" stroke="#0ea5e9" stroke-opacity="0.6"/>
+<text x="286" y="758.0" font-size="11.5" fill="#fcd34d" font-weight="bold" text-anchor="start" >Sospechoso · Riesgo MEDIO (55/100)</text>
+<text x="286" y="777.5" font-size="11.5" fill="#e2e8f0" font-weight="normal" text-anchor="start" >• FILETYPE: doble extensión (+25)</text>
+<text x="286" y="797.0" font-size="11.5" fill="#e2e8f0" font-weight="normal" text-anchor="start" >• HEURISTICS: entropía 7,6 (+15)</text>
+<text x="286" y="816.5" font-size="11.5" fill="#e2e8f0" font-weight="normal" text-anchor="start" >• RULES: R-PE-INYECCION (+15)</text>
+<text x="286" y="836.0" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Decidió: Risk Policy (motor)</text>
+<text x="286" y="855.5" font-size="11.5" fill="#fda4af" font-weight="normal" text-anchor="start" >IA: coherente con la evidencia</text>
+<text x="286" y="875.0" font-size="11.5" fill="#7dd3fc" font-weight="normal" text-anchor="start" >Sugerencia: verificar el origen</text>
+<rect x="600" y="640" width="410" height="265" rx="14" fill="none" stroke="#f43f5e" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="600" y="640" width="410" height="265" rx="14" fill="#f43f5e" fill-opacity="0.07" stroke="#f43f5e" stroke-width="1.8"/>
+<circle cx="624" cy="667" r="13" fill="#f43f5e"/>
+<text x="624" y="672" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >5</text>
+<text x="646" y="673" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Servicio de IA</text>
+<text x="646" y="693" font-size="12.5" fill="#fda4af" font-weight="normal" text-anchor="start" >API de Claude (Anthropic) · Claude Haiku 4.5</text>
+<rect x="612" y="704" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="723.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Correlación de evidencia</text>
+<rect x="612" y="740" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="759.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Explicación técnica/simple</text>
+<rect x="612" y="776" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="795.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Opinión de riesgo</text>
+<rect x="612" y="812" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="624" y="831.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Recomendaciones acotadas</text>
+<rect x="811" y="704" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="823" y="723.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Resúmenes y reportes</text>
+<rect x="811" y="740" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="823" y="759.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Planificador de escaneo</text>
+<rect x="811" y="776" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="823" y="795.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Respuestas del Copilot</text>
+<rect x="811" y="812" width="187" height="30" rx="8" fill="#f43f5e" fill-opacity="0.05" stroke="#f43f5e" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="823" y="831.5" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Degradación si falla</text>
+<text x="612" y="866" font-size="12" fill="#fda4af" font-weight="normal" text-anchor="start" >Salidas estructuradas + tool use estricto</text>
+<text x="612" y="884" font-size="12" fill="#fda4af" font-weight="normal" text-anchor="start" >Se valida: esquema · citas reales · seguridad</text>
+<rect x="1030" y="640" width="260" height="265" rx="14" fill="none" stroke="#10b981" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="1030" y="640" width="260" height="265" rx="14" fill="#10b981" fill-opacity="0.07" stroke="#10b981" stroke-width="1.8"/>
+<circle cx="1054" cy="667" r="13" fill="#10b981"/>
+<text x="1054" y="672" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >7</text>
+<text x="1076" y="673" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Almacenamiento</text>
+<text x="1076" y="693" font-size="12.5" fill="#6ee7b7" font-weight="normal" text-anchor="start" >SQLite · único escritor: Core</text>
+<rect x="1042" y="700" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="718.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Escaneos y resultados</text>
+<rect x="1042" y="732" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="750.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Evidencias y traza de capas</text>
+<rect x="1042" y="764" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="782.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Decisiones (Risk Policy)</text>
+<rect x="1042" y="796" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="814.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Análisis IA + contexto enviado</text>
+<rect x="1042" y="828" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="846.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Cuarentena y auditoría</text>
+<rect x="1042" y="860" width="236" height="27" rx="8" fill="#10b981" fill-opacity="0.05" stroke="#10b981" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1054" y="878.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Conversaciones y config.</text>
+<rect x="1350" y="640" width="230" height="265" rx="14" fill="none" stroke="#a855f7" stroke-width="9" stroke-opacity="0.13"/>
+<rect x="1350" y="640" width="230" height="265" rx="14" fill="#a855f7" fill-opacity="0.07" stroke="#a855f7" stroke-width="1.8"/>
+<circle cx="1374" cy="667" r="13" fill="#a855f7"/>
+<text x="1374" y="672" font-size="14" fill="#0b1020" font-weight="bold" text-anchor="middle" >8</text>
+<text x="1396" y="673" font-size="19" fill="#ffffff" font-weight="bold" text-anchor="start" >Cuarentena</text>
+<text x="1396" y="693" font-size="12.5" fill="#d8b4fe" font-weight="normal" text-anchor="start" >Acción del usuario, vía Core</text>
+<rect x="1362" y="700" width="206" height="29" rx="8" fill="#a855f7" fill-opacity="0.05" stroke="#a855f7" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1374" y="719.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Aislar (AES-256-GCM)</text>
+<rect x="1362" y="735" width="206" height="29" rx="8" fill="#a855f7" fill-opacity="0.05" stroke="#a855f7" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1374" y="754.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Verificar SHA-256</text>
+<rect x="1362" y="770" width="206" height="29" rx="8" fill="#a855f7" fill-opacity="0.05" stroke="#a855f7" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1374" y="789.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Restaurar sin sobrescribir</text>
+<rect x="1362" y="805" width="206" height="29" rx="8" fill="#a855f7" fill-opacity="0.05" stroke="#a855f7" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1374" y="824.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Eliminar con confirmación</text>
+<rect x="1362" y="840" width="206" height="29" rx="8" fill="#a855f7" fill-opacity="0.05" stroke="#a855f7" stroke-opacity="0.45" stroke-width="1.2"/>
+<text x="1374" y="859.0" font-size="13" fill="#f1f5f9" font-weight="normal" text-anchor="start" >Auditoría de acciones</text>
+<polyline points="190,300 246,300" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="220" y="262" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >selecciona,</text>
+<text x="220" y="275" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >pregunta,</text>
+<text x="220" y="288" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >confirma</text>
+<polyline points="530,250 596,250" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="565" y="226" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >trabajos y</text>
+<text x="565" y="239" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >preguntas</text>
+<polyline points="600,330 534,330" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="565" y="350" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >progreso y</text>
+<text x="565" y="363" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >resultados</text>
+<text x="565" y="376" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >en vivo</text>
+<polyline points="950,250 1026,250" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="990" y="226" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >tarea + capas</text>
+<text x="990" y="239" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >(JSON-RPC)</text>
+<polyline points="1030,330 954,330" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="990" y="350" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >evidencia +</text>
+<text x="990" y="363" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >traza de capas</text>
+<polyline points="1350,214 1294,214" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="1320" y="190" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >solo</text>
+<text x="1320" y="203" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="middle" >lectura</text>
+<polyline points="390,592 390,636" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" marker-start="url(#ahs)"/>
+<text x="400" y="619" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="start" >panel integrado en la UI</text>
+<polyline points="530,700 565,700 565,540 596,540" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" marker-start="url(#ahs)"/>
+<text x="558" y="628" font-size="11" fill="#cbd5e1" text-anchor="middle" transform="rotate(-90 558 628)">preguntas ↔ datos</text>
+<polyline points="760,590 760,636" fill="none" stroke="#fb7185" stroke-width="2.2"  marker-end="url(#ahA)" />
+<text x="752" y="618" font-size="11" fill="#fda4af" font-weight="normal" text-anchor="end" >contexto estructurado (metadatos)</text>
+<polyline points="850,640 850,594" fill="none" stroke="#fb7185" stroke-width="2.2"  marker-end="url(#ahA)" />
+<text x="858" y="618" font-size="11" fill="#fda4af" font-weight="normal" text-anchor="start" >análisis validado</text>
+<polyline points="950,565 990,565 990,614 1465,614" fill="none" stroke="#cbd5e1" stroke-width="2.2"/>
+<polyline points="1160,614 1160,636" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="1168" y="632" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="start" >único escritor</text>
+<polyline points="1465,614 1465,636" fill="none" stroke="#cbd5e1" stroke-width="2.2"  marker-end="url(#ah)" />
+<text x="1473" y="632" font-size="11" fill="#cbd5e1" font-weight="normal" text-anchor="start" >si el usuario confirma</text>
+<rect x="20" y="925" width="1560" height="152" rx="12" fill="#0b1224" stroke="#334155"/>
+<text x="36" y="949" font-size="13" fill="#e2e8f0" font-weight="bold" text-anchor="start" letter-spacing="1.5">FLUJO COMPLETO</text>
+<rect x="32" y="960" width="145" height="104" rx="10" fill="#22c55e" fill-opacity="0.08" stroke="#22c55e" stroke-opacity="0.55"/>
+<circle cx="48" cy="977" r="10" fill="#22c55e"/>
+<text x="48" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >1</text>
+<text x="42" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Selección</text>
+<text x="42" y="1023" font-size="11.5" fill="#86efac" font-weight="normal" text-anchor="start" >archivo, carpeta</text>
+<text x="42" y="1037" font-size="11.5" fill="#86efac" font-weight="normal" text-anchor="start" >o unidad / USB</text>
+<text x="181.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="186" y="960" width="145" height="104" rx="10" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-opacity="0.55"/>
+<circle cx="202" cy="977" r="10" fill="#8b5cf6"/>
+<text x="202" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >2</text>
+<text x="196" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Zona y perfil</text>
+<text x="196" y="1023" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Trie de rutas;</text>
+<text x="196" y="1037" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >la IA puede proponer</text>
+<text x="335.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="340" y="960" width="145" height="104" rx="10" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-opacity="0.55"/>
+<circle cx="356" cy="977" r="10" fill="#8b5cf6"/>
+<text x="356" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >3</text>
+<text x="350" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Descubrimiento</text>
+<text x="350" y="1023" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >DFS con Stack</text>
+<text x="350" y="1037" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >+ Set de visitados</text>
+<text x="489.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="494" y="960" width="145" height="104" rx="10" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-opacity="0.55"/>
+<circle cx="510" cy="977" r="10" fill="#8b5cf6"/>
+<text x="510" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >4</text>
+<text x="504" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Cola de escaneo</text>
+<text x="504" y="1023" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Queue FIFO</text>
+<text x="504" y="1037" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >acotada</text>
+<text x="643.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="648" y="960" width="145" height="104" rx="10" fill="#f59e0b" fill-opacity="0.08" stroke="#f59e0b" stroke-opacity="0.55"/>
+<circle cx="664" cy="977" r="10" fill="#f59e0b"/>
+<text x="664" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >5</text>
+<text x="658" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Motor Python</text>
+<text x="658" y="1023" font-size="11.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >capas del perfil,</text>
+<text x="658" y="1037" font-size="11.5" fill="#fcd34d" font-weight="normal" text-anchor="start" >solo lectura</text>
+<text x="797.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="802" y="960" width="145" height="104" rx="10" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-opacity="0.55"/>
+<circle cx="818" cy="977" r="10" fill="#8b5cf6"/>
+<text x="818" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >6</text>
+<text x="812" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Resultado</text>
+<text x="812" y="1019" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >preliminar</text>
+<text x="812" y="1038" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >Risk Policy</text>
+<text x="812" y="1052" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >determinista</text>
+<text x="951.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="956" y="960" width="145" height="104" rx="10" fill="#f43f5e" fill-opacity="0.08" stroke="#f43f5e" stroke-opacity="0.55"/>
+<circle cx="972" cy="977" r="10" fill="#f43f5e"/>
+<text x="972" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >7</text>
+<text x="966" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Análisis con IA</text>
+<text x="966" y="1023" font-size="11.5" fill="#fda4af" font-weight="normal" text-anchor="start" >asíncrono,</text>
+<text x="966" y="1037" font-size="11.5" fill="#fda4af" font-weight="normal" text-anchor="start" >PriorityQueue</text>
+<text x="1105.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="1110" y="960" width="145" height="104" rx="10" fill="#8b5cf6" fill-opacity="0.08" stroke="#8b5cf6" stroke-opacity="0.55"/>
+<circle cx="1126" cy="977" r="10" fill="#8b5cf6"/>
+<text x="1126" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >8</text>
+<text x="1120" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Evaluación final</text>
+<text x="1120" y="1023" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >motor + opinión</text>
+<text x="1120" y="1037" font-size="11.5" fill="#c4b5fd" font-weight="normal" text-anchor="start" >IA acotada</text>
+<text x="1259.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="1264" y="960" width="145" height="104" rx="10" fill="#a855f7" fill-opacity="0.08" stroke="#a855f7" stroke-opacity="0.55"/>
+<circle cx="1280" cy="977" r="10" fill="#a855f7"/>
+<text x="1280" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >9</text>
+<text x="1274" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Acción del</text>
+<text x="1274" y="1019" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >usuario</text>
+<text x="1274" y="1038" font-size="11.5" fill="#d8b4fe" font-weight="normal" text-anchor="start" >cuarentena con</text>
+<text x="1274" y="1052" font-size="11.5" fill="#d8b4fe" font-weight="normal" text-anchor="start" >confirmación</text>
+<text x="1413.5" y="1018" font-size="18" fill="#64748b" font-weight="bold" text-anchor="middle" >›</text>
+<rect x="1418" y="960" width="145" height="104" rx="10" fill="#10b981" fill-opacity="0.08" stroke="#10b981" stroke-opacity="0.55"/>
+<circle cx="1434" cy="977" r="10" fill="#10b981"/>
+<text x="1434" y="981.5" font-size="11.5" fill="#0b1020" font-weight="bold" text-anchor="middle" >10</text>
+<text x="1428" y="1004" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >Historial y</text>
+<text x="1428" y="1019" font-size="13" fill="#ffffff" font-weight="bold" text-anchor="start" >reportes</text>
+<text x="1428" y="1038" font-size="11.5" fill="#6ee7b7" font-weight="normal" text-anchor="start" >SQLite + Copilot</text>
+<text x="1428" y="1052" font-size="11.5" fill="#6ee7b7" font-weight="normal" text-anchor="start" >con datos reales</text>
+</svg>
