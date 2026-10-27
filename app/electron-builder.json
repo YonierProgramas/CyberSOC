@@ -1,0 +1,40 @@
+{
+  "appId": "edu.cybersoc.defender",
+  "productName": "CyberSOC Defender",
+  "asar": true,
+  "directories": {
+    "output": "out/distribution",
+    "buildResources": "out/packaging"
+  },
+  "files": [
+    "out/main/**/*",
+    "out/preload/**/*",
+    "out/renderer/**/*",
+    "package.json"
+  ],
+  "extraResources": [
+    {
+      "from": "out/packaging/runtime",
+      "to": "runtime"
+    },
+    {
+      "from": "out/packaging/engine",
+      "to": "engine"
+    },
+    {
+      "from": "out/packaging/resources-manifest.json",
+      "to": "resources-manifest.json"
+    }
+  ],
+  "npmRebuild": false,
+  "win": {
+    "target": [
+      {
+        "target": "dir",
+        "arch": ["x64"]
+      }
+    ],
+    "signAndEditExecutable": false
+  },
+  "publish": null
+}
