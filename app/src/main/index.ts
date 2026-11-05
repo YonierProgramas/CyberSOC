@@ -2,7 +2,7 @@ import {
   registerQuarantineIpc,
   QuarantineUIConfirmation,
 } from './ipc/quarantine.ipc';
-import { app, type BrowserWindow } from 'electron';
+import { app, dialog, type BrowserWindow } from 'electron';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { registerSystemIpc } from './ipc/system.ipc';
@@ -36,6 +36,7 @@ import { ConversationRepository } from '../core/persistence/ConversationReposito
 import { ConversationArchiveReader } from '../core/persistence/ConversationArchiveReader';
 import { RELEASE, RESOURCE_DIGEST } from './build-flags';
 import { verifyResources } from './resource-integrity';
+import { startupFailureMessage } from './startup-failure';
 
 prepareAppProfile();
 // Ningún logger, motor, repositorio o migración escribe antes de este lock.
@@ -198,6 +199,12 @@ app
   })
   .catch((error: unknown) => {
     console.error('No se pudo iniciar CyberSOC Defender:', error);
+    // Solo en la app instalada: en desarrollo y pruebas un diálogo modal colgaría el proceso.
+    if (app.isPackaged)
+      dialog.showErrorBox(
+        'CyberSOC Defender no pudo iniciar',
+        startupFailureMessage(error, app.getPath('userData')),
+      );
     app.quit();
   });
 
