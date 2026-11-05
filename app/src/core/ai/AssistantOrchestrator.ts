@@ -5,6 +5,7 @@ import type { ReportBuilder } from '../reports/ReportBuilder';
 import { Queue } from '../structures/Queue';
 import {
   ASSISTANT_MESSAGE_MAX_CHARS,
+  ASSISTANT_CARD_SCHEMA_V1,
   type AssistantAskQuery,
   type AssistantFocusDTO,
   type AssistantReplyDTO,
@@ -295,18 +296,27 @@ export class AssistantOrchestrator {
       return this.reply(outcome, focus, toolCalls);
 
     const final = outcome.final;
-    this.conversations.append(conversationId, [
+    const reply = this.reply(outcome, focus, toolCalls);
+    this.conversations.appendAnsweredWithCard(
+      conversationId,
       {
-        role: 'assistant',
         content: final.answer,
         model: outcome.model ?? null,
         inputTokens: outcome.usage?.inputTokens ?? null,
         outputTokens: outcome.usage?.outputTokens ?? null,
       },
-    ]);
+      {
+        schema: ASSISTANT_CARD_SCHEMA_V1,
+        focus: reply.focus,
+        references: reply.references,
+        suggestedActions: reply.suggestedActions,
+        report: reply.report,
+        scanPlan: reply.scanPlan,
+      },
+    );
     this.remember({ question, answer: final.answer });
     if (ref.resultId) this.previousResultId = ref.resultId;
-    return this.reply(outcome, focus, toolCalls);
+    return { ...reply, historyTurns: this.history.size };
   }
 
   /**

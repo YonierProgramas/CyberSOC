@@ -99,6 +99,8 @@ export function ScanPlanCard({
           testId="copilot-plan-dialog"
           titleId="copilot-plan-dialog-title"
           title="Confirmar plan de escaneo"
+          onCancel={onClose}
+          cancelDisabled={busy}
         >
           <p>
             Al confirmar se analiza la primera carpeta con el perfil del plan.

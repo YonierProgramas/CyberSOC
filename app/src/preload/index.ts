@@ -35,6 +35,10 @@ import {
   ASSISTANT_RESET,
   ASSISTANT_LIST_CONVERSATIONS,
   ASSISTANT_OPEN_CONVERSATION,
+  DASHBOARD_GET_OVERVIEW,
+  SCAN_LIST_JOBS_PAGE,
+  ASSISTANT_LIST_CONVERSATIONS_PAGE,
+  ASSISTANT_LIST_MESSAGES,
 } from '../shared/ipc';
 
 function subscribe<T>(
@@ -60,6 +64,12 @@ function subscribe<T>(
 }
 
 const api: CyberSocApi = {
+  dashboard: {
+    getOverview: (query) =>
+      query === undefined
+        ? ipcRenderer.invoke(DASHBOARD_GET_OVERVIEW)
+        : ipcRenderer.invoke(DASHBOARD_GET_OVERVIEW, query),
+  },
   reports: { export: (query) => ipcRenderer.invoke(REPORTS_EXPORT, query) },
   quarantine: {
     list: (query) =>
@@ -87,6 +97,7 @@ const api: CyberSocApi = {
     selectFile: () => ipcRenderer.invoke(DIALOG_SELECT_FILE),
   },
   scan: {
+    listJobsPage: (query) => ipcRenderer.invoke(SCAN_LIST_JOBS_PAGE, query),
     start: (target) => ipcRenderer.invoke(SCAN_START, target),
     cancel: (jobId) => ipcRenderer.invoke(SCAN_CANCEL, jobId),
     getJob: (jobId) => ipcRenderer.invoke(SCAN_GET_JOB, jobId),
@@ -110,6 +121,9 @@ const api: CyberSocApi = {
       ipcRenderer.invoke(SYSTEM_RECONNECT_ENGINE),
   },
   assistant: {
+    listConversationsPage: (query) =>
+      ipcRenderer.invoke(ASSISTANT_LIST_CONVERSATIONS_PAGE, query),
+    listMessages: (query) => ipcRenderer.invoke(ASSISTANT_LIST_MESSAGES, query),
     listConversations: (query) =>
       query === undefined
         ? ipcRenderer.invoke(ASSISTANT_LIST_CONVERSATIONS)

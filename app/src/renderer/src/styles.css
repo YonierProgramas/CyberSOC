@@ -1,7 +1,7 @@
 :root {
   font-family: 'Segoe UI', sans-serif;
-  color: #e7edf6;
-  background: #101823;
+  color: #e7eef4;
+  background: #111820;
   color-scheme: dark;
   font-synthesis: none;
 }
@@ -11,9 +11,14 @@ body {
 }
 
 .app-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  display: block;
   min-height: 100vh;
+  background: #111820;
+}
+
+.app-shell.assistant-open {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
 }
 
 .app-main {
@@ -125,7 +130,7 @@ code {
 button {
   background: #1c2b3a;
   color: inherit;
-  border: 1px solid #3d5166;
+  border: 1px solid #7890a6;
   border-radius: 8px;
   padding: 8px 14px;
   cursor: pointer;
@@ -143,8 +148,25 @@ button[aria-current='page'] {
 
 .nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding: 16px 24px 0;
+}
+
+.nav button,
+.assistant-toggle,
+.scope-choices button,
+.pager button {
+  min-height: 44px;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #73c7da;
+  outline-offset: 2px;
 }
 
 main {
@@ -306,6 +328,48 @@ fieldset {
   background: #0c141d;
   padding: 12px;
   border-radius: 8px;
+}
+
+.copilot-panel[hidden] {
+  display: none;
+}
+
+.app-shell.assistant-modal .copilot-panel {
+  position: fixed;
+  inset: 8px;
+  z-index: 3;
+  height: auto;
+  max-height: calc(100vh - 16px);
+  background: #1b2530;
+}
+
+.chart-block {
+  min-width: 0;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: 120px;
+  background: #1b2530;
+  border-radius: 8px;
+}
+
+.scope-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scope-choices button[aria-pressed='true'] {
+  border-color: #73c7da;
+  color: #e7eef4;
+  background: #14323a;
+}
+
+.archive {
+  border-top: 1px solid #314556;
+  padding-top: 8px;
 }
 
 @keyframes slide {

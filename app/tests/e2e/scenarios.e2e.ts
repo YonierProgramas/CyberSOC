@@ -226,6 +226,7 @@ test('4. cuarentena y restauración conservan el hash', async () => {
 });
 
 test('5. el Copilot simulado muestra chips de referencia', async () => {
+  await session.page.getByTestId('assistant-open').click();
   await session.page.getByTestId('nav-history').click();
   await session.page
     .getByTestId('history-job')

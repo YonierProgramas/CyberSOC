@@ -58,6 +58,8 @@ export function QuarantineButton({
           testId="quarantine-dialog"
           titleId="quarantine-dialog-title"
           title="Poner en cuarentena"
+          onCancel={() => setOpen(false)}
+          cancelDisabled={busy}
         >
           <p>El archivo saldrá de su ruta y quedará cifrado en la bóveda.</p>
           <p>

@@ -58,7 +58,7 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
       old
         .prepare('INSERT INTO settings VALUES (?, ?, ?)')
         .run('existing', '{}', 'before');
-      expect(new MigrationRunner(old).run()).toEqual([6]);
+      expect(new MigrationRunner(old).run()).toEqual([6, 7]);
       expect(new MigrationRunner(old).run()).toEqual([]);
       expect(old.prepare('SELECT * FROM settings').all()).toEqual([
         { key: 'existing', value_json: '{}', updated_at: 'before' },

@@ -1,6 +1,8 @@
 import { CopilotPanel } from './components/CopilotPanel';
+import { useAssistantChrome } from './components/AssistantDock';
 import { CopilotFocusProvider } from './copilot/focus';
 import { ShellProvider, useShell } from './navigation/shell';
+import { DashboardPage } from './pages/DashboardPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { QuarantinePage } from './pages/QuarantinePage';
 import { ScanPage } from './pages/ScanPage';
@@ -19,10 +21,24 @@ export function App() {
 
 function AppFrame() {
   const { view, setView } = useShell();
+  const assistant = useAssistantChrome();
+  const shellClass = assistant.open
+    ? assistant.narrow
+      ? 'app-shell assistant-modal'
+      : 'app-shell assistant-open'
+    : 'app-shell';
   return (
-    <div className="app-shell">
-      <div className="app-main">
+    <div className={shellClass}>
+      <div className="app-main" ref={assistant.mainRef}>
         <nav className="nav">
+          <button
+            type="button"
+            data-testid="nav-home"
+            aria-current={view === 'home' ? 'page' : undefined}
+            onClick={() => setView('home')}
+          >
+            Inicio
+          </button>
           <button
             type="button"
             data-testid="nav-scan"
@@ -63,14 +79,32 @@ function AppFrame() {
           >
             Configuración
           </button>
+          <button
+            ref={assistant.opener}
+            type="button"
+            className="assistant-toggle"
+            data-testid="assistant-open"
+            aria-expanded={assistant.open}
+            aria-controls="assistant-panel"
+            onClick={assistant.openAssistant}
+          >
+            Asistente
+          </button>
         </nav>
+        {view === 'home' && <DashboardPage />}
         {view === 'scan' && <ScanPage />}
         {view === 'history' && <HistoryPage />}
         {view === 'quarantine' && <QuarantinePage />}
         {view === 'status' && <StatusPage />}
         {view === 'settings' && <SettingsPage />}
       </div>
-      <CopilotPanel />
+      <div id="assistant-panel">
+        <CopilotPanel
+          open={assistant.open}
+          narrow={assistant.narrow}
+          onClose={assistant.close}
+        />
+      </div>
     </div>
   );
 }

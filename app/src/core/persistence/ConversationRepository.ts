@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import {
+  ASSISTANT_CARD_SCHEMA_V1,
+  ASSISTANT_CARD_MAX_BYTES,
+} from '../../shared/ipc';
+import { assistantCardV1Schema } from '../../shared/assistant-card-schemas';
+import { conversationPageQuerySchema } from '../../shared/history-schemas';
 import type {
   ConversationDTO,
   ConversationMessageDTO,
   ConversationQuery,
+  ConversationPageQuery,
+  ConversationSummaryDTO,
+  Page,
 } from '../../shared/ipc';
 import type { Database } from './Database';
 
@@ -94,6 +103,107 @@ export class ConversationRepository {
         .prepare('UPDATE ai_conversations SET updated_at = ? WHERE id = ?')
         .run(now, id);
     });
+  }
+
+  /** Mensaje final y tarjeta comparten COMMIT; el llamador solo avanza Queue después. */
+  appendAnsweredWithCard(
+    id: string,
+    message: Omit<NewConversationMessage, 'role' | 'toolCallsJson'>,
+    card: unknown,
+    byteLimit = ASSISTANT_CARD_MAX_BYTES,
+  ): string {
+    if (
+      !Number.isSafeInteger(byteLimit) ||
+      byteLimit < 1 ||
+      byteLimit > ASSISTANT_CARD_MAX_BYTES
+    )
+      throw new RangeError('Límite de tarjeta inválido.');
+    let json: string | undefined;
+    try {
+      json = JSON.stringify(card);
+    } catch {
+      /* Una tarjeta no serializable queda OMITTED. */
+    }
+    const bytes = json === undefined ? 0 : Buffer.byteLength(json, 'utf8');
+    const valid = assistantCardV1Schema.safeParse(card).success;
+    const reason =
+      !valid || json === undefined
+        ? 'INVALID'
+        : bytes > byteLimit
+          ? 'TOO_LARGE'
+          : null;
+    for (const tokens of [message.inputTokens, message.outputTokens])
+      if (tokens != null && (!Number.isSafeInteger(tokens) || tokens < 0))
+        throw new RangeError('Conteo de tokens inválido.');
+    const savedId = this.db.transaction(() => {
+      if (!this.get(id)) throw new Error('La conversación no existe.');
+      const messageId = randomUUID();
+      const now = new Date().toISOString();
+      this.db
+        .prepare(
+          `INSERT INTO ai_messages (id, conversation_id, role, content, tool_calls_json, model, input_tokens, output_tokens, created_at)
+        VALUES (?, ?, 'assistant', ?, NULL, ?, ?, ?, ?)`,
+        )
+        .run(
+          messageId,
+          id,
+          message.content,
+          message.model ?? null,
+          message.inputTokens ?? null,
+          message.outputTokens ?? null,
+          now,
+        );
+      this.db
+        .prepare(
+          `INSERT INTO ai_message_cards (message_id, schema, state, card_json, omitted_reason, byte_size, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          messageId,
+          ASSISTANT_CARD_SCHEMA_V1,
+          reason ? 'OMITTED' : 'STORED',
+          reason ? null : json!,
+          reason,
+          bytes,
+          now,
+        );
+      this.db
+        .prepare('UPDATE ai_conversations SET updated_at = ? WHERE id = ?')
+        .run(now, id);
+      return messageId;
+    });
+    if (reason)
+      console.warn('Tarjeta del asistente omitida.', {
+        messageId: savedId,
+        reason,
+        bytes,
+      });
+    return savedId;
+  }
+
+  listPage(input: ConversationPageQuery): Page<ConversationSummaryDTO> {
+    const query = conversationPageQuerySchema.parse(input);
+    return this.db.readTransaction(() => ({
+      items: this.list(query).map((conversation) => {
+        const counts = this.db
+          .prepare(
+            `SELECT COUNT(CASE WHEN role IN ('user','assistant') THEN 1 END) messageCount,
+          MAX(created_at) lastMessageAt FROM ai_messages WHERE conversation_id=?`,
+          )
+          .get(conversation.id)!;
+        return {
+          ...conversation,
+          messageCount: Number(counts.messageCount),
+          lastMessageAt: counts.lastMessageAt as string | null,
+        };
+      }),
+      total: Number(
+        this.db.prepare('SELECT COUNT(*) total FROM ai_conversations').get()!
+          .total,
+      ),
+      offset: query.offset,
+      limit: query.limit,
+    }));
   }
 
   /** Últimos turnos de usuario, incluidos sus mensajes de herramientas, en orden de llegada. */

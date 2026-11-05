@@ -25,6 +25,7 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   const api = electron.expose.mock.calls[0]![1] as CyberSocApi;
   expect(Object.keys(api).sort()).toEqual([
     'assistant',
+    'dashboard',
     'dialog',
     'quarantine',
     'reports',
@@ -60,6 +61,7 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   electron.invoke.mockClear();
   expect(Object.keys(api.dialog)).toEqual(['selectFolder', 'selectFile']);
   expect(Object.keys(api.scan)).toEqual([
+    'listJobsPage',
     'start',
     'cancel',
     'getJob',
@@ -105,6 +107,8 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   await api.scan.analyzeNow('r1');
   expect(electron.invoke).toHaveBeenLastCalledWith('scan:analyzeNow', 'r1');
   expect(Object.keys(api.assistant)).toEqual([
+    'listConversationsPage',
+    'listMessages',
     'listConversations',
     'openConversation',
     'ask',
@@ -132,6 +136,27 @@ it('expone system, dialog, scan, settings.ai y assistant con métodos y canales 
   expect(electron.invoke).toHaveBeenLastCalledWith('assistant:ask', question);
   await api.assistant.reset();
   expect(electron.invoke).toHaveBeenLastCalledWith('assistant:reset');
+  await api.dashboard.getOverview();
+  expect(electron.invoke).toHaveBeenLastCalledWith('dashboard:getOverview');
+  await api.dashboard.getOverview({ from: '2026-11-01', to: '2026-11-04' });
+  expect(electron.invoke).toHaveBeenLastCalledWith('dashboard:getOverview', {
+    from: '2026-11-01',
+    to: '2026-11-04',
+  });
+  await api.scan.listJobsPage({ offset: 20, limit: 20 });
+  expect(electron.invoke).toHaveBeenLastCalledWith('scan:listJobsPage', {
+    offset: 20,
+    limit: 20,
+  });
+  await api.assistant.listConversationsPage({ offset: 0, limit: 10 });
+  expect(electron.invoke).toHaveBeenLastCalledWith(
+    'assistant:listConversationsPage',
+    { offset: 0, limit: 10 },
+  );
+  await api.assistant.listMessages({ conversationId: 'chat' });
+  expect(electron.invoke).toHaveBeenLastCalledWith('assistant:listMessages', {
+    conversationId: 'chat',
+  });
 
   expect(Object.keys(api.quarantine)).toEqual([
     'list',

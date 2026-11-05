@@ -9,7 +9,8 @@ import {
 } from 'react';
 import type { AssistantReferenceDTO } from '../../../shared/ipc';
 
-export type AppView = 'scan' | 'history' | 'quarantine' | 'status' | 'settings';
+export type AppView =
+  'home' | 'scan' | 'history' | 'quarantine' | 'status' | 'settings';
 
 export type OpenRequest =
   | { nonce: number; kind: 'RESULT'; resultId: string }
@@ -27,7 +28,7 @@ const ShellContext = createContext<{
 } | null>(null);
 
 export function ShellProvider({ children }: { children: ReactNode }) {
-  const [view, setView] = useState<AppView>('scan');
+  const [view, setView] = useState<AppView>('home');
   const [request, setRequest] = useState<OpenRequest | null>(null);
   const [watchJobId, setWatchJobId] = useState<string | null>(null);
   const nonce = useRef(0);

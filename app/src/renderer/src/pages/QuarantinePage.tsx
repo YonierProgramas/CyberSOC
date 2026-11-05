@@ -172,6 +172,8 @@ function RestoreDialog({
         testId="quarantine-restore-detected-dialog"
         titleId="quarantine-restore-detected-title"
         title="Segunda confirmación"
+        onCancel={onClose}
+        cancelDisabled={busy}
       >
         <p>
           Este archivo estaba <strong>detectado</strong>. Restaurar lo devuelve
@@ -203,6 +205,8 @@ function RestoreDialog({
       testId="quarantine-restore-dialog"
       titleId="quarantine-restore-title"
       title="Restaurar archivo"
+      onCancel={onClose}
+      cancelDisabled={busy}
     >
       <p>
         Se devolverá una copia verificada. Nunca se sobrescribe un archivo
@@ -302,6 +306,8 @@ function DeleteDialog({
       testId="quarantine-delete-dialog"
       titleId="quarantine-delete-title"
       title="Eliminar de la cuarentena"
+      onCancel={onClose}
+      cancelDisabled={busy}
     >
       <p>
         Se borra solo la copia de la bóveda. El registro queda como eliminado.

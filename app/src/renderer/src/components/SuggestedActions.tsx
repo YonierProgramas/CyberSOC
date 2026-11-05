@@ -143,6 +143,8 @@ export function SuggestedActions({
           testId="copilot-action-dialog"
           titleId="copilot-action-dialog-title"
           title={labels[pending.action]}
+          onCancel={close}
+          cancelDisabled={busy}
         >
           <p>
             Esta acción no se ejecuta sola. Confírmala si quieres continuar.

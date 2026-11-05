@@ -1,6 +1,9 @@
 import type { StatementSync } from 'node:sqlite';
 import type { Database } from './Database';
 import { requireNonNegativeInteger } from './validation';
+import type { Page, ScanJobDTO, ScanJobsPageQuery } from '../../shared/ipc';
+import { scanJobsPageQuerySchema } from '../../shared/history-schemas';
+import { localStart, localEndExclusive } from '../dashboard/localDates';
 
 export type ScanJobStatus =
   | 'CREATED'
@@ -172,5 +175,42 @@ export class ScanJobRepository {
   listRecent(limit = 20): ScanJobRecord[] {
     requireNonNegativeInteger(limit, 'limit');
     return this.recent.all(limit) as unknown as ScanJobRecord[];
+  }
+
+  listPage(input: ScanJobsPageQuery): Page<ScanJobDTO> {
+    const query = scanJobsPageQuerySchema.parse(input);
+    const conditions: string[] = [];
+    const parameters: (string | number)[] = [];
+    if (query.statuses?.length) {
+      conditions.push(`status IN (${query.statuses.map(() => '?').join(',')})`);
+      parameters.push(...query.statuses);
+    }
+    if (query.from) {
+      conditions.push('created_at >= ?');
+      parameters.push(localStart(query.from));
+    }
+    if (query.to) {
+      conditions.push('created_at < ?');
+      parameters.push(localEndExclusive(query.to));
+    }
+    const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+    return this.database.readTransaction(() => ({
+      items: this.database
+        .prepare(
+          `${selectJob}${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
+        )
+        .all(
+          ...parameters,
+          query.limit,
+          query.offset,
+        ) as unknown as ScanJobDTO[],
+      total: Number(
+        this.database
+          .prepare(`SELECT COUNT(*) total FROM scan_jobs${where}`)
+          .get(...parameters)!.total,
+      ),
+      offset: query.offset,
+      limit: query.limit,
+    }));
   }
 }

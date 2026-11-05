@@ -57,7 +57,17 @@ let fake: FakeAIProvider;
 let service: AISecurityService;
 let worker: AIAnalysisWorker;
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Date/setTimeout controlan backoff y Retry-After. La fase check del worker
+  // es I/O real: no convertir setImmediate en un avance artificial del reloj.
+  vi.useFakeTimers({
+    toFake: [
+      'Date',
+      'setTimeout',
+      'clearTimeout',
+      'setInterval',
+      'clearInterval',
+    ],
+  });
   vi.setSystemTime(new Date('2026-09-30T12:00:00.000Z'));
   directory = mkdtempSync(join(tmpdir(), 'cybersoc-ai-service-'));
   db = new Database(join(directory, 'ai.db'));
@@ -153,8 +163,16 @@ it('una regla con guiones llega intacta al proveedor real del servicio, sin modo
   );
   expect(fake.requests[0]!.prompt).toContain('R-TEST-DOWNLOADER');
 });
-async function flush() {
+async function flush(
+  ready: () => boolean = () =>
+    worker.state.pending === 0 || worker.state.paused,
+) {
+  const now = Date.now();
   await vi.advanceTimersByTimeAsync(0);
+  // Esperar el estado observado permite ejecutar check/I/O sin adelantar
+  // el reloj virtual: 4999+1 ms sigue siendo exactamente Retry-After=5000.
+  await vi.waitFor(() => expect(ready()).toBe(true), { interval: 0 });
+  expect(Date.now()).toBe(now);
 }
 
 it('contexto v1: top 20 estable, capas, desglose, historial y ningún contenido', () => {
@@ -266,7 +284,7 @@ it('al cerrar cancela la petición y deja PENDING sin registrar un fallo falso',
   );
   worker.analyzeNow(id);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(id)?.aiStatus === 'RUNNING');
   expect(store.results.get(id)?.aiStatus).toBe('RUNNING');
   await worker.stop();
   expect(request).toHaveBeenCalledOnce();
@@ -398,12 +416,13 @@ it('429 respeta retryAfterMs y no adelanta el segundo archivo', async () => {
   worker.analyzeNow(first);
   worker.analyzeNow(second);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(first)?.aiStatus === 'RETRY_WAIT');
   expect(store.results.get(first)?.aiStatus).toBe('RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(4999);
   worker.resume(); // Un healthCheck exitoso no debe saltarse Retry-After.
   expect(fake.requests).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1);
+  await flush();
   expect(fake.requests).toHaveLength(3);
   expect(rows().map((r) => r.result_id)).toEqual([first, first, second]);
 });
@@ -434,7 +453,7 @@ it('timeout usa backoff y tres fallos consecutivos abren el circuito 60 segundos
     .enqueueValue(valid);
   worker.analyzeNow(id);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(id)?.aiStatus === 'RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(999);
   expect(fake.requests).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1);
@@ -455,7 +474,7 @@ it('sin red: tres reintentos, UNAVAILABLE y pausa; resume conserva el pendiente'
   fake.enqueueValue(valid);
   worker.analyzeNow(id);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(id)?.aiStatus === 'RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(7000);
   expect(fake.requests).toHaveLength(4);
   expect(worker.state.paused).toBe(true);
@@ -611,12 +630,13 @@ it('una prioridad nueva no evita Retry-After y se atiende después del reintento
   fake.enqueueValue(valid).enqueueValue(valid).enqueueValue(valid);
   worker.analyzeNow(current);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(current)?.aiStatus === 'RETRY_WAIT');
   worker.analyzeNow(low);
   worker.analyzeNow(high);
   await vi.advanceTimersByTimeAsync(4999);
   expect(fake.requests).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1);
+  await flush();
   expect(rows().map((row) => row.result_id)).toEqual([
     current,
     current,
@@ -646,7 +666,7 @@ it('parar en vuelo conserva el trabajo aunque llegue uno más prioritario', asyn
     .mockImplementation(original);
   worker.analyzeNow(current);
   worker.start();
-  await flush();
+  await flush(() => store.results.get(current)?.aiStatus === 'RUNNING');
   worker.analyzeNow(high);
   await worker.stop();
   expect(store.results.get(current)?.aiStatus).toBe('PENDING');

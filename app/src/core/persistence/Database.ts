@@ -6,6 +6,7 @@ export class Database {
   private readonly connection: DatabaseSync;
   private closed = false;
   private transactionDepth = 0;
+  private reading = false;
 
   constructor(readonly path: string) {
     mkdirSync(dirname(path), { recursive: true });
@@ -29,6 +30,8 @@ export class Database {
   }
 
   transaction<T>(operation: () => T): T {
+    if (this.reading)
+      throw new Error('No se puede escribir durante una lectura.');
     // Los repositorios pueden componer operaciones síncronas. Un SAVEPOINT no
     // confirma la transacción exterior: solo el nivel cero hace COMMIT.
     const nested = this.transactionDepth > 0;
@@ -56,5 +59,40 @@ export class Database {
     if (this.closed) return;
     this.connection.close();
     this.closed = true;
+  }
+
+  /** Snapshot de SELECT síncronos. WAL permite otro escritor sin mezclar instantes.
+   * query_only impide DML/DDL por accidente; no sostiene una transacción durante await.
+   */
+  readTransaction<T>(operation: () => T): T {
+    if (this.transactionDepth > 0)
+      throw new Error('La lectura requiere una transacción independiente.');
+    const run = () => {
+      const result = operation();
+      if (result && typeof (result as { then?: unknown }).then === 'function')
+        throw new TypeError('La lectura debe ser síncrona.');
+      return result;
+    };
+    if (this.reading) return run();
+    const previous = Number(
+      this.prepare('PRAGMA query_only').get()!.query_only,
+    );
+    this.exec('PRAGMA query_only = ON');
+    try {
+      this.exec('BEGIN');
+      this.reading = true;
+      try {
+        const value = run();
+        this.exec('COMMIT');
+        return value;
+      } catch (error) {
+        this.exec('ROLLBACK');
+        throw error;
+      } finally {
+        this.reading = false;
+      }
+    } finally {
+      this.exec(`PRAGMA query_only = ${previous ? 'ON' : 'OFF'}`);
+    }
   }
 }

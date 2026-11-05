@@ -373,6 +373,11 @@ export interface SystemStatus {
 }
 
 export interface CyberSocApi {
+  readonly dashboard: {
+    readonly getOverview: (
+      query?: DashboardOverviewQuery,
+    ) => Promise<DashboardOverviewDTO>;
+  };
   readonly reports: {
     readonly export: (query: ReportExportQuery) => Promise<ReportExportResult>;
   };
@@ -406,6 +411,9 @@ export interface CyberSocApi {
     readonly cancel: (jobId: string) => Promise<void>;
     readonly getJob: (jobId: string) => Promise<ScanJobDTO>;
     readonly listJobs: (limit?: number) => Promise<ScanJobDTO[]>;
+    readonly listJobsPage: (
+      query: ScanJobsPageQuery,
+    ) => Promise<Page<ScanJobDTO>>;
     readonly listResults: (
       query: ScanResultsQuery,
     ) => Promise<Page<ScanResultDTO>>;
@@ -425,6 +433,12 @@ export interface CyberSocApi {
     readonly reconnectEngine: () => Promise<SystemStatus>;
   };
   readonly assistant: {
+    readonly listConversationsPage: (
+      query: ConversationPageQuery,
+    ) => Promise<Page<ConversationSummaryDTO>>;
+    readonly listMessages: (
+      query: ConversationMessagesQuery,
+    ) => Promise<ConversationMessagesPageDTO>;
     readonly ask: (query: AssistantAskQuery) => Promise<AssistantReplyDTO>;
     readonly reset: () => Promise<void>;
     readonly listConversations: (
@@ -523,4 +537,136 @@ export type QuarantineItemDTO = z.infer<QuarantineSchemas['item']>;
 export interface QuarantineChanged {
   itemId: string | null;
   resultId: string | null;
+}
+
+// Anexo D: adiciones independientes de los contratos anteriores.
+export const DASHBOARD_GET_OVERVIEW = 'dashboard:getOverview';
+export const SCAN_LIST_JOBS_PAGE = 'scan:listJobsPage';
+export const ASSISTANT_LIST_CONVERSATIONS_PAGE =
+  'assistant:listConversationsPage';
+export const ASSISTANT_LIST_MESSAGES = 'assistant:listMessages';
+export const ASSISTANT_CARD_SCHEMA_V1 = 'cybersoc.assistant-card/v1';
+export const ASSISTANT_CARD_MAX_BYTES = 2 * 1024 * 1024;
+export const ASSISTANT_PAGE_MAX_CARD_BYTES = 8 * 1024 * 1024;
+
+export interface DashboardOverviewQuery {
+  from?: string;
+  to?: string;
+}
+export type DashboardScope = 'LAST_COMPLETED' | 'ALL_COMPLETED' | 'RANGE';
+export interface VerdictDistributionDTO {
+  scope: DashboardScope;
+  jobStatuses: ScanJobStatus[];
+  range: { from: string; to: string } | null;
+  jobs: number;
+  results: {
+    total: number;
+    byVerdict: Record<ScanResultDTO['verdict'], number>;
+    byStatus: Record<ScanResultDTO['status'], number>;
+    byZone: { zone: Zone | null; results: number }[];
+    byAiStatus: Record<AIStatus, number>;
+  };
+  excluded: {
+    jobs: number;
+    results: number;
+    byJobStatus: Record<ScanJobStatus, number>;
+  };
+  partial: boolean;
+}
+export interface DashboardOverviewDTO {
+  schema: 'cybersoc.dashboard/v1';
+  generatedAt: string;
+  timezone: string;
+  range: { from: string; to: string; days: number };
+  activity: {
+    jobs: { total: number; byStatus: Record<ScanJobStatus, number> };
+    daily: {
+      date: string;
+      jobs: number;
+      results: number;
+      detected: number;
+      suspicious: number;
+      errors: number;
+    }[];
+  };
+  distributions: {
+    lastCompleted: (VerdictDistributionDTO & { job: ScanJobDTO }) | null;
+    allCompleted: VerdictDistributionDTO;
+    range: VerdictDistributionDTO;
+  };
+  active: ScanJobDTO | null;
+  quarantine: Record<QuarantineStatus, number>;
+  allTime: {
+    jobs: number;
+    results: number;
+    firstJobAt: string | null;
+    byJobStatus: Record<ScanJobStatus, number>;
+  };
+}
+export interface ScanJobsPageQuery {
+  offset: number;
+  limit: number;
+  statuses?: ScanJobStatus[];
+  from?: string;
+  to?: string;
+}
+export interface ConversationPageQuery {
+  offset: number;
+  limit: number;
+}
+export interface ConversationSummaryDTO extends ConversationDTO {
+  messageCount: number;
+  lastMessageAt: string | null;
+}
+export interface ConversationMessagesQuery {
+  conversationId: string;
+  before?: string;
+  limit?: number;
+}
+export interface AssistantCardV1 {
+  schema: typeof ASSISTANT_CARD_SCHEMA_V1;
+  focus: AssistantFocusDTO;
+  references: AssistantReferenceDTO[];
+  suggestedActions: AssistantActionDTO[];
+  report: AssistantReportCardDTO | null;
+  scanPlan: ScanPlanCardDTO | null;
+}
+export type ArchivedCardState = 'RECORDED' | 'NOT_RECORDED' | 'OMITTED';
+export type ArchivedActionAvailability =
+  'AVAILABLE' | 'MISSING' | 'NOT_APPLICABLE' | 'EXPIRED' | 'HISTORY_READ_ONLY';
+export interface ArchivedActionStateDTO {
+  index: number;
+  action: AssistantActionDTO['action'];
+  targetId: string | null;
+  availability: ArchivedActionAvailability;
+}
+export type ConversationHistoryItemDTO =
+  | {
+      kind: 'USER';
+      id: string;
+      createdAt: string;
+      text: string;
+      answered: boolean;
+    }
+  | {
+      kind: 'ASSISTANT';
+      id: string;
+      createdAt: string;
+      text: string;
+      model: string | null;
+      cardState: ArchivedCardState;
+      card: AssistantCardV1 | null;
+      actionStates: ArchivedActionStateDTO[];
+    }
+  | {
+      kind: 'TOOLS';
+      id: string;
+      createdAt: string;
+      tools: AssistantToolCallDTO[];
+    };
+export interface ConversationMessagesPageDTO {
+  conversationId: string;
+  items: ConversationHistoryItemDTO[];
+  olderCursor: string | null;
+  total: number;
 }

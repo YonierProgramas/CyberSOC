@@ -12,8 +12,12 @@ import {
   type ConversationQuery,
   type OpenConversationDTO,
 } from '../../shared/ipc';
-import { layerSchema, zoneSchema } from '../../shared/protocol';
-import { scanProfileSchema } from '../../shared/scan-profile';
+import {
+  assistantReferenceSchema,
+  assistantActionSchema,
+  reportCardSchema,
+  scanPlanCardSchema,
+} from '../../shared/assistant-card-schemas';
 import { noArguments, requireTrustedSender } from './scan-validation';
 
 export interface AssistantService {
@@ -104,41 +108,6 @@ const errorKindSchema = z.enum([
   'UNSAFE',
   'TOOL_LIMIT',
 ]);
-const shortId = z.string().min(1).max(128);
-const reportCardSchema = z.strictObject({
-  reportDraftId: z.string().uuid(),
-  total: z.number().int().nonnegative(),
-  verdicts: z
-    .array(
-      z.strictObject({
-        verdict: z.string().max(32),
-        count: z.number().int().nonnegative(),
-      }),
-    )
-    .max(10),
-  executiveSummary: z.string().max(8_000),
-  conclusions: z.array(z.string().max(2_000)).max(20),
-  citedResultIds: z.array(shortId).max(100),
-  label: z.literal('Generado por IA'),
-});
-const scanPlanCardSchema = z.strictObject({
-  schema: z.literal('cybersoc.scan-plan/v1'),
-  targets: z
-    .array(
-      z.strictObject({
-        zoneId: zoneSchema,
-        driveId: z.string().max(8).nullable(),
-        paths: z.array(z.string().max(1_024)).max(20),
-      }),
-    )
-    .min(1)
-    .max(10),
-  profile: scanProfileSchema,
-  rationale: z.string().max(1_000),
-  layerRationale: z
-    .array(z.strictObject({ layer: layerSchema, why: z.string().max(400) }))
-    .max(7),
-});
 /** La respuesta también se valida: al renderer solo llegan estos campos. */
 export const assistantReplySchema = z.strictObject({
   status: z.enum(['ANSWERED', 'UNAVAILABLE', 'CANCELLED']),
@@ -150,29 +119,8 @@ export const assistantReplySchema = z.strictObject({
     label: z.string().nullable(),
   }),
   historyTurns: z.number().int().min(0).max(10),
-  references: z
-    .array(
-      z.strictObject({
-        type: z.enum(['result', 'job', 'rule', 'zone']),
-        id: shortId,
-      }),
-    )
-    .max(20),
-  suggestedActions: z
-    .array(
-      z.strictObject({
-        action: z.enum([
-          'OPEN_RESULT',
-          'QUARANTINE',
-          'ANALYZE_WITH_AI',
-          'OPEN_QUARANTINE',
-          'EXPORT_REPORT',
-          'RUN_SCAN_PLAN',
-        ]),
-        targetId: shortId.nullable(),
-      }),
-    )
-    .max(6),
+  references: z.array(assistantReferenceSchema).max(20),
+  suggestedActions: z.array(assistantActionSchema).max(6),
   report: reportCardSchema.nullable(),
   scanPlan: scanPlanCardSchema.nullable(),
   toolCalls: z

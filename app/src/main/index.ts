@@ -28,6 +28,11 @@ import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
 import { AssistantOrchestrator } from '../core/ai/AssistantOrchestrator';
 import { AppConfigStore } from '../core/config/AppConfig';
 import type { QuarantineManager } from '../core/quarantine/QuarantineManager';
+import { registerHistoryIpc } from './ipc/history.ipc';
+import { DashboardReader } from '../core/dashboard/DashboardReader';
+import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
+import { ConversationRepository } from '../core/persistence/ConversationRepository';
+import { ConversationArchiveReader } from '../core/persistence/ConversationArchiveReader';
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -39,6 +44,7 @@ let stopQuarantineIpc: (() => void) | null = null;
 let stopSettingsIpc: (() => void) | null = null;
 let stopAssistantIpc: (() => void) | null = null;
 let stopReportsIpc: (() => void) | null = null;
+let stopHistoryIpc: (() => void) | null = null;
 let aiWorker: AIAnalysisWorker | null = null;
 let quarantine: QuarantineManager | null = null;
 let readyToQuit = false;
@@ -62,6 +68,8 @@ app.on('before-quit', (event) => {
   stopAssistantIpc = null;
   stopReportsIpc?.();
   stopReportsIpc = null;
+  stopHistoryIpc?.();
+  stopHistoryIpc = null;
   stopDialogIpc?.();
   stopDialogIpc = null;
   void Promise.allSettled([
@@ -119,6 +127,22 @@ app
     );
     const db = database;
     const reports = new ReportBuilder(db);
+    const dashboard = new DashboardReader(db);
+    const archive = new ConversationArchiveReader(db, (id) => {
+      try {
+        reports.get(id);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    stopHistoryIpc = registerHistoryIpc(() => mainWindow, trustedRendererUrl, {
+      getOverview: (query) => dashboard.getOverview(query),
+      listJobsPage: (query) => new ScanJobRepository(db).listPage(query),
+      listConversationsPage: (query) =>
+        new ConversationRepository(db).listPage(query),
+      listMessages: (query) => archive.listMessages(query),
+    });
     stopReportsIpc = registerReportsIpc(
       () => mainWindow,
       trustedRendererUrl,

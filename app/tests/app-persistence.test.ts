@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
   registerAssistantIpc: vi.fn(),
   stopAssistantIpc: vi.fn(),
   registerReportsIpc: vi.fn(),
+  registerHistoryIpc: vi.fn(),
+  stopHistoryIpc: vi.fn(),
   stopReportsIpc: vi.fn(),
   createAIProvider: vi.fn(),
   createAssistantTools: vi.fn(),
@@ -85,6 +87,9 @@ vi.mock('../src/main/ipc/assistant.ipc', () => ({
 vi.mock('../src/main/ipc/reports.ipc', () => ({
   registerReportsIpc: mocks.registerReportsIpc,
 }));
+vi.mock('../src/main/ipc/history.ipc', () => ({
+  registerHistoryIpc: mocks.registerHistoryIpc,
+}));
 
 beforeEach(() => {
   vi.resetModules();
@@ -108,6 +113,7 @@ beforeEach(() => {
     execute: vi.fn(),
   });
   mocks.registerReportsIpc.mockReturnValue(mocks.stopReportsIpc);
+  mocks.registerHistoryIpc.mockReturnValue(mocks.stopHistoryIpc);
   mocks.registerScanIpc.mockReturnValue(mocks.stopScanIpc);
   mocks.registerQuarantineIpc.mockReturnValue(mocks.stopQuarantineIpc);
   mocks.stopScanIpc.mockResolvedValue(undefined);
@@ -141,6 +147,16 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     mocks.createAIWorkflow.mock.results[0]!.value,
   );
   expect(mocks.registerDialogIpc).toHaveBeenCalledOnce();
+  expect(mocks.registerHistoryIpc).toHaveBeenCalledExactlyOnceWith(
+    expect.any(Function),
+    expect.stringContaining('index.html'),
+    {
+      getOverview: expect.any(Function),
+      listJobsPage: expect.any(Function),
+      listConversationsPage: expect.any(Function),
+      listMessages: expect.any(Function),
+    },
+  );
   expect(mocks.registerReportsIpc).toHaveBeenCalledExactlyOnceWith(
     expect.any(Function),
     expect.stringContaining('index.html'),

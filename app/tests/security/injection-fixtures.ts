@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +12,7 @@ import { AssistantOrchestrator } from '../../src/core/ai/AssistantOrchestrator';
 import type { AIProvider } from '../../src/core/ai/AIProvider';
 import { appConfigSchema } from '../../src/core/config/AppConfig';
 import { copilotDeps, final } from '../fixtures/copilot';
+import { assistantCardV1Schema } from '../../src/shared/assistant-card-schemas';
 
 export { final };
 export const HOSTILE_NAME =
@@ -127,13 +129,50 @@ export class InjectionHarness {
   }
   /** Se permite guardar conversación; TODO el resto de SQLite debe ser idéntico. */
   snapshot() {
+    // 007 añade tarjetas al historial permitido, no al estado de seguridad.
+    // Verificarlas explícitamente antes de excluirlas del snapshot: cada respuesta
+    // final tiene exactamente una tarjeta válida/omitida y ninguna autoriza acciones.
+    const cards = this.db
+      .prepare(
+        `SELECT c.*, m.role, m.tool_calls_json
+      FROM ai_message_cards c LEFT JOIN ai_messages m ON m.id=c.message_id`,
+      )
+      .all();
+    const finalMessages = Number(
+      this.db
+        .prepare(
+          "SELECT COUNT(*) n FROM ai_messages WHERE role='assistant' AND tool_calls_json IS NULL",
+        )
+        .get()!.n,
+    );
+    assert.equal(cards.length, finalMessages);
+    for (const card of cards) {
+      assert.equal(card.role, 'assistant');
+      assert.equal(card.tool_calls_json, null);
+      if (card.state === 'STORED') {
+        assistantCardV1Schema.parse(JSON.parse(String(card.card_json)));
+        assert.equal(card.byte_size, Buffer.byteLength(String(card.card_json)));
+      } else {
+        assert.equal(card.state, 'OMITTED');
+        assert.equal(card.card_json, null);
+        assert.ok(
+          card.omitted_reason === 'INVALID' ||
+            card.omitted_reason === 'TOO_LARGE',
+        );
+      }
+    }
     const tables = this.db
       .prepare(
         "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
       )
       .all()
       .map((row) => String(row.name))
-      .filter((name) => !['ai_conversations', 'ai_messages'].includes(name));
+      .filter(
+        (name) =>
+          !['ai_conversations', 'ai_messages', 'ai_message_cards'].includes(
+            name,
+          ),
+      );
     return {
       tables: Object.fromEntries(
         tables.map((name) => [

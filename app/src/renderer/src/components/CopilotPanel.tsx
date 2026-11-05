@@ -1,13 +1,15 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
   ASSISTANT_MESSAGE_MAX_CHARS,
   type AssistantActionDTO,
   type AssistantReferenceDTO,
   type AssistantReplyDTO,
   type AssistantReportCardDTO,
+  type ConversationMessageDTO,
   type ScanPlanCardDTO,
 } from '../../../shared/ipc';
 import { useCopilotFocus } from '../copilot/focus';
+import { AssistantArchive } from './AssistantArchive';
 import { PlainText } from './PlainText';
 import { ReferenceChips } from './ReferenceChips';
 import { ReportCard } from './ReportCard';
@@ -41,22 +43,84 @@ const emptyCards = {
 
 let nextLineId = 0;
 
-export function CopilotPanel() {
+export function CopilotPanel({
+  open,
+  narrow,
+  onClose,
+}: {
+  open: boolean;
+  narrow: boolean;
+  onClose: () => void;
+}) {
   const { focus } = useCopilotFocus();
   const [draft, setDraft] = useState('');
   const [lines, setLines] = useState<ChatLine[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('Consultando a la IA…');
+  const [resetFailed, setResetFailed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [configured, setConfigured] = useState<boolean | null>(null);
   const generation = useRef(0);
+  const panelRef = useRef<HTMLElement>(null);
 
   const talking =
     focus === null ? 'Ningún archivo o escaneo seleccionado' : focus.label;
 
+  useEffect(() => {
+    if (!open) return;
+    let active = true;
+    void window.cybersoc.settings.ai
+      .getStatus()
+      .then((status) => {
+        if (active) setConfigured(status.configured);
+      })
+      .catch(() => {
+        if (active) setConfigured(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !narrow) return;
+    panelRef.current
+      ?.querySelector<HTMLElement>('[data-testid="assistant-close"]')
+      ?.focus();
+  }, [open, narrow]);
+
+  function onKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (
+      event.defaultPrevented ||
+      (event.target instanceof Element && event.target.closest('dialog[open]'))
+    )
+      return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (!narrow || event.key !== 'Tab' || !panelRef.current) return;
+    const items = focusable(panelRef.current);
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   async function send(message: string) {
     const text = message.trim();
-    if (!text || loading) return;
+    if (!text || loading || resetFailed) return;
     const turn = generation.current;
     setDraft('');
     setLoading(true);
+    setLoadingText('Consultando a la IA…');
     setLines((current) => [
       ...current,
       {
@@ -112,14 +176,22 @@ export function CopilotPanel() {
     ]);
   }
 
-  async function reset() {
-    generation.current += 1;
-    setLoading(false);
+  async function startNew() {
+    const turn = ++generation.current;
+    setLoading(true);
+    setLoadingText('Preparando nueva conversación…');
+    setResetFailed(false);
     setDraft('');
     setLines([]);
+    setNotice('Nueva conversación. Las anteriores siguen en el archivo.');
     try {
       await window.cybersoc.assistant.reset();
     } catch {
+      if (turn !== generation.current) return;
+      setResetFailed(true);
+      setNotice(
+        'No se pudo preparar una conversación nueva. Reintenta o continúa una guardada.',
+      );
       setLines([
         {
           id: nextLineId++,
@@ -129,20 +201,66 @@ export function CopilotPanel() {
           ...emptyCards,
         },
       ]);
+    } finally {
+      if (turn === generation.current) setLoading(false);
+    }
+  }
+
+  async function continueConversation(conversationId: string) {
+    const turn = ++generation.current;
+    setLoading(true);
+    setLoadingText('Cargando conversación…');
+    setNotice(null);
+    try {
+      const opened =
+        await window.cybersoc.assistant.openConversation(conversationId);
+      if (turn !== generation.current) return;
+      setResetFailed(false);
+      setLines(opened.messages.map(messageToLine));
+      setNotice(
+        `Continuaste esta conversación. El modelo recibe ${opened.historyTurns} de los últimos 10 turnos. El archivo completo sigue guardado.`,
+      );
+    } catch {
+      if (turn !== generation.current) return;
+      setNotice(
+        'No se pudo continuar esa conversación. El archivo sigue disponible.',
+      );
+    } finally {
+      if (turn === generation.current) setLoading(false);
     }
   }
 
   return (
-    <aside className="copilot-panel" data-testid="copilot-panel">
-      <h2>SOC Copilot</h2>
+    <aside
+      ref={panelRef}
+      className="copilot-panel"
+      data-testid="copilot-panel"
+      hidden={!open}
+      role={open && narrow ? 'dialog' : 'complementary'}
+      aria-modal={open && narrow ? true : undefined}
+      aria-labelledby="assistant-title"
+      onKeyDown={onKeyDown}
+    >
+      <div className="actions">
+        <h2 id="assistant-title">Asistente</h2>
+        <button type="button" data-testid="assistant-close" onClick={onClose}>
+          Cerrar
+        </button>
+      </div>
+      {configured === false && (
+        <p data-testid="assistant-unconfigured">
+          La IA no está configurada. Puedes consultar el archivo igual.
+        </p>
+      )}
       <p data-testid="copilot-focus">Hablando de: {talking}</p>
+      {notice && <p data-testid="assistant-notice">{notice}</p>}
       <div className="copilot-suggestions" data-testid="copilot-suggestions">
         {suggestions.map((question) => (
           <button
             key={question}
             type="button"
             data-testid="copilot-suggestion"
-            disabled={loading}
+            disabled={loading || resetFailed}
             onClick={() => void send(question)}
           >
             {question}
@@ -165,8 +283,9 @@ export function CopilotPanel() {
             )}
           </div>
         ))}
-        {loading && <p data-testid="copilot-loading">Consultando a la IA…</p>}
+        {loading && <p data-testid="copilot-loading">{loadingText}</p>}
       </div>
+      <AssistantArchive onContinue={(id) => void continueConversation(id)} />
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -180,7 +299,7 @@ export function CopilotPanel() {
             value={draft}
             maxLength={ASSISTANT_MESSAGE_MAX_CHARS}
             rows={3}
-            disabled={loading}
+            disabled={loading || resetFailed}
             onChange={(event) => setDraft(event.target.value)}
           />
         </label>
@@ -188,14 +307,14 @@ export function CopilotPanel() {
           <button
             type="submit"
             data-testid="copilot-send"
-            disabled={loading || draft.trim() === ''}
+            disabled={loading || resetFailed || draft.trim() === ''}
           >
             Enviar
           </button>
           <button
             type="button"
             data-testid="copilot-reset"
-            onClick={() => void reset()}
+            onClick={() => void startNew()}
           >
             Nueva conversación
           </button>
@@ -203,6 +322,27 @@ export function CopilotPanel() {
       </form>
     </aside>
   );
+}
+
+function messageToLine(message: ConversationMessageDTO): ChatLine {
+  return {
+    id: nextLineId++,
+    role: message.role === 'user' ? 'user' : 'assistant',
+    text:
+      message.role === 'tool'
+        ? 'Se consultó una herramienta. Los argumentos no se muestran.'
+        : message.content,
+    unavailable: false,
+    ...emptyCards,
+  };
+}
+
+function focusable(root: HTMLElement): HTMLElement[] {
+  return [
+    ...root.querySelectorAll<HTMLElement>(
+      'button, textarea, input, select, a[href], summary',
+    ),
+  ].filter((item) => !item.hasAttribute('disabled') && item.tabIndex !== -1);
 }
 
 function AssistantTurn({ line }: { line: ChatLine }) {

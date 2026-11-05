@@ -47,6 +47,7 @@ export class AIAnalysisWorker extends EventEmitter {
   private failures = 0;
   private openUntil = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private continuation: ReturnType<typeof setImmediate> | undefined;
   private running: Promise<void> | undefined;
   private controller: AbortController | undefined;
 
@@ -134,6 +135,8 @@ export class AIAnalysisWorker extends EventEmitter {
     this.active = false;
     clearTimeout(this.timer);
     this.timer = undefined;
+    clearImmediate(this.continuation);
+    this.continuation = undefined;
     this.controller?.abort();
     await this.running;
     const head = this.current;
@@ -212,7 +215,8 @@ export class AIAnalysisWorker extends EventEmitter {
   }
 
   private kick(): void {
-    if (!this.active || this.paused || this.running) return;
+    if (!this.active || this.paused || this.running || this.continuation)
+      return;
     this.current ??= this.queue.pop();
     if (!this.current) return;
     clearTimeout(this.timer);
@@ -238,7 +242,21 @@ export class AIAnalysisWorker extends EventEmitter {
       })
       .finally(() => {
         this.running = undefined;
-        this.kick();
+        // Una sola continuación O(1), fuera del heap/Set: no extrae ni duplica
+        // pendientes. Ceder a la fase check permite atender IPC, cierre y UI
+        // aunque el proveedor resuelva inmediatamente; no añade una espera
+        // temporal ni cambia prioridades FIFO, backoff o Retry-After.
+        if (!this.active || this.paused) return;
+        // Un backoff futuro ya cede mediante su timer: armarlo ahora evita
+        // posponer innecesariamente el registro de su plazo absoluto.
+        if (Math.max(this.current?.due ?? 0, this.openUntil) > Date.now()) {
+          this.kick();
+          return;
+        }
+        this.continuation = setImmediate(() => {
+          this.continuation = undefined;
+          this.kick();
+        });
       });
   }
 
