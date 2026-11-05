@@ -11,6 +11,7 @@ export interface ScanMetrics {
   peakQueueSize: number | null;
   producerBlockedMs: number | null;
   totalDurationMs: number | null;
+  skippedEntries: number | null;
 }
 
 const emptyMetrics: ScanMetrics = {
@@ -18,6 +19,7 @@ const emptyMetrics: ScanMetrics = {
   peakQueueSize: null,
   producerBlockedMs: null,
   totalDurationMs: null,
+  skippedEntries: null,
 };
 
 export function fileNameOf(path: string): string {
@@ -253,11 +255,21 @@ export function readMetrics(metricsJson: string | null): ScanMetrics {
       peakStackSize: numberOrNull('peakStackSize'),
       peakQueueSize: numberOrNull('peakQueueSize'),
       producerBlockedMs: numberOrNull('producerBlockedMs'),
+      skippedEntries: numberOrNull('skippedEntries'),
       totalDurationMs: numberOrNull('totalDurationMs'),
     };
   } catch {
     return emptyMetrics;
   }
+}
+
+// Aviso de recorrido incompleto (AUD-10). null o 0 no muestran nada: los trabajos
+// anteriores no registraban omisiones y no se puede afirmar que estén completos ni no.
+export function skippedNotice(metrics: ScanMetrics): string | null {
+  const count = metrics.skippedEntries;
+  if (count === null || count <= 0) return null;
+  const entries = count === 1 ? '1 entrada' : `${count} entradas`;
+  return `No se pudieron leer ${entries} (sin permiso, en uso o borradas durante el recorrido). La carpeta no se analizó completa.`;
 }
 
 export function jobDuration(

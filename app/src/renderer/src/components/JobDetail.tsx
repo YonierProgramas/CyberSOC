@@ -4,6 +4,7 @@ import {
   jobDuration,
   jobStatusLabel,
   readMetrics,
+  skippedNotice,
 } from '../scan/format';
 
 export function JobDetail({
@@ -15,6 +16,7 @@ export function JobDetail({
 }) {
   const metrics = readMetrics(job.metricsJson);
   const duration = jobDuration(job, elapsedMs);
+  const skipped = skippedNotice(metrics);
   return (
     <section data-testid="job-detail" className="panel">
       <h2>Detalle del trabajo</h2>
@@ -23,6 +25,7 @@ export function JobDetail({
       </p>
       <p data-testid="job-status">Estado: {jobStatusLabel(job.status)}</p>
       {job.errorMessage && <p role="alert">{job.errorMessage}</p>}
+      {skipped && <p data-testid="job-skipped">{skipped}</p>}
       <dl data-testid="structure-metrics" className="counters">
         <div>
           <dt>Pico de la pila</dt>
