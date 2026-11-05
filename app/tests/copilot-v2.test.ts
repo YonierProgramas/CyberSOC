@@ -911,3 +911,37 @@ describe('Copilot v2: planificador (proponer, nunca ejecutar)', () => {
     );
   });
 });
+
+describe('Copilot v2: rutas anonimizadas hacia el proveedor (AUD-04)', () => {
+  it('los tool_result no llevan el nombre de usuario; la base conserva la ruta real', async () => {
+    const real = 'C:\\Users\\maria.lopez\\Downloads';
+    db.prepare('UPDATE scan_jobs SET target_path = ? WHERE id = ?').run(
+      real,
+      'job-1',
+    );
+    db.prepare('UPDATE scan_results SET path = ? || file_name').run(
+      `${real}\\`,
+    );
+    fake
+      .enqueueToolCalls([
+        { name: 'get_scan_summary', input: { jobId: 'job-1' } },
+      ])
+      .enqueueToolCalls([
+        { name: 'get_top_risk_results', input: { jobId: 'job-1', k: 3 } },
+      ])
+      .enqueueFinal(final('Resumen sin datos personales.'));
+    await assistant.ask({ message: 'Resume el último escaneo' });
+
+    const sent = [...toolResults(1), ...toolResults(2)].map(
+      (block) => block.content,
+    );
+    expect(sent.join('')).not.toContain('maria.lopez');
+    expect(sent.join('')).toContain('%USERPROFILE%');
+    // Solo cambia lo que viaja a la IA: el Core sigue guardando la ruta real.
+    expect(
+      db
+        .prepare('SELECT target_path AS p FROM scan_jobs WHERE id = ?')
+        .get('job-1')!.p,
+    ).toBe(real);
+  });
+});

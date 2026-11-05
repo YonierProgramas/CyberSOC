@@ -25,6 +25,7 @@ import type {
   AssistantTurnRequest,
 } from './AIProvider';
 import { toPromptSafeJson } from './AIContextBuilder';
+import { anonymizeToolResult } from './anonymizeToolResult';
 import { AssistantFocusBuilder, type FocusRef } from './AssistantFocus';
 import {
   assistantReplyWireSchema,
@@ -422,11 +423,12 @@ export class AssistantOrchestrator {
             ...(result.ok ? {} : { code: result.error.code }),
           });
           // Los resultados son DATOS no confiables (nombres de archivo hostiles, etc.):
-          // viajan como JSON escapado, nunca como instrucciones.
+          // viajan como JSON escapado, nunca como instrucciones, y con las rutas del
+          // perfil anonimizadas (%USERPROFILE%): el nombre de la persona no sale (AUD-04).
           results.push({
             type: 'tool_result',
             tool_use_id: toolCall.id,
-            content: toPromptSafeJson(result),
+            content: toPromptSafeJson(anonymizeToolResult(result)),
             ...(result.ok ? {} : { is_error: true }),
           });
         }
