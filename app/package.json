@@ -10,7 +10,7 @@
     "runtime:prepare": "powershell.exe -NoProfile -NonInteractive -File scripts/packaging/prepare-runtime.ps1",
     "package:dir": "npm run build && electron-builder --config electron-builder.json --win --x64 --dir --publish never",
     "package:smoke": "node scripts/packaging/smoke.mjs",
-    "test:packaging": "node --test scripts/packaging/paths.test.mjs",
+    "test:packaging": "node --test scripts/packaging/paths.test.mjs scripts/packaging/notices.test.mjs",
     "test:packaging:startup": "node --test scripts/packaging/startup.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "lint": "eslint . && prettier --check .",

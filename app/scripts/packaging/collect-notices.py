@@ -18,7 +18,28 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zipfile
 
-stage, cache, app = (Path(x).resolve() for x in sys.argv[1:4])
+
+def wheel_license_files(site_packages):
+    """Textos legales de cada wheel instalado: [(carpeta dist-info, ruta relativa, Path)].
+
+    Python 3.12: un glob que termina en '**' solo devuelve carpetas, nunca archivos. El patrón
+    anterior "*.dist-info/**/**" dejaba fuera las licencias de los siete wheels (B-01/AUD-12).
+    rglob("*") sí recorre los archivos de cada dist-info, incluido licenses/.
+    """
+    found = []
+    for dist_info in sorted(site_packages.glob("*.dist-info")):
+        for file in sorted(dist_info.rglob("*")):
+            if file.is_file() and re.search(r"LICENSE|COPYING|NOTICE", file.name, re.I):
+                found.append((dist_info.name, file.relative_to(dist_info).as_posix(), file))
+    return found
+
+
+# Modo de comprobación sin descargas ni escrituras: lista lo que se copiaría de los wheels.
+if len(sys.argv) == 3 and sys.argv[1] == "--list-wheel-licenses":
+    print(json.dumps([[component, path] for component, path, _ in wheel_license_files(Path(sys.argv[2]))]))
+    sys.exit(0)
+
+stage, cache, app =(Path(x).resolve() for x in sys.argv[1:4])
 notices = stage / "notices"
 notices.mkdir(exist_ok=True)
 sources = json.loads((Path(__file__).with_name("notice-sources.json")).read_text(encoding="utf-8-sig"))
@@ -110,10 +131,11 @@ save("NSIS-plugins", "ATTRIBUTION.txt", (
 ).encode(), "NSIS fuentes oficiales y recurso 3.4.1 fijado")
 
 save("CPython-runtime-3.12.16", "LICENSE.txt", (stage / "runtime/LICENSE.txt").read_bytes(), "runtime SHA256 verificado")
-for file in sorted((stage / "runtime/Lib/site-packages").glob("*.dist-info/**/**")):
-    if file.is_file() and re.search(r"LICENSE|COPYING|NOTICE", file.name, re.I):
-        component = next(part for part in file.parts if part.endswith(".dist-info"))
-        save(component, file.relative_to(file.parents[len(file.parts) - file.parts.index(component) - 2]).as_posix(), file.read_bytes(), "wheel uv.lock/RECORD verificado")
+wheel_files = wheel_license_files(stage / "runtime/Lib/site-packages")
+if not wheel_files:
+    raise ValueError("Sin textos legales de wheels en runtime/Lib/site-packages")
+for component, relative, file in wheel_files:
+    save(component, relative, file.read_bytes(), "wheel uv.lock/RECORD verificado")
 
 lock = json.loads((app / "package-lock.json").read_text())
 for relative, package in lock["packages"].items():
