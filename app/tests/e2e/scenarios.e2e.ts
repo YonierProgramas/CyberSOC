@@ -56,7 +56,7 @@ test('1. escanear fixtures muestra los veredictos esperados', async () => {
   await expect(
     session.page
       .getByTestId('result-row')
-      .filter({ hasText: 'Limpio' })
+      .filter({ hasText: 'Sin hallazgos' })
       .first(),
   ).toBeVisible();
   const stored = query(

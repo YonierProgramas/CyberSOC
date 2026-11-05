@@ -69,7 +69,7 @@ describe('presentación del resumen', () => {
       ),
     );
     expect(rows.map((row) => [row.label, row.count])).toEqual([
-      ['Limpio', 3],
+      ['Sin hallazgos', 3],
       ['Sospechoso', 0],
       ['Detectado', 1],
       ['No analizado', 2],
@@ -95,6 +95,7 @@ describe('presentación del resumen', () => {
     expect(text).toContain('No hay resultados');
     expect(text).toContain('Excluidos por estado dentro del rango: 0');
     expect(text).toContain('incompletas');
+    expect(text).not.toContain('Sin hallazgos');
     expect(text).not.toContain('Limpio');
   });
 

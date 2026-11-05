@@ -66,8 +66,10 @@ export function jobStatusLabel(status: ScanJobStatus): string {
   return labels[status];
 }
 
+// CLEAN significa que ninguna capa ejecutada encontró indicios, no que el archivo sea
+// seguro. Por eso se dice «Sin hallazgos», el término de la guía visual (AUD-11).
 export function verdictLabel(verdict: ScanResultDTO['verdict']): string {
-  if (verdict === 'CLEAN') return 'Limpio';
+  if (verdict === 'CLEAN') return 'Sin hallazgos';
   if (verdict === 'SUSPICIOUS') return 'Sospechoso';
   if (verdict === 'DETECTED') return 'Detectado';
   if (verdict === 'NOT_ANALYZED') return 'No analizado';

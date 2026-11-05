@@ -230,8 +230,8 @@ export function DashboardPage() {
                 Último es solo el análisis completado más reciente. Todos reúne
                 los completados. Rango usa las fechas elegidas e incluye también
                 los que no terminaron. Un error, un archivo no analizado o un
-                trabajo cancelado no cuenta como limpio. El gráfico y la tabla
-                muestran las mismas cantidades.
+                trabajo cancelado no cuenta como sin hallazgos. El gráfico y la
+                tabla muestran las mismas cantidades.
               </p>
             </details>
           </section>
