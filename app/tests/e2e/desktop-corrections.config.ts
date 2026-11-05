@@ -1,3 +1,4 @@
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig } from 'playwright/test';
 
@@ -10,8 +11,5 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: [['list']],
-  outputDir: join(
-    import.meta.dirname,
-    '../../../../construccion/sprints/sprint-10-escritorio-historial/evidencias/10D-interfaz/correccion-E09-E11/playwright-output',
-  ),
+  outputDir: join(tmpdir(), 'cybersoc-playwright-correcciones'),
 });

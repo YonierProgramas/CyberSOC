@@ -1,18 +1,21 @@
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { _electron, type ElectronApplication, type Page } from 'playwright';
 import { expect, test } from 'playwright/test';
 import type { CyberSocApi } from '../../src/shared/ipc';
+import { buildSyntheticProfile } from './synthetic-profile';
 
 const appRoot = resolve(import.meta.dirname, '../..');
+// Resultados y capturas: carpeta elegida con CYBERSOC_E2E_EVIDENCE_DIR o, por defecto,
+// una temporal. La prueba no lee nada de construccion/, que no está en el repositorio.
 const evidence = resolve(
-  appRoot,
-  '../../construccion/sprints/sprint-10-escritorio-historial/evidencias/10D-interfaz/correccion-E09-E11',
+  process.env.CYBERSOC_E2E_EVIDENCE_DIR ??
+    join(tmpdir(), 'cybersoc-e2e-correcciones'),
 );
 const require = createRequire(join(appRoot, 'package.json'));
 const results: { name: string; value: unknown }[] = [];
@@ -137,10 +140,7 @@ test.beforeAll(async () => {
   root = mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
   mkdirSync(join(root, 'user-data'));
   dbPath = join(root, 'user-data/cybersoc.db');
-  copyFileSync(
-    resolve(evidence, '../../10B-datos/20-007-sintetico.sqlite'),
-    dbPath,
-  );
+  buildSyntheticProfile(dbPath);
   const db = new DatabaseSync(dbPath);
   db.exec(
     "PRAGMA foreign_keys=ON; UPDATE scan_jobs SET target_path='C:\\Sintetico\\' || id; UPDATE scan_jobs SET status='FAILED' WHERE id='history-00043'; UPDATE scan_jobs SET status='SCANNING' WHERE id='history-00044'; BEGIN",
@@ -257,7 +257,6 @@ test.beforeAll(async () => {
   ])
     delete env[key];
   Object.assign(env, {
-    S10_APP_ROOT: appRoot,
     CYBERSOC_EVIDENCE_MODE: '1',
     CYBERSOC_EVIDENCE_LIVE: '0',
     CYBERSOC_EVIDENCE_ROOT: root,
@@ -273,7 +272,7 @@ test.beforeAll(async () => {
   );
   app = await _electron.launch({
     executablePath: require('electron') as string,
-    args: [join(evidence, 'bootstrap.cjs')],
+    args: [appRoot],
     cwd: appRoot,
     env,
   });
