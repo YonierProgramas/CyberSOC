@@ -1,5 +1,6 @@
 import { BrowserWindow } from 'electron';
 import { join } from 'node:path';
+import { isPermissionAllowed } from './permissions';
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
@@ -25,6 +26,13 @@ export function createMainWindow(): BrowserWindow {
     event.preventDefault(),
   );
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  const { session } = window.webContents;
+  session.setPermissionRequestHandler((_contents, permission, callback) =>
+    callback(isPermissionAllowed(permission)),
+  );
+  session.setPermissionCheckHandler((_contents, permission) =>
+    isPermissionAllowed(permission),
+  );
   window.once('ready-to-show', () => window.show());
 
   return window;
