@@ -154,7 +154,12 @@ export function HistoryPage() {
   }, [loadJobs, offset, jobQuery]);
 
   const showPage = useCallback((nextOffset: number) => {
+    if (nextOffset === offsetRef.current) return;
     offsetRef.current = nextOffset;
+    // En el mismo render que el cambio de página: sin esto, hasta que el efecto
+    // de carga corría se pintaba «Análisis 21–40» junto a las filas 1–20 (R-UI-01).
+    setLoading(true);
+    setJobs([]);
     setOffset(nextOffset);
   }, []);
 
