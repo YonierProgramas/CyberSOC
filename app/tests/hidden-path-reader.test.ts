@@ -1,4 +1,7 @@
-import { execFile } from 'node:child_process';
+import {
+  execFile,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -16,6 +19,21 @@ describe.skipIf(process.platform !== 'win32')(
       const hidden = join(root, 'oculto.txt');
       const child = join(directory, 'visible.txt');
       const reader = new HiddenPathReader();
+      const started = performance.now();
+      const events: { event: string; ms: number; code?: string | number }[] =
+        [];
+      let stderrBytes = 0;
+      let stdoutBytes = 0;
+      const record = (event: string, code?: string | number) => {
+        // Lista acotada de eventos: O(1) por inserción y memoria máxima constante.
+        // Solo metadatos; nunca volcar rutas, stderr o variables del proceso.
+        if (events.length < 12)
+          events.push({
+            event,
+            ms: Math.round(performance.now() - started),
+            code,
+          });
+      };
       try {
         await mkdir(directory);
         await Promise.all(
@@ -29,13 +47,45 @@ describe.skipIf(process.platform !== 'win32')(
         await promisify(execFile)('attrib.exe', ['+H', directory], {
           windowsHide: true,
         });
-        expect(await reader.isHidden(plain)).toBe(false);
+        const firstQuery = reader.isHidden(plain);
+        // Observación de la instancia real, sin reemplazar spawn ni sus streams.
+        // isHidden crea el proceso antes de devolver la promesa de respuesta.
+        const processChild = Reflect.get(reader, 'child') as
+          ChildProcessWithoutNullStreams | undefined;
+        processChild?.once('spawn', () => record('spawn'));
+        processChild?.once('error', (error: NodeJS.ErrnoException) =>
+          record('error', error.code),
+        );
+        processChild?.once('exit', (code) => record('exit', code ?? undefined));
+        processChild?.stdout.on('data', (chunk: Buffer) => {
+          if (stdoutBytes === 0) record('first-stdout');
+          stdoutBytes += chunk.length;
+        });
+        processChild?.stderr.on('data', (chunk: Buffer) => {
+          if (stderrBytes === 0) record('first-stderr');
+          stderrBytes += chunk.length;
+        });
+        expect(await firstQuery).toBe(false);
         expect(await reader.isHidden(hidden)).toBe(true);
         expect(await reader.isHidden(child)).toBe(true);
         expect(await reader.isHidden(plain)).toBe(false);
         expect(await reader.isHidden(join(root, 'desaparecido.txt'))).toBe(
           false,
         );
+      } catch (error) {
+        console.error(
+          'HIDDEN_PATH_DIAGNOSTIC',
+          JSON.stringify({
+            node: process.version,
+            platform: process.platform,
+            arch: process.arch,
+            elapsedMs: Math.round(performance.now() - started),
+            stdoutBytes,
+            stderrBytes,
+            events,
+          }),
+        );
+        throw error;
       } finally {
         reader.close();
         await rm(root, { recursive: true, force: true });

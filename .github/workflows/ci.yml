@@ -34,7 +34,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: lts/*
+          # Node 24 conserva transform-types usado por los subprocesos TS.
+          node-version-file: CyberSOC/.node-version
           cache: npm
           cache-dependency-path: CyberSOC/app/package-lock.json
       # Install the engine so the real-process Vitest test does not skip itself.
