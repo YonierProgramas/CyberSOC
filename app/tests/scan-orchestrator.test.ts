@@ -84,6 +84,8 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       peakStackSize: 3,
       dirsVisited: 2,
       skippedLinks: 1,
+      skippedEntries: 2,
+      skippedByReason: { EACCES: 1, EBUSY: 1 },
       async *discover() {
         for (let i = 0; i < count; i++) {
           discovered++;
@@ -319,6 +321,8 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       peakStackSize: 3,
       dirsVisited: 2,
       skippedLinks: 1,
+      skippedEntries: 2,
+      skippedByReason: { EACCES: 1, EBUSY: 1 },
       engineRestarts: 0,
     });
     expect(vi.getTimerCount()).toBe(0);
@@ -510,9 +514,15 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     });
     const { done } = launch();
     await vi.advanceTimersByTimeAsync(250);
-    expect(await done).toMatchObject({
+    const final = await done;
+    expect(final).toMatchObject({
       status: 'FAILED',
       errorMessage: 'discovery failed',
+    });
+    // Un descubridor que no informa omisiones deja «desconocido», no «ninguna».
+    expect(JSON.parse(final.metricsJson!)).toMatchObject({
+      skippedEntries: null,
+      skippedByReason: null,
     });
     expect(() =>
       orchestrator.start({ kind: 'FILE', path: 'next' }),
@@ -570,7 +580,12 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       sizeOf: undefined,
     });
     const folder = launch('FOLDER', root);
-    expect((await folder.done).filesProcessed).toBe(2);
+    const folderJob = await folder.done;
+    expect(folderJob.filesProcessed).toBe(2);
+    expect(JSON.parse(folderJob.metricsJson!)).toMatchObject({
+      skippedEntries: 0,
+      skippedByReason: {},
+    });
     const file = launch('FILE', join(root, 'ñ.txt'));
     expect((await file.done).filesProcessed).toBe(1);
     expect(results.listByJob(file.id, 0, 10)[0]?.path).toBe(

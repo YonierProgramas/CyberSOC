@@ -56,10 +56,13 @@ export type ScanEngine = Pick<
   EngineProcess,
   'scanFile' | 'reconnect' | 'getState'
 >;
+// skippedEntries/skippedByReason son opcionales: un descubridor que no los informa
+// deja null en las métricas (desconocido), nunca 0 (que afirmaría «nada omitido»).
 export type ScanDiscovery = Pick<
   FileDiscovery,
   'discover' | 'peakStackSize' | 'dirsVisited' | 'skippedLinks'
->;
+> &
+  Partial<Pick<FileDiscovery, 'skippedEntries' | 'skippedByReason'>>;
 export interface ScanDependencies {
   profiles?: ScanProfiles;
   createZoneSession?: () => {
@@ -490,6 +493,9 @@ export class ScanOrchestrator extends EventEmitter<{
       producerBlockedMs: run.queue.producerBlockedMs,
       dirsVisited: run.discovery.dirsVisited,
       skippedLinks: run.discovery.skippedLinks,
+      // Entradas que no se pudieron leer (AUD-10); solo conteos, nunca rutas.
+      skippedEntries: run.discovery.skippedEntries ?? null,
+      skippedByReason: run.discovery.skippedByReason ?? null,
       engineRestarts: run.restarts,
       // The discovery and consumer phases overlap; durations are not additive.
       discoveryDurationMs: run.discoveryMs,
