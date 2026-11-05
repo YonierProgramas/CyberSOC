@@ -22,6 +22,7 @@ import {
   createAIProvider,
   createAssistantTools,
   createQuarantineManager,
+  prepareAppProfile,
 } from './composition-root';
 import type { Database } from '../core/persistence/Database';
 import type { AIAnalysisWorker } from '../core/ai/AIAnalysisWorker';
@@ -33,6 +34,14 @@ import { DashboardReader } from '../core/dashboard/DashboardReader';
 import { ScanJobRepository } from '../core/persistence/ScanJobRepository';
 import { ConversationRepository } from '../core/persistence/ConversationRepository';
 import { ConversationArchiveReader } from '../core/persistence/ConversationArchiveReader';
+import { RELEASE, RESOURCE_DIGEST } from './build-flags';
+import { verifyResources } from './resource-integrity';
+
+prepareAppProfile();
+// Ningún logger, motor, repositorio o migración escribe antes de este lock.
+if (!app.requestSingleInstanceLock()) app.exit(0);
+if (app.isPackaged && RELEASE)
+  verifyResources(process.resourcesPath, RESOURCE_DIGEST);
 
 let mainWindow: BrowserWindow | null = null;
 const rendererPath = join(__dirname, '../renderer/index.html');
@@ -49,6 +58,11 @@ let aiWorker: AIAnalysisWorker | null = null;
 let quarantine: QuarantineManager | null = null;
 let readyToQuit = false;
 let quitting = false;
+
+app.on('second-instance', () => {
+  if (mainWindow?.isMinimized()) mainWindow.restore();
+  mainWindow?.focus();
+});
 
 app.on('will-quit', () => {
   database?.close();

@@ -2,6 +2,13 @@
   "appId": "edu.cybersoc.defender",
   "productName": "CyberSOC Defender",
   "asar": true,
+  "electronFuses": {
+    "runAsNode": false,
+    "enableNodeOptionsEnvironmentVariable": false,
+    "enableNodeCliInspectArguments": false,
+    "enableEmbeddedAsarIntegrityValidation": true,
+    "onlyLoadAppFromAsar": true
+  },
   "directories": {
     "output": "out/distribution",
     "buildResources": "out/packaging"
@@ -10,7 +17,14 @@
     "out/main/**/*",
     "out/preload/**/*",
     "out/renderer/**/*",
-    "package.json"
+    "package.json",
+    "!**/*.map",
+    "!node_modules/**/*.ts",
+    "!node_modules/**/*.mts",
+    "!node_modules/**/*.cts",
+    "!node_modules/**/{test,tests,fixtures,__tests__}/**/*",
+    "!node_modules/react/**/*",
+    "!node_modules/react-dom/**/*"
   ],
   "extraResources": [
     {
@@ -24,17 +38,34 @@
     {
       "from": "out/packaging/resources-manifest.json",
       "to": "resources-manifest.json"
+    },
+    {
+      "from": "out/packaging/notices",
+      "to": "notices"
     }
   ],
   "npmRebuild": false,
   "win": {
     "target": [
       {
-        "target": "dir",
+        "target": "nsis",
         "arch": ["x64"]
       }
     ],
-    "signAndEditExecutable": false
+    "signAndEditExecutable": true,
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "CyberSOC-Defender-${version}-windows-x64-setup.${ext}"
+  },
+  "nsis": {
+    "include": "scripts/packaging/retain-data.nsh",
+    "oneClick": false,
+    "perMachine": false,
+    "allowElevation": false,
+    "allowToChangeInstallationDirectory": true,
+    "deleteAppDataOnUninstall": false,
+    "runAfterFinish": false,
+    "packElevateHelper": false,
+    "license": "out/packaging/notices/DISTRIBUTION-TERMS.txt"
   },
   "publish": null
 }

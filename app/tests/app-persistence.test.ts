@@ -2,6 +2,10 @@ import { beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   on: vi.fn(),
+  requestSingleInstanceLock: vi.fn(() => true),
+  exit: vi.fn(() => {
+    throw new Error('INSTANCE_EXIT');
+  }),
   quit: vi.fn(),
   getPath: vi.fn(() => 'injected-user-data'),
   createDatabase: vi.fn(),
@@ -42,9 +46,12 @@ vi.mock('electron', () => ({
     getPath: mocks.getPath,
     getAppPath: () => '.',
     whenReady: () => Promise.resolve(),
+    requestSingleInstanceLock: mocks.requestSingleInstanceLock,
+    exit: mocks.exit,
   },
 }));
 vi.mock('../src/main/composition-root', () => ({
+  prepareAppProfile: vi.fn(),
   createDatabase: mocks.createDatabase,
   createScanOrchestrator: mocks.createScanOrchestrator,
   createAISettings: mocks.createAISettings,
@@ -92,6 +99,7 @@ vi.mock('../src/main/ipc/history.ipc', () => ({
 }));
 
 beforeEach(() => {
+  mocks.requestSingleInstanceLock.mockReturnValue(true);
   vi.resetModules();
   mocks.createDatabase.mockReturnValue({ close: mocks.closeDatabase });
   mocks.createAIWorkflow.mockReturnValue({
@@ -123,6 +131,14 @@ beforeEach(() => {
   });
   mocks.reconnect.mockResolvedValue(undefined);
   mocks.closeEngine.mockResolvedValue(undefined);
+});
+
+it('segunda instancia sale antes de abrir SQLite o iniciar escritores', async () => {
+  mocks.requestSingleInstanceLock.mockReturnValue(false);
+  await expect(import('../src/main/index')).rejects.toThrow('INSTANCE_EXIT');
+  expect(mocks.createDatabase).not.toHaveBeenCalled();
+  expect(mocks.reconnect).not.toHaveBeenCalled();
+  expect(mocks.startAI).not.toHaveBeenCalled();
 });
 
 it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre del motor', async () => {

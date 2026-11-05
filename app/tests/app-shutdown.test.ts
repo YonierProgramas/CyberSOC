@@ -12,11 +12,13 @@ vi.mock('electron', () => ({
     quit: mocks.quit,
     getAppPath: () => '.',
     whenReady: () => new Promise(() => {}),
+    requestSingleInstanceLock: () => true,
   },
   ipcMain: { handle: vi.fn() },
   BrowserWindow: vi.fn(),
 }));
 vi.mock('../src/main/composition-root', () => ({
+  prepareAppProfile: vi.fn(),
   createEngine: () => ({ close: mocks.close, reconnect: mocks.reconnect }),
 }));
 

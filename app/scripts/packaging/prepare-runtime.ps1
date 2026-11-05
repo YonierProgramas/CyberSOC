@@ -104,16 +104,34 @@ foreach ($folder in @('src','data')) {
 Copy-Item -LiteralPath (Join-Path $engineDirectory 'uv.lock') -Destination (Join-Path $bundledEngine 'uv.lock')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'runtime-source.json') -Destination (Join-Path $runtimeDirectory 'runtime-source.json')
 $python = Join-Path $runtimeDirectory 'python.exe'
+# Lista explícita: solo dentro del runtime extraído/verificado, nunca Python del usuario.
+$remove = @('include','libs','tcl','pythonw.exe','Lib/ensurepip','Lib/venv','Lib/idlelib','Lib/tkinter','Lib/turtledemo','Lib/test',
+    'DLLs/_tkinter.pyd','DLLs/tcl86t.dll','DLLs/tk86t.dll','DLLs/zlib1.dll')
+$remove += @(Get-ChildItem -LiteralPath (Join-Path $runtimeDirectory 'DLLs') -File -Filter '*_test*.pyd' | ForEach-Object { 'DLLs/' + $_.Name })
+foreach ($relative in $remove) {
+    $target = [IO.Path]::GetFullPath((Join-Path $runtimeDirectory $relative))
+    if (-not $target.StartsWith($runtimeDirectory + [IO.Path]::DirectorySeparatorChar)) { throw 'Limpieza fuera de runtime.' }
+    if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+}
+# No omitir silenciosamente un catálogo futuro con otra extensión.
+foreach ($file in Get-ChildItem -LiteralPath (Join-Path $engineDirectory 'data') -Recurse -File) {
+    if ($file.Extension -notin @('.json','.yaml','.yml')) { throw "Catálogo no contemplado: $($file.Name)" }
+}
+& $python -I -B (Join-Path $PSScriptRoot 'verify-wheels.py') $site
+if ($LASTEXITCODE -ne 0) { throw 'RECORD de wheels inválido.' }
+& $python -I -B (Join-Path $PSScriptRoot 'collect-notices.py') $stageDirectory $cacheDirectory $appDirectory
+if ($LASTEXITCODE -ne 0) { throw 'Avisos legales incompletos.' }
 # Compilar aquí, con el mismo 3.12 privado, evita compilar pydantic al primer
 # saludo de 5 s. Solo escribe copias de build; el motor en ejecución usa -B.
 & $python -I -B -m compileall -q -j 1 --invalidation-mode checked-hash -s $stageDirectory -p resources (Join-Path $runtimeDirectory 'Lib') (Join-Path $bundledEngine 'src')
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el bytecode privado de Python 3.12.' }
 Write-Output 'PRIVATE_BYTECODE_READY Python 3.12, hash-checked, solo recursos de build'
-& $python -I -B -c 'import sys,json,pydantic,yaml,pefile,importlib.util;from cybersoc_engine.engines.signature_engine import default_catalog;assert sys.version_info[:3]==(3,12,16);assert importlib.util.find_spec("pip") is None;print(json.dumps({"python":sys.version,"executable":sys.executable,"signatures":default_catalog().count,"sys_path":sys.path}))'
+& $python -I -B (Join-Path $PSScriptRoot 'runtime-check.py')
 if ($LASTEXITCODE -ne 0) { throw 'El Python privado no carga el motor y sus dependencias.' }
 $manifest = Get-ChildItem -LiteralPath $stageDirectory -Recurse -File | Where-Object {
     $_.FullName.StartsWith($runtimeDirectory + [IO.Path]::DirectorySeparatorChar) -or
-    $_.FullName.StartsWith($bundledEngine + [IO.Path]::DirectorySeparatorChar)
+    $_.FullName.StartsWith($bundledEngine + [IO.Path]::DirectorySeparatorChar) -or
+    $_.FullName.StartsWith((Join-Path $stageDirectory 'notices') + [IO.Path]::DirectorySeparatorChar)
 } | ForEach-Object {
     [ordered]@{path=$_.FullName.Substring($stageDirectory.Length + 1).Replace('\','/');size=$_.Length;sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
 }

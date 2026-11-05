@@ -1,6 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { z } from 'zod';
+import { win32 } from 'node:path';
+import { windowsPowerShellPath } from './windows-tools';
 
 // Un solo proceso por escaneo. Recibe rutas como JSON por stdin, nunca como código.
 // Solo consulta atributos; no abre contenido ni modifica archivos. Caché acotada
@@ -64,10 +66,17 @@ export class HiddenPathReader {
     if (this.pending)
       throw new Error('La consulta de atributos debe ser secuencial.');
     if (!this.child) {
-      const env = { ...process.env };
-      delete env.CYBERSOC_ANTHROPIC_API_KEY;
+      const executable = windowsPowerShellPath();
+      const system32 = win32.dirname(win32.dirname(win32.dirname(executable)));
+      const env = {
+        SystemRoot: win32.dirname(system32),
+        WINDIR: win32.dirname(system32),
+        PATH: system32,
+        TEMP: process.env.TEMP,
+        TMP: process.env.TMP,
+      };
       this.child = spawn(
-        'powershell.exe',
+        executable,
         ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
         {
           windowsHide: true,

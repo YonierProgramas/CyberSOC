@@ -1,0 +1,53 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/python/cpython/v3.12.16/Doc/license.rst",
+    "name": "CPython-3.12.16-incorporated.txt",
+    "sha256": "341832873fd316a37927e79385093fbbfd40a467428480835fe435a80cadf4e5"
+  },
+  {
+    "url": "https://raw.githubusercontent.com/yaml/libyaml/0.2.5/License",
+    "name": "LibYAML-0.2.5-LICENSE.txt",
+    "sha256": "c40112449f254b9753045925248313e9270efa36d226b22d82d4cc6c43c57f29"
+  },
+  {
+    "url": "https://visualstudio.microsoft.com/wp-content/uploads/2021/09/Visual-C-Runtime-2015-2022-License-1.docx",
+    "name": "Microsoft-VC-2015-2022-License.docx",
+    "sha256": "f1e3d56ceb2ad68aae0711b910375009e651ac5530fa0760f0dea6e81e54fae1"
+  },
+  {
+    "url": "https://files.pythonhosted.org/packages/af/f9/8a06bea35ef8daf588f707784c973a7046e0034c8d8cfb08828eeffb8b75/pydantic_core-2.46.5.tar.gz",
+    "name": "pydantic_core-2.46.5.tar.gz",
+    "sha256": "10416c15b8839ecc4ef4d0885da76da6fd0f67333a0eb8aff6d93c4b8f2910fc"
+  },
+  {
+    "component": "standardwebhooks-1.1.1",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "name": "standardwebhooks-1.1.1-LICENSE.txt",
+    "url": "https://raw.githubusercontent.com/standard-webhooks/standard-webhooks/b4d2c14fc5b4ccff3ff271e3b087dff812254c59/LICENSE"
+  },
+  {
+    "name": "Node-24.22.2-LICENSE.txt",
+    "sha256": "5888dbb9a1d2b18f2c3e6c5f6af1b39de658372b402a0577b002777f14c62ace",
+    "url": "https://raw.githubusercontent.com/nodejs/node/v24.22.2/LICENSE"
+  },
+  {
+    "name": "StdUtils-1.14-LGPL.txt",
+    "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+    "url": "https://raw.githubusercontent.com/lordmulder/stdutils/4e1117321001e54dcd2c52f72d3c359d5215e426/LGPL.txt"
+  },
+  {
+    "name": "StdUtils-1.14-clarification.txt",
+    "sha256": "49287ffa37d51910a8cb595d7ab64ebd2d42525384b16d4322783a0e57a77194",
+    "url": "https://raw.githubusercontent.com/lordmulder/stdutils/4e1117321001e54dcd2c52f72d3c359d5215e426/LGPL_CLARIFICATION.txt"
+  },
+  {
+    "name": "StdUtils-1.14-ReadMe.txt",
+    "sha256": "7d1b40bfdf3d6ef857b361929f8bfa3de38f53968ab1c084fac50ce0086e23f1",
+    "url": "https://raw.githubusercontent.com/lordmulder/stdutils/4e1117321001e54dcd2c52f72d3c359d5215e426/ReadMe.txt"
+  },
+  {
+    "name": "StdUtils-1.14-source.tar.gz",
+    "sha256": "3687ab4e09005a8a0b93c1a07a36285d93466070e94b8bf6f12781fb53c419e1",
+    "url": "https://codeload.github.com/lordmulder/stdutils/tar.gz/4e1117321001e54dcd2c52f72d3c359d5215e426"
+  }
+]

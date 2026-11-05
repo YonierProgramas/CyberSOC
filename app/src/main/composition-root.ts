@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { access } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { Database } from '../core/persistence/Database';
 import { MigrationRunner } from '../core/persistence/MigrationRunner';
 import {
@@ -64,11 +64,14 @@ import {
 import { QuarantineVault } from '../core/quarantine/QuarantineVault';
 import { ProtectedPaths } from '../core/quarantine/paths';
 import { resolveEnginePaths } from './engine-paths';
+import { RELEASE } from './build-flags';
+import { openDatabaseWithBackup } from '../core/persistence/UpgradeBackup';
 
 let evidenceRoot: string | undefined;
 
 /** Solo el opt-in explícito aísla datos y sustituye el diálogo nativo. */
 function prepareEvidenceMode(): string | undefined {
+  if (RELEASE) return undefined;
   if (process.env.CYBERSOC_EVIDENCE_MODE !== '1') return undefined;
   if (evidenceRoot) return evidenceRoot;
   const root = process.env.CYBERSOC_EVIDENCE_ROOT
@@ -156,6 +159,7 @@ export function createAIProvider(
   secrets = createSecretStore(database),
 ): ClaudeProvider | FakeAIProvider | null {
   if (
+    !RELEASE &&
     process.env.CYBERSOC_EVIDENCE_MODE === '1' &&
     process.env.CYBERSOC_EVIDENCE_LIVE !== '1'
   ) {
@@ -969,7 +973,7 @@ export function createScanOrchestrator(
     },
     config: () => config.load(),
     engine:
-      process.env.CYBERSOC_EVIDENCE_MODE === '1'
+      !RELEASE && process.env.CYBERSOC_EVIDENCE_MODE === '1'
         ? {
             getState: () => engine.getState(),
             reconnect: () => engine.reconnect(),
@@ -1062,6 +1066,7 @@ export function createScanOrchestrator(
 export function createDatabase(userDataPath: string): Database {
   const root = prepareEvidenceMode();
   if (root) userDataPath = join(root, 'user-data');
+  if (RELEASE) return openDatabaseWithBackup(userDataPath, app.getVersion());
   const database = new Database(join(userDataPath, 'cybersoc.db'));
   try {
     new MigrationRunner(database).run();
@@ -1080,7 +1085,8 @@ export function createQuarantineManager(
   const userData = app.getPath('userData');
   const local = process.env.LOCALAPPDATA;
   const vaultPath =
-    process.env.CYBERSOC_EVIDENCE_MODE === '1'
+    (RELEASE && app.commandLine.hasSwitch('user-data-dir')) ||
+    (!RELEASE && process.env.CYBERSOC_EVIDENCE_MODE === '1')
       ? join(userData, 'quarantine')
       : join(
           local ?? userData,
@@ -1142,7 +1148,15 @@ export function createEngine(
       args: string[],
       options: Parameters<typeof spawn>[2],
     ) => {
-      const env = { ...options?.env };
+      const env: NodeJS.ProcessEnv = app.isPackaged
+        ? {
+            SystemRoot: process.env.SystemRoot,
+            WINDIR: process.env.SystemRoot,
+            PATH: join(process.env.SystemRoot ?? 'C:\\Windows', 'System32'),
+            TEMP: app.getPath('temp'),
+            TMP: app.getPath('temp'),
+          }
+        : { ...options?.env };
       delete env.CYBERSOC_ANTHROPIC_API_KEY;
       const child = spawn(file, args, {
         ...options,
@@ -1168,4 +1182,40 @@ export function createEngine(
         : paths.command,
     logger: asEngineLogger(logger),
   });
+}
+
+/** Instrumentación prepara su perfil antes del lock; release no lee sus variables. */
+export function prepareAppProfile(): void {
+  if (RELEASE) {
+    // Un perfil alternativo es una elección explícita de CLI, no un modo de pruebas.
+    // Aísla también la bóveda; el perfil predeterminado conserva sus rutas históricas.
+    for (const flag of [
+      'remote-debugging-port',
+      'remote-debugging-pipe',
+      'no-sandbox',
+      'disable-web-security',
+    ]) {
+      if (app.commandLine.hasSwitch(flag))
+        throw new Error('Opción de arranque no permitida en release.');
+    }
+    if (app.commandLine.hasSwitch('user-data-dir')) {
+      const profile = app.commandLine.getSwitchValue('user-data-dir');
+      const installation = resolve(dirname(process.execPath)).toLowerCase();
+      const absolute = resolve(profile).toLowerCase();
+      if (
+        !isAbsolute(profile) ||
+        profile.startsWith('\\\\') ||
+        absolute === installation ||
+        absolute.startsWith(installation + sep) ||
+        dirname(absolute) === absolute
+      )
+        throw new Error('Perfil de datos no permitido.');
+      mkdirSync(profile, { recursive: true });
+      if (realpathSync(profile).toLowerCase() !== absolute)
+        throw new Error('Perfil enlazado no permitido.');
+      app.setPath('userData', profile);
+    }
+    return;
+  }
+  prepareEvidenceMode();
 }
