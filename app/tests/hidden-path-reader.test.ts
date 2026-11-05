@@ -6,7 +6,19 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { HiddenPathReader } from '../src/main/HiddenPathReader';
+import {
+  HiddenPathReader,
+  hiddenPathScript,
+} from '../src/main/HiddenPathReader';
+
+describe('script de atributos', () => {
+  it('no usa cmdlets: no depende de la autocarga de módulos de PowerShell', () => {
+    // Un cmdlet tiene forma Verbo-Nombre (ConvertFrom-Json, Get-Item…). Sin caché de
+    // módulos, su primera llamada podía tardar más que el plazo de la consulta.
+    expect(hiddenPathScript).not.toMatch(/\b[A-Z][a-z]+-[A-Z][A-Za-z]+\b/);
+    expect(hiddenPathScript).toContain('FromBase64String');
+  });
+});
 
 describe.skipIf(process.platform !== 'win32')(
   'atributos Hidden reales de Windows (solo fixtures temporales)',

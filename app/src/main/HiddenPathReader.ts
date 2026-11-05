@@ -4,16 +4,18 @@ import { z } from 'zod';
 import { win32 } from 'node:path';
 import { windowsPowerShellPath } from './windows-tools';
 
-// Un solo proceso por escaneo. Recibe rutas como JSON por stdin, nunca como código.
-// Solo consulta atributos; no abre contenido ni modifica archivos. Caché acotada
-// de padres: Dictionary consulta O(1) promedio y evita repetir toda la ascendencia.
-const script = `
+// Un solo proceso por escaneo. Recibe cada ruta como Base64 de UTF-8 por stdin, nunca
+// como código. Solo consulta atributos; no abre contenido ni modifica archivos. Caché
+// acotada de padres: Dictionary consulta O(1) promedio y evita repetir la ascendencia.
+// Solo usa .NET y operadores, ningún cmdlet: con el entorno mínimo no hay caché de
+// análisis de módulos y la autocarga de ConvertFrom-Json podía recorrer todos los módulos
+// instalados y superar el plazo de 10 s (fallo B12-03 del CI de Windows).
+export const hiddenPathScript = `
 $ErrorActionPreference = 'Stop'
-[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
 $cache = [System.Collections.Generic.Dictionary[string,bool]]::new([System.StringComparer]::OrdinalIgnoreCase)
 while (($line = [Console]::ReadLine()) -ne $null) {
   try {
-    $path = ConvertFrom-Json -InputObject $line
+    $path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($line))
     $hidden = $false
     $current = $path
     # Windows marca la raíz del volumen Hidden/System: no convierte todos sus
@@ -41,7 +43,7 @@ while (($line = [Console]::ReadLine()) -ne $null) {
       if ($cache.Count -ge 512) { $cache.Clear() }
       $cache[$parent] = $false
     }
-    [Console]::WriteLine((@{ hidden = $hidden } | ConvertTo-Json -Compress))
+    if ($hidden) { [Console]::WriteLine('{"hidden":true}') } else { [Console]::WriteLine('{"hidden":false}') }
   } catch {
     [Console]::WriteLine('{"error":true}')
   }
@@ -77,7 +79,13 @@ export class HiddenPathReader {
       };
       this.child = spawn(
         executable,
-        ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script],
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          hiddenPathScript,
+        ],
         {
           windowsHide: true,
           shell: false,
@@ -119,7 +127,9 @@ export class HiddenPathReader {
         reject,
         timer: setTimeout(() => this.close(), 10_000),
       };
-      this.child!.stdin.write(`${JSON.stringify(path)}\n`);
+      this.child!.stdin.write(
+        `${Buffer.from(path, 'utf8').toString('base64')}\n`,
+      );
     });
   }
 
