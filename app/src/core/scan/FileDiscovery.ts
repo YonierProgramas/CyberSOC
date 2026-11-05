@@ -56,6 +56,29 @@ export class FileDiscovery {
   peakFrontier = 0;
   dirsVisited = 0;
   skippedLinks = 0;
+  // Entradas que no se pudieron leer, por código de error (EACCES, EPERM, ENOENT, EBUSY).
+  // Map motivo -> cantidad: registrar es O(1) promedio y nunca guarda rutas, solo conteos.
+  // Invariante: la suma de los valores es skippedEntries. Si es mayor que 0, la carpeta
+  // no se recorrió completa y no debe presentarse como analizada en su totalidad (AUD-10).
+  private readonly skipped = new Map<string, number>();
+
+  get skippedEntries(): number {
+    let total = 0;
+    for (const count of this.skipped.values()) total += count;
+    return total;
+  }
+
+  get skippedByReason(): Readonly<Record<string, number>> {
+    return Object.fromEntries(this.skipped);
+  }
+
+  // Devuelve true si el error es una omisión esperable y la deja contada.
+  private skip(error: unknown): boolean {
+    if (!isSkippable(error)) return false;
+    const code = errorCode(error) ?? 'UNKNOWN';
+    this.skipped.set(code, (this.skipped.get(code) ?? 0) + 1);
+    return true;
+  }
 
   async *discover(
     root: string,
@@ -66,6 +89,7 @@ export class FileDiscovery {
     this.peakFrontier = 0;
     this.dirsVisited = 0;
     this.skippedLinks = 0;
+    this.skipped.clear();
     const strategy = options.strategy ?? 'dfs';
     const excluded = new Set(
       (options.exclude ?? []).map((name) => name.toLowerCase()),
@@ -78,7 +102,7 @@ export class FileDiscovery {
     try {
       rootInfo = await lstat(root);
     } catch (error) {
-      if (isSkippable(error)) return;
+      if (this.skip(error)) return;
       throw error;
     }
     if (rootInfo.isSymbolicLink()) {
@@ -99,7 +123,7 @@ export class FileDiscovery {
       try {
         key = (await realpath(folder)).toLowerCase();
       } catch (error) {
-        if (isSkippable(error)) continue;
+        if (this.skip(error)) continue;
         throw error;
       }
       if (visited.has(key)) continue;
@@ -110,7 +134,7 @@ export class FileDiscovery {
       try {
         names = await readdir(folder);
       } catch (error) {
-        if (isSkippable(error)) continue;
+        if (this.skip(error)) continue;
         throw error;
       }
       names.sort((left, right) => left.localeCompare(right, 'en'));
@@ -124,7 +148,7 @@ export class FileDiscovery {
         try {
           info = await lstat(child);
         } catch (error) {
-          if (isSkippable(error)) continue;
+          if (this.skip(error)) continue;
           throw error;
         }
         if (info.isSymbolicLink()) {
