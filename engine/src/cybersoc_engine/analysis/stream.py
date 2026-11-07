@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+from collections.abc import Callable
 from typing import BinaryIO, Protocol
 
 CHUNK_BYTES = 1024 * 1024
@@ -76,10 +77,35 @@ class BoundedSample:
         self.data.extend(chunk[: max(0, self.limit - len(self.data))])
 
 
-def consume_stream(stream: BinaryIO, consumers: tuple[Consumer, ...]) -> int:
-    """Lee bloques de 1 MiB hasta EOF una vez; no cierra el descriptor del llamador."""
+class FileChangedError(OSError):
+    """La lectura ya no corresponde al archivo estable admitido al comenzar."""
+
+
+def consume_stream(
+    stream: BinaryIO,
+    consumers: tuple[Consumer, ...],
+    *,
+    max_bytes: int | None = None,
+    check_unchanged: Callable[[], None] | None = None,
+) -> int:
+    """Un recorrido acotado; nunca solicita ni entrega más de max_bytes a las capas."""
     total = 0
-    while chunk := stream.read(CHUNK_BYTES):
+    # Invariante: 0 <= total <= max_bytes, si hay límite. Cada bloque cuesta O(b)
+    # más los consumidores; memoria O(CHUNK_BYTES). No leemos un byte centinela
+    # fuera del límite: el inspector comprueba EOF/tamaño por el descriptor.
+    while True:
+        if check_unchanged is not None:
+            check_unchanged()
+        remaining = CHUNK_BYTES if max_bytes is None else min(CHUNK_BYTES, max_bytes - total)
+        if remaining <= 0:
+            break
+        chunk = stream.read(remaining)
+        if check_unchanged is not None:
+            check_unchanged()
+        if not chunk:
+            break
+        if len(chunk) > remaining:
+            raise FileChangedError("Lectura superior al límite solicitado")
         for consumer in consumers:
             consumer.consume(chunk)
         total += len(chunk)

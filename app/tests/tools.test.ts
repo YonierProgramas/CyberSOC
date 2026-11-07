@@ -56,162 +56,166 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'cybersoc-tools-'));
   db = new Database(join(root, 'test.db'));
   new MigrationRunner(db).run();
-  const jobs = new ScanJobRepository(db);
-  for (const [id, date] of [
-    ['job-main', stamp],
-    ['job-old', '2026-10-01T12:00:00.000Z'],
-  ] as const)
-    jobs.create({
-      id,
-      targetPath: 'C:\\Users\\Prueba\\Downloads',
-      targetKind: 'FOLDER',
-      createdAt: date,
+  // Una transacción para el fixture: evita cientos de commits/fsync por caso.
+  // Los datos y el aislamiento por test se conservan; no cambia el timeout.
+  db.transaction(() => {
+    const jobs = new ScanJobRepository(db);
+    for (const [id, date] of [
+      ['job-main', stamp],
+      ['job-old', '2026-10-01T12:00:00.000Z'],
+    ] as const)
+      jobs.create({
+        id,
+        targetPath: 'C:\\Users\\Prueba\\Downloads',
+        targetKind: 'FOLDER',
+        createdAt: date,
+      });
+    jobs.updateStatus('job-main', 'COMPLETED', {
+      startedAt: stamp,
+      finishedAt: '2026-10-02T12:00:10.000Z',
     });
-  jobs.updateStatus('job-main', 'COMPLETED', {
-    startedAt: stamp,
-    finishedAt: '2026-10-02T12:00:10.000Z',
-  });
-  jobs.updateCounters('job-main', {
-    filesDiscovered: 30,
-    filesProcessed: 30,
-    filesError: 0,
-    filesSkipped: 0,
-    bytesProcessed: 3000,
-  });
-  const results = new ScanResultRepository(db);
-  for (let i = 0; i < 30; i++) {
-    const id = `r${String(i).padStart(2, '0')}`;
+    jobs.updateCounters('job-main', {
+      filesDiscovered: 30,
+      filesProcessed: 30,
+      filesError: 0,
+      filesSkipped: 0,
+      bytesProcessed: 3000,
+    });
+    const results = new ScanResultRepository(db);
+    for (let i = 0; i < 30; i++) {
+      const id = `r${String(i).padStart(2, '0')}`;
+      results.insertResult({
+        id,
+        jobId: 'job-main',
+        seq: i,
+        path: `C:\\Prueba\\ñ-${i}.txt`,
+        fileName: `ñ-${i}.txt`,
+        status: 'SCANNED',
+        sha256: i < 3 ? hash : i.toString(16).padStart(64, '0'),
+        verdict: i === 29 ? 'DETECTED' : i % 6 >= 2 ? 'SUSPICIOUS' : 'CLEAN',
+        engineScore: i === 29 ? 95 : (i % 6) * 15,
+        zone: i % 2 ? 'SISTEMA' : 'DESCARGAS',
+        sizeBytes: 100,
+        scannedAt: stamp,
+      });
+      new EvidenceRepository(db).insertMany(id, [
+        {
+          id: 'ev1',
+          source: i % 3 ? 'FILETYPE' : 'RULES',
+          code: i % 3 ? 'DOUBLE_EXTENSION' : 'R-TEST-DOWNLOADER',
+          title: 'Marcador inofensivo',
+          severity: 'HIGH',
+          points: 25,
+          decisive: false,
+          confidence: 1,
+          facts: { private: 'NOT_FOR_TOOLS' },
+        },
+      ]);
+      new LayerTraceRepository(db).insertTrace(id, [
+        { layer: 'HASH', status: 'RAN', hits: 0, points: 0, ms: 2 },
+        {
+          layer: 'RULES',
+          status: i % 3 ? 'SKIPPED' : 'RAN',
+          ...(i % 3 ? { reason: 'NO_MATCH' } : {}),
+          hits: i % 3 ? 0 : 1,
+          points: i % 3 ? 0 : 25,
+          ms: 3,
+        },
+        {
+          layer: 'PE',
+          status: i % 2 ? 'SKIPPED' : 'DISABLED',
+          reason: i % 2 ? 'NOT_PE' : 'PROFILE',
+          hits: 0,
+          points: 0,
+          ms: 0,
+        },
+      ]);
+    }
     results.insertResult({
-      id,
-      jobId: 'job-main',
-      seq: i,
-      path: `C:\\Prueba\\ñ-${i}.txt`,
-      fileName: `ñ-${i}.txt`,
+      id: 'old-result',
+      jobId: 'job-old',
+      seq: 0,
+      path: 'C:\\old.txt',
+      fileName: 'old.txt',
       status: 'SCANNED',
-      sha256: i < 3 ? hash : i.toString(16).padStart(64, '0'),
-      verdict: i === 29 ? 'DETECTED' : i % 6 >= 2 ? 'SUSPICIOUS' : 'CLEAN',
-      engineScore: i === 29 ? 95 : (i % 6) * 15,
-      zone: i % 2 ? 'SISTEMA' : 'DESCARGAS',
-      sizeBytes: 100,
-      scannedAt: stamp,
+      engineScore: 100,
+      verdict: 'DETECTED',
+      zone: 'DESCARGAS',
     });
-    new EvidenceRepository(db).insertMany(id, [
-      {
-        id: 'ev1',
-        source: i % 3 ? 'FILETYPE' : 'RULES',
-        code: i % 3 ? 'DOUBLE_EXTENSION' : 'R-TEST-DOWNLOADER',
-        title: 'Marcador inofensivo',
-        severity: 'HIGH',
-        points: 25,
-        decisive: false,
-        confidence: 1,
-        facts: { private: 'NOT_FOR_TOOLS' },
-      },
+    new LayerTraceRepository(db).insertTrace('old-result', [
+      { layer: 'HASH', status: 'RAN', hits: 0, points: 0, ms: 50 },
     ]);
-    new LayerTraceRepository(db).insertTrace(id, [
-      { layer: 'HASH', status: 'RAN', hits: 0, points: 0, ms: 2 },
-      {
-        layer: 'RULES',
-        status: i % 3 ? 'SKIPPED' : 'RAN',
-        ...(i % 3 ? { reason: 'NO_MATCH' } : {}),
-        hits: i % 3 ? 0 : 1,
-        points: i % 3 ? 0 : 25,
-        ms: 3,
-      },
-      {
-        layer: 'PE',
-        status: i % 2 ? 'SKIPPED' : 'DISABLED',
-        reason: i % 2 ? 'NOT_PE' : 'PROFILE',
-        hits: 0,
-        points: 0,
-        ms: 0,
-      },
-    ]);
-  }
-  results.insertResult({
-    id: 'old-result',
-    jobId: 'job-old',
-    seq: 0,
-    path: 'C:\\old.txt',
-    fileName: 'old.txt',
-    status: 'SCANNED',
-    engineScore: 100,
-    verdict: 'DETECTED',
-    zone: 'DESCARGAS',
-  });
-  new LayerTraceRepository(db).insertTrace('old-result', [
-    { layer: 'HASH', status: 'RAN', hits: 0, points: 0, ms: 50 },
-  ]);
-  const analyses = new AIAnalysisRepository(db);
-  analyses.insert({
-    id: 'analysis-old',
-    kind: 'FILE_RESULT',
-    resultId: 'r00',
-    provider: 'fake',
-    model: 'old',
-    promptVersion: 'v1',
-    contextJson: '{"private":"SECRET-CONTEXT"}',
-    responseJson: '{"summary":"anterior"}',
-    validationStatus: 'VALID',
-    createdAt: '2026-10-01T12:00:00.000Z',
-  });
-  analyses.insert({
-    id: 'analysis-valid',
-    kind: 'FILE_RESULT',
-    resultId: 'r00',
-    provider: 'fake',
-    model: 'fake',
-    promptVersion: 'v1',
-    contextJson: '{}',
-    responseJson: '{"summary":"válido"}',
-    validationStatus: 'VALID',
-    createdAt: stamp,
-  });
-  analyses.insert({
-    id: 'analysis-invalid',
-    kind: 'FILE_RESULT',
-    resultId: 'r00',
-    provider: 'fake',
-    promptVersion: 'v1',
-    contextJson: '{}',
-    responseJson: 'SECRET-ERROR',
-    validationStatus: 'INVALID_JSON',
-    createdAt: '2026-10-03T12:00:00.000Z',
-  });
-  analyses.insert({
-    id: 'summary-valid',
-    kind: 'JOB_SUMMARY',
-    jobId: 'job-main',
-    provider: 'fake',
-    model: 'fake',
-    promptVersion: 'v1',
-    contextJson: '{}',
-    responseJson: '{"summary":"resumen real guardado"}',
-    validationStatus: 'VALID',
-    createdAt: stamp,
-  });
-  new AllowlistRepository(db).add(hash, 'fixture');
-  const quarantine = new QuarantineRepository(db);
-  for (let i = 0; i < 25; i++)
-    quarantine.insert({
-      id: `q${i}`,
+    const analyses = new AIAnalysisRepository(db);
+    analyses.insert({
+      id: 'analysis-old',
+      kind: 'FILE_RESULT',
       resultId: 'r00',
-      originalPath: 'C:\\Prueba\\archivo.txt',
-      sha256: hash,
-      sizeBytes: 100,
-      vaultFile: 'PRIVATE-BLOB',
-      keyB64: 'SECRET-KEY',
-      ivB64: 'SECRET-IV',
-      authTagB64: 'SECRET-TAG',
-      reason: 'prueba',
-      verdictSnapshot: 'DETECTED',
-      status: i === 24 ? 'RESTORED' : 'QUARANTINED',
-      quarantinedAt: stamp,
-      restoredAt: null,
-      restoredTo: null,
-      deletedAt: null,
-      errorMessage: 'SECRET-ERROR',
+      provider: 'fake',
+      model: 'old',
+      promptVersion: 'v1',
+      contextJson: '{"private":"SECRET-CONTEXT"}',
+      responseJson: '{"summary":"anterior"}',
+      validationStatus: 'VALID',
+      createdAt: '2026-10-01T12:00:00.000Z',
     });
+    analyses.insert({
+      id: 'analysis-valid',
+      kind: 'FILE_RESULT',
+      resultId: 'r00',
+      provider: 'fake',
+      model: 'fake',
+      promptVersion: 'v1',
+      contextJson: '{}',
+      responseJson: '{"summary":"válido"}',
+      validationStatus: 'VALID',
+      createdAt: stamp,
+    });
+    analyses.insert({
+      id: 'analysis-invalid',
+      kind: 'FILE_RESULT',
+      resultId: 'r00',
+      provider: 'fake',
+      promptVersion: 'v1',
+      contextJson: '{}',
+      responseJson: 'SECRET-ERROR',
+      validationStatus: 'INVALID_JSON',
+      createdAt: '2026-10-03T12:00:00.000Z',
+    });
+    analyses.insert({
+      id: 'summary-valid',
+      kind: 'JOB_SUMMARY',
+      jobId: 'job-main',
+      provider: 'fake',
+      model: 'fake',
+      promptVersion: 'v1',
+      contextJson: '{}',
+      responseJson: '{"summary":"resumen real guardado"}',
+      validationStatus: 'VALID',
+      createdAt: stamp,
+    });
+    new AllowlistRepository(db).add(hash, 'fixture');
+    const quarantine = new QuarantineRepository(db);
+    for (let i = 0; i < 25; i++)
+      quarantine.insert({
+        id: `q${i}`,
+        resultId: 'r00',
+        originalPath: 'C:\\Prueba\\archivo.txt',
+        sha256: hash,
+        sizeBytes: 100,
+        vaultFile: 'PRIVATE-BLOB',
+        keyB64: 'SECRET-KEY',
+        ivB64: 'SECRET-IV',
+        authTagB64: 'SECRET-TAG',
+        reason: 'prueba',
+        verdictSnapshot: 'DETECTED',
+        status: i === 24 ? 'RESTORED' : 'QUARANTINED',
+        quarantinedAt: stamp,
+        restoredAt: null,
+        restoredTo: null,
+        deletedAt: null,
+        errorMessage: 'SECRET-ERROR',
+      });
+  });
   context = {
     reads: new ToolReadRepository(db),
     catalog: new ToolCatalogRepository(

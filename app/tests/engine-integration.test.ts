@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { EngineProcess } from '../src/core/engine/EngineProcess';
+import { resolveEnginePaths } from '../src/main/engine-paths';
 
 const python = resolve(
   '..',
@@ -14,9 +15,10 @@ it.skipIf(!existsSync(python))(
   'motor real: hello, ping, scan.file con HASH, SIGNATURES FILETYPE y RULES, reconexion y shutdown',
   async () => {
     const messages: string[] = [];
+    const paths = resolveEnginePaths(process.cwd(), false, '');
     const engine = new EngineProcess({
-      command: () => ({ file: python, args: ['-m', 'cybersoc_engine'] }),
-      cwd: process.cwd(),
+      command: () => paths.command,
+      cwd: paths.cwd,
       logger: {
         info: (message) => messages.push(message),
         error: (message) => messages.push(message),

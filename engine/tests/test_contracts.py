@@ -541,13 +541,13 @@ def test_current_inspector_emits_valid_hash_trace(tmp_path, scenario):
     from unittest.mock import patch
 
     from cybersoc_engine.analysis.file_inspector import FileInspector
+    from cybersoc_engine.analysis.stream import consume_stream
     from cybersoc_engine.models import ScanFileOptions
 
     path = tmp_path / "inofensivo.txt"
     if scenario != "missing":
         path.write_text("Texto inofensivo de prueba.", encoding="utf-8")
-    with patch("cybersoc_engine.pipeline.consume_stream") as hashing:
-        hashing.return_value = 0
+    with patch("cybersoc_engine.pipeline.consume_stream", wraps=consume_stream) as hashing:
         if scenario == "read_error":
             hashing.side_effect = OSError("read failed")
         result = FileInspector().inspect(

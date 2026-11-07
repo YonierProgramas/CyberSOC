@@ -62,7 +62,7 @@ jobs:
         run: npm run lint
       - name: Tests (including TypeScript contracts; no live AI smoke)
         # Limita procesos nativos simultáneos y reproduce la verificación local.
-        run: npm test -- --maxWorkers=2
+        run: npm test
       - name: End-to-end (Electron, evidence mode)
         # Tres corridas locales seguidas en verde el 2026-10-03. Playwright usa
         # el Electron ya instalado; no descarga un navegador.

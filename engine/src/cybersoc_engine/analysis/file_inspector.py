@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 
+from cybersoc_engine.analysis.stream import FileChangedError
 from cybersoc_engine.analysis.windows_io import readonly_opener
 from cybersoc_engine.errors import map_file_error
 from cybersoc_engine.models import (
     EngineResult,
     FileError,
     FileInfo,
+    LayerTrace,
     ScanFileOptions,
 )
 from cybersoc_engine.pipeline import AnalysisPipeline
@@ -43,6 +45,21 @@ def _file_info(path: Path, metadata: os.stat_result) -> FileInfo:
         modifiedAt=datetime.fromtimestamp(metadata.st_mtime, UTC)
         .isoformat()
         .replace("+00:00", "Z"),
+    )
+
+
+def _same_file(
+    before: os.stat_result, after: os.stat_result, *, compare_ctime: bool = False
+) -> bool:
+    # Identidad de descriptor/ruta y metadatos estables, no atime (leer puede cambiarlo).
+    # Comparación O(1). No es un bloqueo exclusivo ni una instantánea del sistema.
+    # En Windows/Python 3.12 stat y fstat pueden dar distinta semántica a ctime.
+    # Solo se compara ctime entre dos lecturas hechas por la MISMA API.
+    keys = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
+    if compare_ctime:
+        keys += ("st_ctime_ns",)
+    return stat.S_ISREG(after.st_mode) and all(
+        getattr(before, key) == getattr(after, key) for key in keys
     )
 
 
@@ -85,13 +102,43 @@ class FileInspector:
                     result.error = reason
                     return result
                 result.file = _file_info(target, opened)
+                if not _same_file(metadata, opened):
+                    raise FileChangedError("Archivo sustituido o cambiado al abrir")
+
+                def check_unchanged() -> None:
+                    try:
+                        current = target.stat(follow_symlinks=False)
+                        descriptor = os.fstat(fh.fileno())
+                    except OSError:
+                        raise FileChangedError("No se pudo verificar el archivo abierto") from None
+                    if not _same_file(opened, descriptor, compare_ctime=True) or not _same_file(
+                        metadata, current, compare_ctime=True
+                    ):
+                        raise FileChangedError("Archivo cambiado durante el análisis")
+
                 self.pipeline.analyze(
                     fh,
                     result,
                     opts.layers,
                     zone=opts.zone,
                     attributes=getattr(opened, "st_file_attributes", 0),
+                    max_bytes=int(opts.maxBytes),
+                    check_unchanged=check_unchanged,
                 )
+                check_unchanged()
+        except FileChangedError:
+            # Ninguna evidencia/hash de una lectura incoherente puede respaldar un
+            # veredicto, ni siquiera una firma encontrada antes de detectar el cambio.
+            result.status = "ERROR"
+            result.error = FileError(
+                code="IO_ERROR", message="El archivo cambió durante el análisis"
+            )
+            result.hashes = None
+            result.model_fields_set.discard("hashes")
+            result.evidence.clear()
+            result.layers = [
+                LayerTrace(layer="HASH", status="ERROR", reason="IO_ERROR", hits=0, points=0, ms=0)
+            ]
         except OSError as error:
             result.status = "ERROR"
             result.error = map_file_error(error)

@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Callable
 from dataclasses import replace
 from time import perf_counter
 from typing import BinaryIO
@@ -7,6 +8,7 @@ from cybersoc_engine.analysis.stream import (
     HEADER_BYTES,
     BoundedSample,
     ByteHistogram,
+    FileChangedError,
     HashConsumer,
     HeaderConsumer,
     consume_stream,
@@ -50,6 +52,8 @@ class AnalysisPipeline:
         *,
         zone: Zone | None = None,
         attributes: int = 0,
+        max_bytes: int | None = None,
+        check_unchanged: Callable[[], None] | None = None,
     ) -> None:
         """Un solo recorrido alimenta HASH, cabecera, histograma y búsqueda de reglas."""
         rules = None
@@ -75,7 +79,15 @@ class AnalysisPipeline:
                 if rules is not None
                 else (hashing, header, histogram)
             )
-            size = consume_stream(stream, (*consumers, sample))
+            size = consume_stream(
+                stream, (*consumers, sample), max_bytes=max_bytes, check_unchanged=check_unchanged
+            )
+            if (
+                check_unchanged is not None
+                and result.file is not None
+                and size != result.file.sizeBytes
+            ):
+                raise FileChangedError("Tamaño procesado incoherente")
             result.hashes = FileHashes(sha256=hashing.hexdigest())
         except (OSError, ValueError) as error:
             reason = map_file_error(error).code if isinstance(error, OSError) else "IO_ERROR"

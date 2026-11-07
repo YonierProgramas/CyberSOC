@@ -7,6 +7,7 @@ import { MigrationRunner } from '../../src/core/persistence/MigrationRunner';
 import { ScanResultRepository } from '../../src/core/persistence/ScanResultRepository';
 import type { ScanJobRecord } from '../../src/core/persistence/ScanJobRepository';
 import { EngineProcess } from '../../src/core/engine/EngineProcess';
+import { resolveEnginePaths } from '../../src/main/engine-paths';
 import type { AIProvider } from '../../src/core/ai/AIProvider';
 import {
   createAIWorkflow,
@@ -41,10 +42,14 @@ export class AIFlowHarness {
   readonly suspicious = join(this.fixtures, 'factura\u202e.pdf.exe');
   db = new Database(join(this.root, 'test.db'));
   worker;
+  private readonly engineMessages: string[] = [];
   readonly engine = new EngineProcess({
-    command: () => ({ file: python, args: ['-m', 'cybersoc_engine'] }),
+    command: () => resolveEnginePaths(appRoot, false, '').command,
     cwd: appRoot,
-    logger: { info() {}, error() {} },
+    logger: {
+      info: (message) => this.recordEngine(message),
+      error: (message) => this.recordEngine(message),
+    },
     spawnProcess: ((
       file: string,
       args: string[],
@@ -60,6 +65,13 @@ export class AIFlowHarness {
   constructor(private readonly provider: () => AIProvider | null) {
     new MigrationRunner(this.db).run();
     this.worker = createAIWorkflow(this.db, provider);
+  }
+
+  private recordEngine(message: string): void {
+    // Solo mensajes del proceso de prueba, nunca entorno, clave ni peticiones IA.
+    // Lista acotada a 20: inserción/eliminación O(1) por su límite fijo.
+    this.engineMessages.push(message);
+    if (this.engineMessages.length > 20) this.engineMessages.shift();
   }
 
   async prepare(): Promise<void> {
@@ -92,7 +104,10 @@ export class AIFlowHarness {
     );
     const state = await this.engine.reconnect();
     if (state.status !== 'connected')
-      throw new Error('No se conectó el motor Python de pruebas.');
+      throw new Error(
+        'No se conectó el motor Python de pruebas: ' +
+          this.engineMessages.join('; '),
+      );
   }
 
   async scan(path = this.fixtures) {

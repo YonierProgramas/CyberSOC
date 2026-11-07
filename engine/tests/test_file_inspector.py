@@ -132,6 +132,7 @@ def test_hydrated_reparse_file_without_recall_is_scanned(tmp_path):
         st_size=actual.st_size,
         st_mode=actual.st_mode,
         st_mtime=actual.st_mtime,
+        **{key: getattr(actual, key) for key in ("st_dev", "st_ino", "st_mtime_ns", "st_ctime_ns")},
     )
     with patch.object(Path, "stat", return_value=metadata):
         assert inspect(path).status == "SCANNED"
@@ -141,7 +142,12 @@ def test_no_windows_attributes_available(tmp_path):
     path = tmp_path / "local.txt"
     path.write_bytes(b"abc")
     actual = path.stat()
-    metadata = SimpleNamespace(st_size=3, st_mode=actual.st_mode, st_mtime=actual.st_mtime)
+    metadata = SimpleNamespace(
+        st_size=3,
+        st_mode=actual.st_mode,
+        st_mtime=actual.st_mtime,
+        **{key: getattr(actual, key) for key in ("st_dev", "st_ino", "st_mtime_ns", "st_ctime_ns")},
+    )
     with patch.object(Path, "stat", return_value=metadata):
         assert inspect(path).status == "SCANNED"
 
