@@ -2,9 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   DashboardOverviewDTO,
   DashboardScope,
+  ScanJobDTO,
   VerdictDistributionDTO,
 } from '../../../shared/ipc';
 import { CountChart } from '../components/CountChart';
+import { StatusBadge, StatCard, jobTone } from '../components/ui';
 import {
   SCOPE_LABEL,
   activityTitle,
@@ -12,14 +14,18 @@ import {
   verdictRows,
 } from '../dashboard/present';
 import { useShell } from '../navigation/shell';
-import { fileNameOf, jobStatusLabel } from '../scan/format';
+import { fileNameOf, jobStatusLabel, zoneLabel } from '../scan/format';
 import { useScanRefresh } from '../scan/useScanRefresh';
+import { engineHeadline, useEngineStatus } from '../system/engineStatus';
 
 const scopes: DashboardScope[] = ['LAST_COMPLETED', 'ALL_COMPLETED', 'RANGE'];
 
 export function DashboardPage() {
-  const { setView } = useShell();
+  const { setView, requestScan, openReference } = useShell();
+  const engine = useEngineStatus();
   const [overview, setOverview] = useState<DashboardOverviewDTO | null>(null);
+  const [recent, setRecent] = useState<ScanJobDTO[]>([]);
+  const [recentFailed, setRecentFailed] = useState(false);
   const [scope, setScope] = useState<DashboardScope>('LAST_COMPLETED');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -49,29 +55,87 @@ export function DashboardPage() {
       });
   }, []);
 
+  const loadRecent = useCallback(() => {
+    return window.cybersoc.scan
+      .listJobsPage({ offset: 0, limit: 5 })
+      .then((page) => {
+        setRecent(page.items);
+        setRecentFailed(false);
+      })
+      .catch(() => setRecentFailed(true));
+  }, []);
+
   useEffect(() => {
     void load();
+    void loadRecent();
     return () => {
       request.current += 1;
     };
-  }, [load]);
+  }, [load, loadRecent]);
 
-  const refresh = useCallback(() => load(applied.current), [load]);
+  const refresh = useCallback(() => {
+    void loadRecent();
+    return load(applied.current);
+  }, [load, loadRecent]);
   useScanRefresh(refresh);
 
   function applyRange() {
     if (from === '' || to === '' || from > to) return;
     setScope('RANGE');
-    load({ from, to });
+    void load({ from, to });
   }
 
   const distribution = overview ? selectedDistribution(overview, scope) : null;
+  const completed = overview?.distributions.allCompleted;
+  const lastJob = overview?.distributions.lastCompleted?.job;
+  const lastStamp =
+    lastJob?.finishedAt ??
+    lastJob?.createdAt ??
+    overview?.active?.createdAt ??
+    overview?.allTime.firstJobAt;
 
   return (
     <main className="wide">
-      <p className="eyebrow">Inicio</p>
-      <h1>Resumen</h1>
-      <p>Las cifras salen de los análisis guardados en este equipo.</p>
+      <header className="page-header">
+        <div className="page-header-copy">
+          <p className="eyebrow">Inicio</p>
+          <h1>Resumen</h1>
+          <p className="lede">
+            Cifras tomadas de los análisis guardados en este equipo.{' '}
+            {engineHeadline(engine)}.
+          </p>
+          <p className="hint">
+            Última actividad registrada:{' '}
+            {overview ? formatStamp(lastStamp) : 'Sin datos'}
+          </p>
+        </div>
+        <div className="page-actions">
+          <button
+            type="button"
+            className="primary"
+            onClick={() => requestScan('FOLDER')}
+          >
+            Iniciar escaneo
+          </button>
+        </div>
+      </header>
+      <section className="panel" aria-label="Acciones rápidas">
+        <h2>Acciones rápidas</h2>
+        <div className="actions">
+          <button type="button" onClick={() => requestScan('FILE')}>
+            Escanear archivo
+          </button>
+          <button type="button" onClick={() => requestScan('FOLDER')}>
+            Escanear carpeta
+          </button>
+          <button type="button" onClick={() => setView('history')}>
+            Ver historial
+          </button>
+          <button type="button" onClick={() => setView('quarantine')}>
+            Consultar cuarentena
+          </button>
+        </div>
+      </section>
       {loading && <p data-testid="dashboard-loading">Cargando el resumen…</p>}
       {failed && (
         <p role="alert">
@@ -85,18 +149,70 @@ export function DashboardPage() {
           </button>
         </p>
       )}
-      {overview && (
+      {overview && completed && (
         <>
+          <section className="kpi-grid" aria-label="Indicadores del equipo">
+            <StatCard
+              label="Análisis registrados"
+              value={String(overview.allTime.jobs)}
+              hint="Trabajos guardados en total"
+            />
+            <StatCard
+              label="Resultados registrados"
+              value={String(overview.allTime.results)}
+              hint="Filas de resultado, no un recuento inventado de archivos"
+            />
+            <StatCard
+              label="Detectados"
+              value={String(completed.results.byVerdict.DETECTED)}
+              hint="Solo análisis completados"
+              tone={
+                completed.results.byVerdict.DETECTED > 0 ? 'bad' : 'neutral'
+              }
+            />
+            <StatCard
+              label="Sospechosos"
+              value={String(completed.results.byVerdict.SUSPICIOUS)}
+              hint="Solo análisis completados"
+              tone={
+                completed.results.byVerdict.SUSPICIOUS > 0 ? 'warn' : 'neutral'
+              }
+            />
+            <StatCard
+              label="En cuarentena"
+              value={String(overview.quarantine.QUARANTINED ?? 0)}
+              hint="Elementos con estado QUARANTINED"
+            />
+            <StatCard
+              label="Último análisis"
+              value={
+                lastJob
+                  ? formatStamp(lastJob.finishedAt ?? lastJob.createdAt)
+                  : 'Sin datos'
+              }
+              hint={
+                lastJob
+                  ? fileNameOf(lastJob.targetPath)
+                  : 'Todavía no hay un análisis completado'
+              }
+            />
+          </section>
           <section className="panel" data-testid="dashboard-active">
             <h2>Análisis en curso</h2>
             {overview.active ? (
               <p>
                 {fileNameOf(overview.active.targetPath)} ·{' '}
-                {jobStatusLabel(overview.active.status)}
+                <StatusBadge tone={jobTone(overview.active.status)}>
+                  {jobStatusLabel(overview.active.status)}
+                </StatusBadge>
               </p>
             ) : (
               <p>No hay un análisis en curso.</p>
             )}
+            <p className="hint">
+              Sale del registro local más reciente con estado sin terminar. No
+              afirma que el proceso del motor siga vivo.
+            </p>
           </section>
           <section className="panel" data-testid="dashboard-last">
             <h2>Último análisis completado</h2>
@@ -135,35 +251,37 @@ export function DashboardPage() {
               <summary>
                 Ver resultados, detecciones y errores de cada día
               </summary>
-              <table>
-                <caption>Detalle diario entregado por el resumen</caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Día</th>
-                    <th scope="col">Trabajos</th>
-                    <th scope="col">Resultados</th>
-                    <th scope="col">Detectados</th>
-                    <th scope="col">Sospechosos</th>
-                    <th scope="col">Errores</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overview.activity.daily.map((day) => (
-                    <tr key={day.date}>
-                      <th scope="row">{day.date}</th>
-                      <td>{day.jobs}</td>
-                      <td>{day.results}</td>
-                      <td>{day.detected}</td>
-                      <td>{day.suspicious}</td>
-                      <td>{day.errors}</td>
+              <div className="table-wrap">
+                <table>
+                  <caption>Detalle diario entregado por el resumen</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Día</th>
+                      <th scope="col">Trabajos</th>
+                      <th scope="col">Resultados</th>
+                      <th scope="col">Detectados</th>
+                      <th scope="col">Sospechosos</th>
+                      <th scope="col">Errores</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {overview.activity.daily.map((day) => (
+                      <tr key={day.date}>
+                        <th scope="row">{day.date}</th>
+                        <td>{day.jobs}</td>
+                        <td>{day.results}</td>
+                        <td>{day.detected}</td>
+                        <td>{day.suspicious}</td>
+                        <td>{day.errors}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </details>
           </section>
           <section className="panel" data-testid="dashboard-distribution">
-            <h2>Distribución</h2>
+            <h2>Distribución de resultados</h2>
             <div
               className="scope-choices"
               role="group"
@@ -218,10 +336,12 @@ export function DashboardPage() {
                   {distribution.excluded.jobs}.
                 </p>
                 <CountChart
+                  variant="donut"
                   title={`Veredictos de ${SCOPE_LABEL[scope]}`}
                   testId="dashboard-verdict-chart"
                   rows={verdictRows(distribution)}
                 />
+                <ZoneChart distribution={distribution} />
               </>
             )}
             <details>
@@ -235,9 +355,63 @@ export function DashboardPage() {
               </p>
             </details>
           </section>
+          <section className="panel" data-testid="dashboard-recent">
+            <h2>Actividad reciente</h2>
+            <p className="hint">
+              Los cinco análisis más recientes del listado local.
+            </p>
+            {recentFailed && (
+              <p role="alert">No se pudo cargar la actividad reciente.</p>
+            )}
+            {!recentFailed && recent.length === 0 && (
+              <p>Sin análisis recientes.</p>
+            )}
+            {recent.length > 0 && (
+              <ul className="job-list">
+                {recent.map((job) => (
+                  <li key={job.id}>
+                    <button
+                      type="button"
+                      onClick={() => openReference({ type: 'job', id: job.id })}
+                    >
+                      <span>{formatStamp(job.createdAt)}</span>
+                      {' · '}
+                      <span title={job.targetPath}>{job.targetPath}</span>
+                      {' · '}
+                      <StatusBadge tone={jobTone(job.status)}>
+                        {jobStatusLabel(job.status)}
+                      </StatusBadge>
+                      {' · '}
+                      <span>{job.filesProcessed} analizados</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </>
       )}
     </main>
+  );
+}
+
+function ZoneChart({ distribution }: { distribution: VerdictDistributionDTO }) {
+  const rows = distribution.results.byZone
+    .filter((item) => item.results > 0)
+    .map((item) => ({
+      key: item.zone ?? 'SIN_ZONA',
+      label: zoneLabel(item.zone),
+      count: item.results,
+    }));
+  if (rows.length === 0) {
+    return <p className="hint">Sin resultados por zona en este ámbito.</p>;
+  }
+  return (
+    <CountChart
+      title="Resultados por zona"
+      testId="dashboard-zone-chart"
+      rows={rows}
+    />
   );
 }
 
@@ -248,4 +422,14 @@ function selectedDistribution(
   if (scope === 'LAST_COMPLETED') return overview.distributions.lastCompleted;
   if (scope === 'ALL_COMPLETED') return overview.distributions.allCompleted;
   return overview.distributions.range;
+}
+
+function formatStamp(value: string | null | undefined): string {
+  if (!value) return 'Sin datos';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('es-CO', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
 }

@@ -18,6 +18,8 @@ export type OpenRequest =
   | { nonce: number; kind: 'RULE'; ruleId: string }
   | { nonce: number; kind: 'ZONE'; zoneId: string };
 
+export type PendingScan = { nonce: number; kind: 'FILE' | 'FOLDER' };
+
 const ShellContext = createContext<{
   view: AppView;
   setView: (view: AppView) => void;
@@ -25,12 +27,15 @@ const ShellContext = createContext<{
   openReference: (reference: AssistantReferenceDTO) => void;
   watchJobId: string | null;
   watchScan: (jobId: string) => void;
+  pendingScan: PendingScan | null;
+  requestScan: (kind: PendingScan['kind']) => void;
 } | null>(null);
 
 export function ShellProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<AppView>('home');
   const [request, setRequest] = useState<OpenRequest | null>(null);
   const [watchJobId, setWatchJobId] = useState<string | null>(null);
+  const [pendingScan, setPendingScan] = useState<PendingScan | null>(null);
   const nonce = useRef(0);
 
   const openReference = useCallback((reference: AssistantReferenceDTO) => {
@@ -55,6 +60,11 @@ export function ShellProvider({ children }: { children: ReactNode }) {
     setView('scan');
   }, []);
 
+  const requestScan = useCallback((kind: PendingScan['kind']) => {
+    setPendingScan({ kind, nonce: ++nonce.current });
+    setView('scan');
+  }, []);
+
   const value = useMemo(
     () => ({
       view,
@@ -63,8 +73,18 @@ export function ShellProvider({ children }: { children: ReactNode }) {
       openReference,
       watchJobId,
       watchScan,
+      pendingScan,
+      requestScan,
     }),
-    [view, request, openReference, watchJobId, watchScan],
+    [
+      view,
+      request,
+      openReference,
+      watchJobId,
+      watchScan,
+      pendingScan,
+      requestScan,
+    ],
   );
 
   return (

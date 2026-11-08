@@ -5,6 +5,7 @@ import { JobDetail } from '../components/JobDetail';
 import { JobSummaryCard } from '../components/JobSummaryCard';
 import { PlainText } from '../components/PlainText';
 import { ResultsTable } from '../components/ResultsTable';
+import { PageHeader, StatusBadge, jobTone } from '../components/ui';
 import { pathLabel, useCopilotFocus } from '../copilot/focus';
 import { historyPageNotice } from '../dashboard/present';
 import { emptyHistoryFilters, type HistoryFilters } from '../history/filters';
@@ -272,14 +273,20 @@ export function HistoryPage() {
 
   return (
     <main className="wide">
-      <p className="eyebrow">Historial</p>
-      <h1>Análisis guardados</h1>
-      {!loading && (
-        <p data-testid="history-page-notice">
-          {historyPageNotice(offset, jobs.length, total)}
-        </p>
-      )}
-      {loading && <p>Cargando el historial…</p>}
+      <PageHeader
+        eyebrow="Historial"
+        title="Historial de análisis"
+        description="Consultas guardadas en este equipo. Las rutas largas se recortan en la tabla; el texto completo sigue en el registro."
+        meta={
+          !loading ? (
+            <p data-testid="history-page-notice">
+              {historyPageNotice(offset, jobs.length, total)}
+            </p>
+          ) : (
+            <p>Cargando el historial…</p>
+          )
+        }
+      />
       {failed && (
         <p role="alert">
           No se pudo consultar el historial.{' '}
@@ -295,7 +302,7 @@ export function HistoryPage() {
         </section>
       )}
       <form
-        className="history-filters"
+        className="history-filters filters"
         onSubmit={(event) => {
           event.preventDefault();
           queryRef.current = jobDraft;
@@ -352,7 +359,10 @@ export function HistoryPage() {
           Filtrar análisis
         </button>
       </form>
-      <HistoryFilterForm filters={filters} onChange={setFilters} />
+      <details className="advanced">
+        <summary>Filtros avanzados del detalle</summary>
+        <HistoryFilterForm filters={filters} onChange={setFilters} />
+      </details>
       {filters.zone !== '' && (
         <p data-testid="cited-zone">
           Zona: {zoneText === '—' ? filters.zone : zoneText}
@@ -379,24 +389,39 @@ export function HistoryPage() {
       {!loading && jobs.length === 0 ? (
         <p>Todavía no hay escaneos guardados.</p>
       ) : jobs.length === 0 ? null : (
-        <ul data-testid="history-list" className="job-list">
-          {jobs.map((job) => (
-            <li key={job.id}>
-              <button
-                data-testid="history-job"
-                type="button"
-                onClick={() => void openJob({ kind: 'JOB', jobId: job.id })}
-              >
-                <span>{job.targetPath}</span>
-                <span>{jobStatusLabel(job.status)}</span>
-                <span>
-                  {job.filesProcessed} analizados · {job.filesError} errores ·{' '}
-                  {job.filesSkipped} omitidos
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <div className="history-head" aria-hidden="true">
+            <span>Fecha</span>
+            <span>Archivo o carpeta</span>
+            <span>Estado</span>
+            <span>Procesados</span>
+            <span>Errores</span>
+            <span>Omitidos</span>
+          </div>
+          <ul data-testid="history-list" className="job-list">
+            {jobs.map((job) => (
+              <li key={job.id}>
+                <button
+                  data-testid="history-job"
+                  className="history-row"
+                  type="button"
+                  onClick={() => void openJob({ kind: 'JOB', jobId: job.id })}
+                >
+                  <span>{formatJobWhen(job.createdAt)}</span>
+                  <span title={job.targetPath}>{job.targetPath}</span>
+                  <span>
+                    <StatusBadge tone={jobTone(job.status)}>
+                      {jobStatusLabel(job.status)}
+                    </StatusBadge>
+                  </span>
+                  <span>{job.filesProcessed} analizados</span>
+                  <span>{job.filesError} errores</span>
+                  <span>{job.filesSkipped} omitidos</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {detailLoading && <p role="status">Cargando el detalle…</p>}
       {detailFailed && (
@@ -424,4 +449,13 @@ export function HistoryPage() {
       )}
     </main>
   );
+}
+
+function formatJobWhen(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('es-CO', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
 }

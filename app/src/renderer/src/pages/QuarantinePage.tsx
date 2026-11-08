@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
+import { ShieldIcon } from '../components/icons';
 import { ModalDialog } from '../components/ModalDialog';
+import { EmptyState, PageHeader } from '../components/ui';
+import { useShell } from '../navigation/shell';
+import { formatBytes } from '../scan/format';
 import {
   errorText,
   fileNameOf,
@@ -14,7 +18,9 @@ import {
 } from '../quarantine/types';
 
 export function QuarantinePage() {
+  const { setView } = useShell();
   const [items, setItems] = useState<QuarantineItemDTO[]>([]);
+  const [ready, setReady] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [restoreItem, setRestoreItem] = useState<QuarantineItemDTO | null>(
     null,
@@ -26,16 +32,20 @@ export function QuarantinePage() {
     if (!api) {
       setMessage(QUARANTINE_UNAVAILABLE);
       setItems([]);
+      setReady(true);
       return;
     }
     setItems(await api.list());
     setMessage(null);
+    setReady(true);
   }
 
   useEffect(() => {
     let active = true;
     void load().catch((error: unknown) => {
-      if (active) setMessage(errorText(error));
+      if (!active) return;
+      setMessage(errorText(error));
+      setReady(true);
     });
     return () => {
       active = false;
@@ -44,20 +54,29 @@ export function QuarantinePage() {
 
   return (
     <main className="wide">
-      <h1>Cuarentena</h1>
-      <p>
-        Archivos aislados en la bóveda. Restaurar y eliminar piden confirmación.
-      </p>
+      <PageHeader
+        eyebrow="Aislamiento"
+        title="Cuarentena"
+        description="Archivos aislados en la bóveda local. Restaurar y eliminar siguen pidiendo confirmación."
+        meta={
+          <p className="hint">
+            {ready
+              ? `Elementos en el listado: ${items.length}.`
+              : 'Consultando el listado…'}
+          </p>
+        }
+      />
       {message && <p role="alert">{message}</p>}
-      {items.length === 0 ? (
-        <p>No hay archivos en cuarentena.</p>
-      ) : (
+      {!ready ? (
+        <p>Cargando la cuarentena…</p>
+      ) : items.length > 0 ? (
         <div className="table-wrap">
           <table data-testid="quarantine-table">
             <thead>
               <tr>
                 <th>Nombre</th>
                 <th>Ruta original</th>
+                <th>Tamaño</th>
                 <th>SHA-256</th>
                 <th>Motivo</th>
                 <th>Fecha</th>
@@ -69,7 +88,10 @@ export function QuarantinePage() {
               {items.map((item) => (
                 <tr key={item.id} data-testid="quarantine-row">
                   <td>{fileNameOf(item.originalPath)}</td>
-                  <td className="path">{item.originalPath}</td>
+                  <td className="path" title={item.originalPath}>
+                    {item.originalPath}
+                  </td>
+                  <td>{formatBytes(item.sizeBytes)}</td>
                   <td>
                     <code>{item.sha256}</code>
                   </td>
@@ -99,7 +121,18 @@ export function QuarantinePage() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : !message ? (
+        <EmptyState
+          icon={<ShieldIcon />}
+          title="No hay archivos en cuarentena."
+          description="La bóveda no devolvió elementos. Esto solo describe el listado, no el estado de seguridad del equipo."
+          action={
+            <button type="button" onClick={() => setView('scan')}>
+              Ir a Escaneo
+            </button>
+          }
+        />
+      ) : null}
       {restoreItem && (
         <RestoreDialog
           item={restoreItem}

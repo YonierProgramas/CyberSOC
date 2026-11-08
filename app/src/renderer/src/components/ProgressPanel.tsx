@@ -1,5 +1,6 @@
 import type { ScanJobDTO, ScanProgress } from '../../../shared/ipc';
-import { fileNameOf } from '../scan/format';
+import { formatDuration, jobStatusLabel } from '../scan/format';
+import { StatusBadge, jobTone } from './ui';
 
 export function ProgressPanel({
   progress,
@@ -23,6 +24,19 @@ export function ProgressPanel({
   return (
     <section data-testid="progress-panel" className="panel" aria-live="polite">
       <h2>Progreso</h2>
+      {job && (
+        <p>
+          {job.targetPath}{' '}
+          <StatusBadge tone={jobTone(job.status)}>
+            {jobStatusLabel(job.status)}
+          </StatusBadge>
+        </p>
+      )}
+      <p>
+        {progress
+          ? `Tiempo transcurrido: ${formatDuration(progress.elapsedMs)}`
+          : 'Tiempo transcurrido: sin dato del motor todavía.'}
+      </p>
       <div
         className={
           percent === null ? 'progress-bar indeterminate' : 'progress-bar'
@@ -71,7 +85,9 @@ export function ProgressPanel({
       <p className="current-file">
         Archivo actual:{' '}
         {current ? (
-          <span title={current}>{fileNameOf(current)}</span>
+          <span className="truncate" title={current}>
+            {current}
+          </span>
         ) : (
           'ninguno'
         )}

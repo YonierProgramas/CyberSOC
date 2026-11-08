@@ -27,27 +27,48 @@ export function ProfileSelector({
 }) {
   return (
     <fieldset className="panel" data-testid="profile-selector">
-      <legend>Perfil: automático por zona / personalizado</legend>
-      <label>
-        <input
-          type="radio"
-          name="profile-mode"
-          data-testid="profile-mode-auto"
-          checked={mode === 'AUTO'}
-          onChange={() => onMode('AUTO')}
-        />
-        Automático por zona
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="profile-mode"
-          data-testid="profile-mode-custom"
-          checked={mode === 'CUSTOM'}
-          onChange={() => onMode('CUSTOM')}
-        />
-        Personalizado
-      </label>
+      <legend>Perfil de capas</legend>
+      <div className="choice-grid">
+        <label
+          className={
+            mode === 'AUTO' ? 'choice-card is-selected' : 'choice-card'
+          }
+        >
+          <input
+            type="radio"
+            name="profile-mode"
+            data-testid="profile-mode-auto"
+            checked={mode === 'AUTO'}
+            onChange={() => onMode('AUTO')}
+          />
+          <span>
+            <strong>Automático por zona</strong>
+            <small className="hint">
+              Cada ruta usa el perfil de su zona. Los valores del motor no
+              cambian.
+            </small>
+          </span>
+        </label>
+        <label
+          className={
+            mode === 'CUSTOM' ? 'choice-card is-selected' : 'choice-card'
+          }
+        >
+          <input
+            type="radio"
+            name="profile-mode"
+            data-testid="profile-mode-custom"
+            checked={mode === 'CUSTOM'}
+            onChange={() => onMode('CUSTOM')}
+          />
+          <span>
+            <strong>Personalizado</strong>
+            <small className="hint">
+              Eliges capas. Hash y firmas siguen siendo obligatorias.
+            </small>
+          </span>
+        </label>
+      </div>
       {mode === 'CUSTOM' && (
         <div className="layer-choices">
           {layers.map((layer) => (

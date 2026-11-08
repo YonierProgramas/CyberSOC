@@ -9,8 +9,10 @@ import {
   type ScanPlanCardDTO,
 } from '../../../shared/ipc';
 import { useCopilotFocus } from '../copilot/focus';
+import { AssistantIcon } from './icons';
 import { AssistantArchive } from './AssistantArchive';
 import { PlainText } from './PlainText';
+import { StatusBadge } from './ui';
 import { ReferenceChips } from './ReferenceChips';
 import { ReportCard } from './ReportCard';
 import { ScanPlanCard } from './ScanPlanCard';
@@ -241,52 +243,89 @@ export function CopilotPanel({
       aria-labelledby="assistant-title"
       onKeyDown={onKeyDown}
     >
-      <div className="actions">
-        <h2 id="assistant-title">Asistente</h2>
+      <header className="copilot-head">
+        <div>
+          <p className="choice-icon">
+            <AssistantIcon />
+          </p>
+          <h2 id="assistant-title">Asistente CyberSOC</h2>
+          <p>
+            {configured === null && (
+              <StatusBadge tone="neutral">Sin confirmar</StatusBadge>
+            )}
+            {configured === true && (
+              <StatusBadge tone="good">Clave configurada</StatusBadge>
+            )}
+            {configured === false && (
+              <StatusBadge tone="warn">Sin configurar</StatusBadge>
+            )}
+          </p>
+        </div>
         <button type="button" data-testid="assistant-close" onClick={onClose}>
           Cerrar
         </button>
+      </header>
+      <div className="copilot-scroll">
+        {configured === false && (
+          <p data-testid="assistant-unconfigured">
+            La IA no está configurada. Puedes consultar el archivo igual.
+          </p>
+        )}
+        <p data-testid="copilot-focus">Hablando de: {talking}</p>
+        {focus === null && (
+          <p className="hint">
+            Sin un archivo o escaneo seleccionado, las preguntas no reciben
+            datos de un resultado. Elige uno en Historial o en Escaneo.
+          </p>
+        )}
+        {notice && <p data-testid="assistant-notice">{notice}</p>}
+        <div className="copilot-suggestions" data-testid="copilot-suggestions">
+          {suggestions.map((question) => (
+            <button
+              key={question}
+              type="button"
+              className="chip"
+              data-testid="copilot-suggestion"
+              disabled={loading || resetFailed}
+              onClick={() => void send(question)}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+        <div className="copilot-log" aria-live="polite">
+          {lines.map((line) => (
+            <div
+              key={line.id}
+              className={
+                line.role === 'user'
+                  ? 'bubble bubble-user'
+                  : 'bubble bubble-assistant'
+              }
+              data-testid={
+                line.role === 'assistant' ? 'copilot-reply' : undefined
+              }
+            >
+              <p className="eyebrow">
+                {line.role === 'user' ? 'Tú' : 'Asistente'}
+              </p>
+              {line.role === 'user' ? (
+                <PlainText text={line.text} />
+              ) : (
+                <AssistantTurn line={line} />
+              )}
+            </div>
+          ))}
+          {loading && (
+            <p className="loading-line" data-testid="copilot-loading">
+              {loadingText}
+            </p>
+          )}
+        </div>
+        <AssistantArchive onContinue={(id) => void continueConversation(id)} />
       </div>
-      {configured === false && (
-        <p data-testid="assistant-unconfigured">
-          La IA no está configurada. Puedes consultar el archivo igual.
-        </p>
-      )}
-      <p data-testid="copilot-focus">Hablando de: {talking}</p>
-      {notice && <p data-testid="assistant-notice">{notice}</p>}
-      <div className="copilot-suggestions" data-testid="copilot-suggestions">
-        {suggestions.map((question) => (
-          <button
-            key={question}
-            type="button"
-            data-testid="copilot-suggestion"
-            disabled={loading || resetFailed}
-            onClick={() => void send(question)}
-          >
-            {question}
-          </button>
-        ))}
-      </div>
-      <div className="copilot-log" aria-live="polite">
-        {lines.map((line) => (
-          <div
-            key={line.id}
-            data-testid={
-              line.role === 'assistant' ? 'copilot-reply' : undefined
-            }
-          >
-            <p className="eyebrow">{line.role === 'user' ? 'Tú' : 'Copilot'}</p>
-            {line.role === 'user' ? (
-              <PlainText text={line.text} />
-            ) : (
-              <AssistantTurn line={line} />
-            )}
-          </div>
-        ))}
-        {loading && <p data-testid="copilot-loading">{loadingText}</p>}
-      </div>
-      <AssistantArchive onContinue={(id) => void continueConversation(id)} />
       <form
+        className="copilot-composer"
         onSubmit={(event) => {
           event.preventDefault();
           void send(draft);
