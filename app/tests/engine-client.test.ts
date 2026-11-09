@@ -31,7 +31,7 @@ describe('JsonRpcEngineClient', () => {
     output.write(JSON.stringify({ jsonrpc: '2.0', id, result }) + '\n');
   }
 
-  it('valida driveInfo y stats antes de entregar datos al core', async () => {
+  it('validates driveInfo and stats before handing data to the core', async () => {
     const drive = client.driveInfo('E:\\file.txt');
     expect(requests.at(-1)).toMatchObject({
       method: 'fs.driveInfo',
@@ -63,7 +63,7 @@ describe('JsonRpcEngineClient', () => {
     expect(requests).toHaveLength(count);
   });
 
-  it('correlaciona respuestas fuera de orden y fragmentadas por id', async () => {
+  it('correlates out-of-order and fragmented responses by id', async () => {
     const first = client.ping();
     const second = client.ping();
     expect(requests.map((r) => r.id)).toEqual([1, 2]);
@@ -78,7 +78,7 @@ describe('JsonRpcEngineClient', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('vence una peticion e ignora respuestas tardias sin afectar a otra', async () => {
+  it('expires a request and ignores late responses without affecting another', async () => {
     const first = expect(client.ping()).rejects.toThrow('Timeout');
     await vi.advanceTimersByTimeAsync(100);
     await first;
@@ -88,7 +88,7 @@ describe('JsonRpcEngineClient', () => {
     await expect(second).resolves.toHaveProperty('ts');
   });
 
-  it('rechaza todas las pendientes cuando muere el proceso', async () => {
+  it('rejects all pending when the process dies', async () => {
     const checks = [
       expect(client.ping()).rejects.toThrow('termino'),
       expect(client.ping()).rejects.toThrow('termino'),
@@ -99,7 +99,7 @@ describe('JsonRpcEngineClient', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('propaga errores JSON-RPC conservando su codigo', async () => {
+  it('propagates JSON-RPC errors keeping their code', async () => {
     const check = expect(client.ping()).rejects.toMatchObject({ code: -32603 });
     output.write(
       '{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"Internal error"}}\n',
@@ -111,13 +111,13 @@ describe('JsonRpcEngineClient', () => {
     'not json\n',
     '{"jsonrpc":"2.0","id":1}\n',
     '{"jsonrpc":"2.0","id":1,"result":{},"error":{}}\n',
-  ])('rechaza respuesta invalida: %s', async (line) => {
+  ])('rejects invalid response: %s', async (line) => {
     const check = expect(client.ping()).rejects.toThrow('invalida');
     output.write(line);
     await check;
   });
 
-  it('hello usa 5 segundos independientemente del timeout general', async () => {
+  it('hello uses 5 seconds regardless of the general timeout', async () => {
     const check = expect(client.hello()).rejects.toThrow('5000 ms');
     expect(requests[0]).toMatchObject({
       method: 'engine.hello',
@@ -127,7 +127,7 @@ describe('JsonRpcEngineClient', () => {
     await check;
   });
 
-  it('detecta protocolo incompatible', async () => {
+  it('detects incompatible protocol', async () => {
     const check = expect(client.hello()).rejects.toMatchObject({
       protocol: '2',
     });
@@ -140,14 +140,14 @@ describe('JsonRpcEngineClient', () => {
     await check;
   });
 
-  it('rechaza pendientes por error de escritura', async () => {
+  it('rejects pending on a write error', async () => {
     const check = expect(client.ping()).rejects.toThrow('EPIPE');
     input.emit('error', new Error('EPIPE'));
     await check;
     input.emit('error', new Error('late EPIPE'));
   });
 
-  it('scanFile transmite el contrato y usa su timeout por archivo', async () => {
+  it('scanFile transmits the contract and uses its per-file timeout', async () => {
     const params = {
       jobId: 'j1',
       taskId: 't1',
@@ -166,7 +166,7 @@ describe('JsonRpcEngineClient', () => {
   });
 
   it.each(['valid', 'wrong-task', 'invalid-result'])(
-    'scanFile valida respuesta %s',
+    'scanFile validates response %s',
     async (mode) => {
       const pending = client.scanFile(
         {
@@ -195,7 +195,7 @@ describe('JsonRpcEngineClient', () => {
     },
   );
 
-  it('scanFile rechaza timeout inválido antes de escribir al motor', async () => {
+  it('scanFile rejects an invalid timeout before writing to the engine', async () => {
     await expect(
       client.scanFile(
         {

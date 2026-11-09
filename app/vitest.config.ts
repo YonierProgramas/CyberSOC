@@ -5,8 +5,8 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.{ts,js}'],
     clearMocks: true,
-    // SQLite y procesos Python compiten por E/S en Windows. Todos los casos se
-    // ejecutan en serie, con los mismos timeouts y sin omitir pruebas.
+    // SQLite and Python processes compete for I/O on Windows. All cases run
+    // serially, with the same timeouts and without skipping tests.
     maxWorkers: 1,
   },
 });

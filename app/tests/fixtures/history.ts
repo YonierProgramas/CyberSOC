@@ -21,8 +21,8 @@ export function emptyCard(): AssistantCardV1 {
   };
 }
 
-/** Fixture determinista: filas SQL sintéticas, nunca archivos del usuario o malware.
- * Array de manifiesto: una entrada por trabajo; push O(1) amortizado, recorrido O(j).
+/** Deterministic fixture: synthetic SQL rows, never user files or malware.
+ * Manifest array: one entry per job; amortized O(1) push, O(j) walk.
  */
 export function seedHistory(db: Database, jobs = 250, results = 30_000) {
   const manifest: {
@@ -151,7 +151,7 @@ export function seedMessages(db: Database, count = 250): string {
   return id;
 }
 
-/** Tarjeta válida de tamaño exacto, usando controles escapados y rutas acotadas. */
+/** Valid card of exact size, using escaped controls and bounded paths. */
 export function cardAtBytes(target: number): AssistantCardV1 {
   const card = emptyCard();
   card.focus.label = '';

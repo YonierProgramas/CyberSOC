@@ -32,7 +32,7 @@ function pythonEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return filtered;
 }
 
-/** Motor real, SQLite temporal y proveedor intercambiable; nunca escanea archivos del usuario. */
+/** Real engine, temporary SQLite and swappable provider; it never scans user files. */
 export class AIFlowHarness {
   readonly root = mkdtempSync(join(tmpdir(), 'cybersoc-ai-flows-'));
   readonly fixtures = join(this.root, 'fixtures');
@@ -68,15 +68,15 @@ export class AIFlowHarness {
   }
 
   private recordEngine(message: string): void {
-    // Solo mensajes del proceso de prueba, nunca entorno, clave ni peticiones IA.
-    // Lista acotada a 20: inserción/eliminación O(1) por su límite fijo.
+    // Only messages from the test process, never environment, key or AI requests.
+    // List bounded to 20: O(1) insert/remove thanks to its fixed limit.
     this.engineMessages.push(message);
     if (this.engineMessages.length > 20) this.engineMessages.shift();
   }
 
   async prepare(): Promise<void> {
     mkdirSync(this.fixtures);
-    // Reutiliza el generador de T2.3: cinco textos deterministas, nunca EICAR.
+    // Reuses the T2.3 generator: five deterministic texts, never EICAR.
     execFileSync(
       python,
       [
@@ -96,7 +96,7 @@ export class AIFlowHarness {
       this.clean,
       'Documento limpio para las pruebas de integración.\n',
     );
-    // Una sola heurística suma 25: CLEAN con evidencia, sin contenido ejecutable.
+    // A single heuristic adds 25: CLEAN with evidence, no executable content.
     writeFileSync(this.lowScore, 'Texto inofensivo con doble extensión.\n');
     writeFileSync(
       this.suspicious,
@@ -138,7 +138,7 @@ export class AIFlowHarness {
     await this.worker.stop();
     await this.engine.close();
     this.db.close();
-    // Solo la carpeta creada por mkdtemp para esta prueba.
+    // Only the folder created by mkdtemp for this test.
     rmSync(this.root, { recursive: true, force: true });
   }
 }

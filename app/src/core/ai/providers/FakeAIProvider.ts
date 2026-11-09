@@ -9,7 +9,7 @@ import type {
   StructuredRequest,
 } from '../AIProvider';
 
-/** Reintentabilidad por defecto de cada tipo de error (tabla de fallos de S2). */
+/** Default retryability of each error kind (S2 failure table). */
 const DEFAULT_RETRYABLE: Record<AIErrorKind, boolean> = {
   OFFLINE: true,
   TIMEOUT: true,
@@ -36,7 +36,7 @@ interface ErrorOptions {
 }
 
 interface RawOptions extends ValueOptions {
-  /** `'max_tokens'` simula una respuesta cortada (INCOMPLETE). Por defecto `'end_turn'`. */
+  /** `'max_tokens'` simulates a cut-off response (INCOMPLETE). Defaults to `'end_turn'`. */
   stopReason?: 'end_turn' | 'max_tokens';
 }
 
@@ -60,16 +60,16 @@ export interface FakeAIProviderOptions {
 }
 
 /**
- * Proveedor de IA programable para pruebas: nunca usa la red.
- * Cada llamada a `generateStructured` consume la siguiente respuesta de la cola (FIFO).
- * `runAssistantTurn` tiene su propia cola, para que el chat no consuma respuestas del análisis.
+ * Programmable AI provider for tests: it never uses the network.
+ * Each call to `generateStructured` consumes the next response from the queue (FIFO).
+ * `runAssistantTurn` has its own queue, so the chat does not consume analysis responses.
  */
 export class FakeAIProvider implements AIProvider {
   readonly id = 'fake';
   readonly model: string;
-  /** Peticiones recibidas, en orden, para inspeccionarlas desde las pruebas. */
+  /** Requests received, in order, so tests can inspect them. */
   readonly requests: StructuredRequest<unknown>[] = [];
-  /** Turnos del asistente recibidos, en orden. */
+  /** Assistant turns received, in order. */
   readonly assistantRequests: AssistantTurnRequest<unknown>[] = [];
   private toolCallSeq = 0;
   private readonly script: Scripted[] = [];
@@ -80,41 +80,41 @@ export class FakeAIProvider implements AIProvider {
     this.model = options.model ?? 'fake-model';
   }
 
-  /** Programa una respuesta válida. Se valida contra el esquema de la petición al consumirse. */
+  /** Programs a valid response. It is validated against the request schema when consumed. */
   enqueueValue(value: unknown, options: ValueOptions = {}): this {
     this.script.push({ kind: 'value', value, options });
     return this;
   }
 
   /**
-   * Programa el texto exacto que devolvería el modelo (p. ej. JSON roto o cortado). Se procesa
-   * igual que en ClaudeProvider: INCOMPLETE si se cortó, INVALID_OUTPUT si no es JSON o no cumple
-   * el esquema; en ambos casos el error lleva `rawText` y `usage`.
+   * Programs the exact text the model would return (e.g. broken or cut-off JSON). It is processed
+   * as in ClaudeProvider: INCOMPLETE if cut off, INVALID_OUTPUT if it is not JSON or fails
+   * the schema; in both cases the error carries `rawText` and `usage`.
    */
   enqueueRaw(text: string, options: RawOptions = {}): this {
     this.script.push({ kind: 'raw', text, options });
     return this;
   }
 
-  /** Programa un error simulado. `retryable` toma el valor por defecto del tipo si no se indica. */
+  /** Programs a simulated error. `retryable` takes the kind's default value if not given. */
   enqueueError(kind: AIErrorKind, options: ErrorOptions = {}): this {
     this.script.push({ kind: 'error', error: simulatedError(kind, options) });
     return this;
   }
 
-  /** Programa la respuesta de texto del siguiente turno del asistente. */
+  /** Programs the text response of the next assistant turn. */
   enqueueReply(text: string, options: ValueOptions = {}): this {
     this.replies.push({ kind: 'reply', text, options });
     return this;
   }
 
-  /** Programa la respuesta final estructurada del Copilot v2 (se valida contra `output`). */
+  /** Programs the structured final response of Copilot v2 (validated against `output`). */
   enqueueFinal(value: unknown, options: ValueOptions = {}): this {
     this.replies.push({ kind: 'final', value, options });
     return this;
   }
 
-  /** Programa un paso en el que el modelo pide una o más herramientas. */
+  /** Programs a step in which the model requests one or more tools. */
   enqueueToolCalls(
     calls: readonly { name: string; input: unknown; id?: string }[],
     options: ValueOptions = {},
@@ -123,13 +123,13 @@ export class FakeAIProvider implements AIProvider {
     return this;
   }
 
-  /** Programa un error para el siguiente turno del asistente. */
+  /** Programs an error for the next assistant turn. */
   enqueueReplyError(kind: AIErrorKind, options: ErrorOptions = {}): this {
     this.replies.push({ kind: 'error', error: simulatedError(kind, options) });
     return this;
   }
 
-  /** Hace que `healthCheck` falle con el error indicado (o vuelva a responder bien con `null`). */
+  /** Makes `healthCheck` fail with the given error (or respond normally again with `null`). */
   setHealthError(kind: AIErrorKind | null, options: ErrorOptions = {}): this {
     this.healthError =
       kind === null
@@ -145,7 +145,7 @@ export class FakeAIProvider implements AIProvider {
     return this;
   }
 
-  /** Respuestas programadas que aún no se han consumido. */
+  /** Programmed responses not yet consumed. */
   get pending(): number {
     return this.script.length;
   }
@@ -175,9 +175,7 @@ export class FakeAIProvider implements AIProvider {
     }
     const next = this.script.shift();
     if (!next) {
-      throw new Error(
-        'FakeAIProvider: no hay respuestas programadas para esta llamada.',
-      );
+      throw new Error('FakeAIProvider: no responses programmed for this call.');
     }
     if (next.kind === 'error') return { ok: false, error: { ...next.error } };
 
@@ -244,9 +242,7 @@ export class FakeAIProvider implements AIProvider {
     }
     const next = this.replies.shift();
     if (!next) {
-      throw new Error(
-        'FakeAIProvider: no hay respuestas del asistente programadas.',
-      );
+      throw new Error('FakeAIProvider: no assistant responses programmed.');
     }
     if (next.kind === 'error') return { ok: false, error: { ...next.error } };
     const meta = {
@@ -255,7 +251,7 @@ export class FakeAIProvider implements AIProvider {
       latencyMs: next.options.latencyMs ?? 0,
     };
     if (next.kind === 'tools') {
-      // Igual que la API: sin herramientas declaradas no puede haber llamadas.
+      // Same as the API: without declared tools there can be no calls.
       if (!req.tools?.length || req.toolChoice === 'none')
         return {
           ok: false,
@@ -289,7 +285,7 @@ export class FakeAIProvider implements AIProvider {
         rawText: text,
         ...meta,
       };
-    // Mismo procesamiento que ClaudeProvider: JSON y esquema de salida.
+    // Same processing as ClaudeProvider: JSON and output schema.
     const failure = (message: string): AIResult<AssistantStep<T>> => ({
       ok: false,
       error: {

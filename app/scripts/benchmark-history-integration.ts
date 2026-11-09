@@ -64,7 +64,7 @@ try {
   new MigrationRunner(db).run();
   seedHistory(db, 1000, 100_000);
   const chat = seedMessages(db, 10_000);
-  // La preparación queda fuera de todos los intervalos medidos.
+  // Preparation stays outside all measured intervals.
   db.close();
   db = new Database(db.path);
   const dashboard = new DashboardReader(

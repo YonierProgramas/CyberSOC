@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PriorityQueue } from '../src/core/structures/PriorityQueue';
 
 describe('PriorityQueue: max-heap estable', () => {
-  it('vacía, un elemento y peakSize conservado', () => {
+  it('empty, one element and peakSize kept', () => {
     const queue = new PriorityQueue<string>();
     expect(queue.size).toBe(0);
     expect(queue.peakSize).toBe(0);
@@ -18,7 +18,7 @@ describe('PriorityQueue: max-heap estable', () => {
     expect(queue.peakSize).toBe(1);
   });
 
-  it('muchos empates salen FIFO incluso después de insertar más', () => {
+  it('many ties come out FIFO even after inserting more', () => {
     const queue = new PriorityQueue<number>();
     for (let i = 0; i < 1000; i++) queue.push(i, 10);
     for (let i = 0; i < 400; i++) expect(queue.pop()).toBe(i);
@@ -28,7 +28,7 @@ describe('PriorityQueue: max-heap estable', () => {
     expect(queue.size).toBe(0);
   });
 
-  it('prioridades negativas y decimales; la prioridad se captura al insertar', () => {
+  it('negative and decimal priorities; priority is captured on insert', () => {
     const queue = new PriorityQueue<{ name: string; priority: number }>();
     const first = { name: 'A', priority: 2.5 };
     queue.push(first, first.priority);
@@ -40,7 +40,7 @@ describe('PriorityQueue: max-heap estable', () => {
     expect(queue.pop()?.name).toBe('B');
   });
 
-  it('permite valores falsy o undefined, con tamaño independiente del valor', () => {
+  it('allows falsy or undefined values, with size independent of the value', () => {
     const queue = new PriorityQueue<number | boolean | undefined>();
     queue.push(false, 1);
     queue.push(0, 2);
@@ -54,7 +54,7 @@ describe('PriorityQueue: max-heap estable', () => {
   });
 
   it.each([NaN, Infinity, -Infinity])(
-    'rechaza prioridad no finita: %s',
+    'rejects non-finite priority: %s',
     (priority) => {
       const queue = new PriorityQueue<string>();
       queue.push('válido', 1);
@@ -66,10 +66,10 @@ describe('PriorityQueue: max-heap estable', () => {
   );
 
   it.each([1, 42, 98765, 0xdeadbeef])(
-    'propiedad: máximo y FIFO tras operaciones intercaladas (semilla %s)',
+    'property: maximum and FIFO after interleaved operations (seed %s)',
     (seed) => {
       const queue = new PriorityQueue<number>();
-      // Oráculo independiente: ordenar una lista completa, sin usar un heap.
+      // Independent oracle: sorting a full list, without using a heap.
       const expected: { value: number; priority: number; seq: number }[] = [];
       let randomState = seed;
       let seq = 0;

@@ -7,8 +7,8 @@ from tempfile import TemporaryDirectory
 
 
 def generate_signature_fixtures(root: Path) -> dict[str, str]:
-    """Escribe cinco TEXTOS de prueba en el directorio temporal del llamador."""
-    # Dict id -> hash: claves únicas; inserción O(1) promedio, O(n) para n fixtures.
+    """Writes five test TEXTS into the caller's temporary directory."""
+    # Dict id -> hash: unique keys; O(1) average insert, O(n) for n fixtures.
     hashes: dict[str, str] = {}
     for index in range(1, 6):
         signature_id = f"CSD-TEST-{index:03}"
@@ -27,7 +27,7 @@ def generate_fixtures(
     include_rules: bool = False,
     include_heuristics: bool = False,
 ) -> Iterator[Path]:
-    """25 textos S1; include_filetype agrega las 3 muestras inofensivas de T2.2."""
+    """25 S1 texts; include_filetype adds the 3 harmless T2.2 samples."""
     with TemporaryDirectory(prefix="cybersoc-fixtures-") as temporary:
         root = Path(temporary)
         levels = (root, root / "nivel-2", root / "nivel-2" / "nivel-3")
@@ -37,7 +37,7 @@ def generate_fixtures(
             path = levels[index % len(levels)] / f"año_información_📄_{index:02}.txt"
             path.write_bytes(f"Documento benigno de prueba {index:02}.\n".encode())
         if include_filetype:
-            # Solo cabecera MZ y relleno: no es un PE válido ni contiene código ejecutable.
+            # Only MZ header and padding: it is neither a valid PE nor contains executable code.
             (root / "pe_disfrazado.pdf").write_bytes(b"MZ" + b"Relleno inofensivo.\n" * 3)
             (root / "factura.pdf.exe").write_bytes(b"Documento benigno de doble extension.\n")
             (root / "informe_\u202e.pdf").write_bytes(b"Documento benigno con RLO en el nombre.\n")
@@ -51,7 +51,7 @@ def generate_fixtures(
 
 
 def generate_heuristic_fixtures(root: Path) -> list[Path]:
-    """Bytes deterministas y comentario marcador; no comandos ni código ejecutable."""
+    """Deterministic bytes and a marker comment; no commands or executable code."""
     contents = {
         "alta_entropia.bin": random.Random(340).randbytes(64 * 1024),
         "encoded_marker.ps1": b"# CYBERSOC_TEST_ENCODED_COMMAND\n# Texto inofensivo.\n",
@@ -63,7 +63,7 @@ def generate_heuristic_fixtures(root: Path) -> list[Path]:
 
 
 def generate_rule_fixtures(root: Path) -> list[Path]:
-    """Marcadores propios sin comandos, contenido ejecutable ni muestras reales."""
+    """Own markers without commands, executable content or real samples."""
     contents = {
         "rule_downloader.ps1": b"# CYBERSOC_TEST_RULE_DOWNLOADER\n# Texto inofensivo.\n",
         "rule_pair.txt": b"CYBERSOC_TEST_PAIR_START\nTexto inocuo.\nCYBERSOC_TEST_PAIR_END\n",

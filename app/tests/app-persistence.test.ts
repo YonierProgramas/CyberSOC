@@ -133,7 +133,7 @@ beforeEach(() => {
   mocks.closeEngine.mockResolvedValue(undefined);
 });
 
-it('segunda instancia sale antes de abrir SQLite o iniciar escritores', async () => {
+it('second instance exits before opening SQLite or starting writers', async () => {
   mocks.requestSingleInstanceLock.mockReturnValue(false);
   await expect(import('../src/main/index')).rejects.toThrow('INSTANCE_EXIT');
   expect(mocks.createDatabase).not.toHaveBeenCalled();
@@ -141,7 +141,7 @@ it('segunda instancia sale antes de abrir SQLite o iniciar escritores', async ()
   expect(mocks.startAI).not.toHaveBeenCalled();
 });
 
-it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre del motor', async () => {
+it('migrates before opening the window and closes the DB only after the engine shutdown ends', async () => {
   await import('../src/main/index');
   await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
   expect(mocks.getPath).toHaveBeenCalledWith('userData');
@@ -193,7 +193,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
     expect.stringContaining('index.html'),
     { marker: 'settings' },
   );
-  // T4.6: el SOC Copilot se registra antes de abrir la ventana con el orquestador del core.
+  // T4.6: the SOC Copilot is registered before opening the window with the core orchestrator.
   expect(mocks.registerAssistantIpc).toHaveBeenCalledExactlyOnceWith(
     expect.any(Function),
     expect.stringContaining('index.html'),
@@ -205,8 +205,8 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.registerAssistantIpc.mock.invocationCallOrder[0]).toBeLessThan(
     mocks.createMainWindow.mock.invocationCallOrder[0]!,
   );
-  expect(mocks.createAIProvider).not.toHaveBeenCalled(); // solo se crea al preguntar
-  // T5.5: el Copilot recibe las herramientas reales de solo lectura sobre la misma BD.
+  expect(mocks.createAIProvider).not.toHaveBeenCalled(); // only created when asking
+  // T5.5: the Copilot receives the real read-only tools on the same DB.
   expect(mocks.createAssistantTools).toHaveBeenCalledOnce();
   expect(mocks.createAssistantTools.mock.calls[0]![0]).toBe(
     mocks.createDatabase.mock.results[0]!.value,
@@ -238,7 +238,7 @@ it('migra antes de abrir la ventana y cierra la BD solo al terminar el cierre de
   expect(mocks.closeDatabase).toHaveBeenCalledOnce();
 });
 
-it('espera la cancelación de IA antes de cerrar motor y SQLite', async () => {
+it('waits for AI cancellation before closing the engine and SQLite', async () => {
   let finish!: () => void;
   mocks.stopAI.mockReturnValue(
     new Promise<void>((resolve) => {
@@ -258,7 +258,7 @@ it('espera la cancelación de IA antes de cerrar motor y SQLite', async () => {
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
 });
 
-it('espera a cancelar el escaneo antes de cerrar motor y BD', async () => {
+it('waits to cancel the scan before closing the engine and DB', async () => {
   let finishScan!: () => void;
   mocks.stopScanIpc.mockReturnValue(
     new Promise<void>((resolve) => {
@@ -281,7 +281,7 @@ it('espera a cancelar el escaneo antes de cerrar motor y BD', async () => {
   await vi.waitFor(() => expect(mocks.quit).toHaveBeenCalledOnce());
 });
 
-it('no abre la ventana si falla la inicializacion de la BD', async () => {
+it('does not open the window if DB initialization fails', async () => {
   mocks.createDatabase.mockImplementationOnce(() => {
     throw new Error('SQLite no disponible');
   });
@@ -297,7 +297,7 @@ it('no abre la ventana si falla la inicializacion de la BD', async () => {
   }
 });
 
-it('espera la reconciliación antes de abrir ventana e iniciar IA', async () => {
+it('waits for reconciliation before opening the window and starting AI', async () => {
   let finish!: () => void;
   mocks.reconcileQuarantine.mockReturnValue(
     new Promise<void>((resolve) => {
@@ -314,7 +314,7 @@ it('espera la reconciliación antes de abrir ventana e iniciar IA', async () => 
   await vi.waitFor(() => expect(mocks.createMainWindow).toHaveBeenCalledOnce());
 });
 
-it('espera las operaciones de cuarentena antes de cerrar SQLite y el motor', async () => {
+it('waits for quarantine operations before closing SQLite and the engine', async () => {
   let finish!: () => void;
   mocks.closeQuarantine.mockReturnValue(
     new Promise<void>((resolve) => {

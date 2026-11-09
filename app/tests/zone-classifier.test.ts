@@ -17,7 +17,7 @@ const roots = resolveZoneRoots((name) => paths[name], {
   'ProgramFiles(x86)': 'D:\\Program Files (x86)',
   SystemRoot: 'D:\\Windows',
 });
-describe('ZoneClassifier: rutas reales inyectadas y prefijo más largo', () => {
+describe('ZoneClassifier: injected real paths and longest prefix', () => {
   it.each([
     [`${paths.downloads}\\a.exe`, 'DESCARGAS'],
     [`${paths.desktop}\\a`, 'ESCRITORIO'],
@@ -38,7 +38,7 @@ describe('ZoneClassifier: rutas reales inyectadas y prefijo más largo', () => {
       })).classify(path),
     ).toBe(zone);
   });
-  it('unidad extraíble simulada prima sobre carpetas redirigidas y se consulta una vez', async () => {
+  it('simulated removable drive takes precedence over redirected folders and is queried once', async () => {
     const drive = vi.fn(async () => ({ driveType: 'REMOVABLE' as const }));
     const classifier = new ZoneClassifier(roots, drive);
     expect(await classifier.classify(`${paths.documents}\\a`)).toBe(
@@ -48,7 +48,7 @@ describe('ZoneClassifier: rutas reales inyectadas y prefijo más largo', () => {
     expect(drive).toHaveBeenCalledExactlyOnceWith('d:\\');
   });
   it.each(['NETWORK', 'UNKNOWN', 'CDROM'] as const)(
-    '%s no se convierte en EXTRAIBLE',
+    '%s does not become EXTRAIBLE',
     async (driveType) => {
       expect(
         await new ZoneClassifier(roots, async () => ({ driveType })).classify(
@@ -57,7 +57,7 @@ describe('ZoneClassifier: rutas reales inyectadas y prefijo más largo', () => {
       ).toBe('OTRA');
     },
   );
-  it('soporta rutas UNC redirigidas, raíz de unidad y fronteras por segmento', async () => {
+  it('supports redirected UNC paths, drive root and segment boundaries', async () => {
     const classifier = new ZoneClassifier(
       [
         { path: '\\\\server\\share\\docs', zone: 'DOCUMENTOS' },
@@ -72,7 +72,7 @@ describe('ZoneClassifier: rutas reales inyectadas y prefijo más largo', () => {
       'DOCUMENTOS',
     );
   });
-  it('no cachea fallos de fs.driveInfo', async () => {
+  it('does not cache fs.driveInfo failures', async () => {
     const drive = vi
       .fn()
       .mockRejectedValueOnce(new Error('desconectado'))

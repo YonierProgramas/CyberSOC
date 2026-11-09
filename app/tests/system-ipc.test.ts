@@ -49,7 +49,7 @@ describe('system:getStatus', () => {
     ) => unknown;
   }
 
-  it('devuelve nombre y version al frame principal de la ventana autorizada', () => {
+  it('returns name and version to the main frame of the authorized window', () => {
     expect(
       handler()({
         sender: webContents,
@@ -58,13 +58,13 @@ describe('system:getStatus', () => {
     ).toEqual({ app: 'CyberSOC Defender', version: '0.0.1', engine: state });
   });
 
-  it('rechaza otra ventana', () => {
+  it('rejects another window', () => {
     expect(() =>
       handler()({ sender: {}, senderFrame: mainFrame } as IpcMainInvokeEvent),
     ).toThrow('Origen IPC no autorizado');
   });
 
-  it('rechaza argumentos antes de consultar el motor', () => {
+  it('rejects arguments before querying the engine', () => {
     const call = handler() as (
       event: IpcMainInvokeEvent,
       ...args: unknown[]
@@ -78,7 +78,7 @@ describe('system:getStatus', () => {
     expect(engine.getState).not.toHaveBeenCalled();
   });
 
-  it('valida origen y argumentos tambien en reconnectEngine', async () => {
+  it('validates origin and arguments in reconnectEngine too', async () => {
     handler();
     const call = electron.handle.mock.calls.find(
       ([channel]) => channel === SYSTEM_RECONNECT_ENGINE,
@@ -97,7 +97,7 @@ describe('system:getStatus', () => {
     expect(engine.reconnect).toHaveBeenCalledOnce();
   });
 
-  it('rechaza un estado invalido del motor antes de enviarlo al renderer', () => {
+  it('rejects an invalid engine state before sending it to the renderer', () => {
     engine.getState.mockReturnValueOnce({
       status: 'connected',
       engineVersion: 'x',
@@ -111,19 +111,19 @@ describe('system:getStatus', () => {
     ).toThrow();
   });
 
-  it('rechaza subframes', () => {
+  it('rejects subframes', () => {
     expect(() =>
       handler()({ sender: webContents, senderFrame: {} } as IpcMainInvokeEvent),
     ).toThrow('Origen IPC no autorizado');
   });
 
-  it('rechaza peticiones cuando no hay ventana', () => {
+  it('rejects requests when there is no window', () => {
     expect(() => handler(() => null)({} as IpcMainInvokeEvent)).toThrow(
       'Origen IPC no autorizado',
     );
   });
 
-  it('rechaza una URL distinta aunque use el frame principal', () => {
+  it('rejects a different URL even if it uses the main frame', () => {
     mainFrame.url = 'about:blank';
     expect(() =>
       handler()({

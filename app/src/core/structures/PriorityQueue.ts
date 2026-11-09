@@ -5,22 +5,22 @@ interface Entry<T> {
 }
 
 /**
- * Max-heap estable: ningún hijo precede a su padre. Gana mayor prioridad;
- * en empate gana menor seq (llegó antes). La raíz siempre es el siguiente.
- * El arreglo representa el árbol sin punteros: padre floor((i - 1) / 2),
- * hijo izquierdo 2*i + 1, derecho 2*i + 2. Memoria O(n).
+ * Stable max-heap: no child precedes its parent. Higher priority wins;
+ * on a tie the lower seq wins (arrived first). The root is always the next one.
+ * The array represents the tree without pointers: parent floor((i - 1) / 2),
+ * left child 2*i + 1, right child 2*i + 2. O(n) memory.
  */
 export class PriorityQueue<T> {
   private readonly heap: Entry<T>[] = [];
   private nextSeq = 0;
   private peak = 0;
 
-  /** O(1): cantidad de elementos aún en el heap. */
+  /** O(1): number of elements still in the heap. */
   get size(): number {
     return this.heap.length;
   }
 
-  /** O(1): máximo tamaño observado; no disminuye al extraer. */
+  /** O(1): maximum size observed; it does not decrease on extraction. */
   get peakSize(): number {
     return this.peak;
   }
@@ -30,29 +30,29 @@ export class PriorityQueue<T> {
     return this.heap.length === 0;
   }
 
-  /** O(1): consulta la raíz sin extraerla. */
+  /** O(1): reads the root without extracting it. */
   peek(): T | undefined {
     return this.heap[0]?.value;
   }
 
   /**
-   * O(log n) amortizado: añadir al arreglo es O(1) amortizado y siftUp
-   * sube como máximo la altura logarítmica del árbol. Capturamos priority
-   * y seq: modificar después el objeto value no cambia el orden del heap.
+   * O(log n) amortized: appending to the array is amortized O(1) and siftUp
+   * climbs at most the logarithmic height of the tree. We capture priority
+   * and seq: later changes to the value object do not alter the heap order.
    */
   push(value: T, priority: number): void {
     if (!Number.isFinite(priority))
-      throw new RangeError('La prioridad debe ser un número finito.');
+      throw new RangeError('Priority must be a finite number.');
     if (this.nextSeq >= Number.MAX_SAFE_INTEGER)
-      throw new RangeError('Se agotó la secuencia segura de la cola.');
+      throw new RangeError('The queue safe sequence is exhausted.');
     this.heap.push({ value, priority, seq: this.nextSeq++ });
     this.peak = Math.max(this.peak, this.size);
     this.siftUp(this.size - 1);
   }
 
   /**
-   * O(log n): sustituye la raíz por el último nodo y baja hasta restaurar
-   * la invariante. pop del arreglo evita el desplazamiento O(n) de shift.
+   * O(log n): replaces the root with the last node and sinks it until
+   * the invariant is restored. Array pop avoids the O(n) shift displacement.
    */
   pop(): T | undefined {
     if (this.isEmpty()) return undefined;
@@ -65,14 +65,14 @@ export class PriorityQueue<T> {
     return first.value;
   }
 
-  /** O(1): orden total por prioridad descendente y llegada ascendente. */
+  /** O(1): total order by descending priority and ascending arrival. */
   private precedes(a: Entry<T>, b: Entry<T>): boolean {
     return (
       a.priority > b.priority || (a.priority === b.priority && a.seq < b.seq)
     );
   }
 
-  /** O(log n): únicamente la relación del nuevo nodo con su padre puede fallar. */
+  /** O(log n): only the relation of the new node with its parent can fail. */
   private siftUp(index: number): void {
     while (index > 0) {
       const parent = Math.floor((index - 1) / 2);
@@ -85,7 +85,7 @@ export class PriorityQueue<T> {
     }
   }
 
-  /** O(log n): intercambiar con el mejor hijo conserva el orden entre subárboles. */
+  /** O(log n): swapping with the best child keeps the order between subtrees. */
   private siftDown(index: number): void {
     while (2 * index + 1 < this.size) {
       const left = 2 * index + 1;

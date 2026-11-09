@@ -1,7 +1,7 @@
 import { ESLint } from 'eslint';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-describe('frontera de src/core', () => {
+describe('src/core boundary', () => {
   const eslint = new ESLint();
 
   beforeAll(async () => {
@@ -14,7 +14,7 @@ describe('frontera de src/core', () => {
     ["import { app } from 'electron/main'; void app;", 'no-restricted-imports'],
     ["void import('electron');", 'no-restricted-syntax'],
     ["require('electron');", 'no-restricted-syntax'],
-  ])('rechaza %s', async (code, rule) => {
+  ])('rejects %s', async (code, rule) => {
     const [result] = await eslint.lintText(code, {
       filePath: 'src/core/boundary-check.ts',
     });
@@ -23,7 +23,7 @@ describe('frontera de src/core', () => {
     );
   });
 
-  it('permite Electron en main', async () => {
+  it('allows Electron in main', async () => {
     const [result] = await eslint.lintText(
       "import { app } from 'electron'; void app;",
       {

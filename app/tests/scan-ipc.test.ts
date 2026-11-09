@@ -138,7 +138,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it('el renderer inicia, recibe progreso, consulta historial y pagina resultados', async () => {
+  it('the renderer starts, receives progress, queries history and pages results', async () => {
     engine.responses.push(async (params) => ({
       ...scanned(params),
       score: 70,
@@ -193,7 +193,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     expect(progress).toHaveLength(observed);
   });
 
-  it('el renderer cancela y se desuscribe sin resultados posteriores a CANCELLED', async () => {
+  it('the renderer cancels and unsubscribes with no results after CANCELLED', async () => {
     let resolve!: (value: EngineResult) => void;
     engine.responses.push(
       () =>
@@ -246,13 +246,13 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     ['scan:listResults', [{ jobId: 'id', offset: 0.5, limit: 1 }]],
     ['scan:listResults', [{ jobId: 'id', offset: 0, limit: 1, sql: 'extra' }]],
     ['scan:listResults', [{ jobId: '', offset: 0, limit: 1 }]],
-  ] as const)('rechaza entrada inválida de %s (%j)', async (channel, args) => {
+  ] as const)('rejects invalid input for %s (%j)', async (channel, args) => {
     await expect(invoke(channel, event, ...args)).rejects.toThrow();
     expect(engine.calls).toHaveLength(0);
     expect(jobs.listRecent()).toEqual([]);
   });
 
-  it('rechaza destinos inexistentes o con tipo incorrecto y campos adicionales', async () => {
+  it('rejects nonexistent or wrongly typed targets and additional fields', async () => {
     for (const target of [
       { kind: 'FILE', path: join(directory, 'missing') },
       { kind: 'FILE', path: directory },
@@ -269,7 +269,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     'scan:getJob',
     'scan:listJobs',
     'scan:listResults',
-  ])('valida remitente, frame, URL y ventana en %s', async (channel) => {
+  ])('validates sender, frame, URL and window in %s', async (channel) => {
     await expect(
       invoke(channel, { ...event, sender: {} } as IpcMainInvokeEvent),
     ).rejects.toThrow('Origen IPC');
@@ -284,7 +284,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     expect(engine.calls).toHaveLength(0);
   });
 
-  it('un trabajo inexistente devuelve un error y total cuenta filas reales', async () => {
+  it('a nonexistent job returns an error and total counts real rows', async () => {
     await expect(api.scan.getJob('missing')).rejects.toThrow('No existe');
     await expect(
       api.scan.listResults({ jobId: 'missing', offset: 0, limit: 1 }),
@@ -305,7 +305,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     ).resolves.toMatchObject({ total: 1, items: [{ id: 'r1' }] });
   });
 
-  it('no envía eventos a ventanas destruidas o que cambiaron de URL', () => {
+  it('sends no events to destroyed windows or those that changed URL', () => {
     const progress = { jobId: 'j1' } as ScanProgress;
     mainFrame.url = 'about:blank';
     orchestrator.emit('progress', progress);
@@ -318,7 +318,7 @@ describe('renderer/preload → IPC → ScanOrchestrator → SQLite', () => {
     expect(window.webContents.send).not.toHaveBeenCalled();
   });
 
-  it('desmontar el IPC cancela el trabajo activo antes de liberar la base', async () => {
+  it('unmounting the IPC cancels the active job before releasing the database', async () => {
     let resolve!: (value: EngineResult) => void;
     engine.responses.push(
       () =>

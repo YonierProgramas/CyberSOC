@@ -4,15 +4,15 @@ import { ConversationRepository } from '../../src/core/persistence/ConversationR
 import { emptyCard, seedHistory } from '../fixtures/history';
 
 /**
- * Perfil SQLite sintético con las siete migraciones, generado en cada ejecución.
- * Reproduce en código el contenido que las correcciones E-01…E-10 copiaban de
- * construccion/…/10B-datos/20-007-sintetico.sqlite, que no forma parte del repositorio
- * y por eso no existía en CI:
- * - 45 trabajos con 90 resultados de seedHistory, todos COMPLETED, IA NOT_REQUIRED;
- * - «Legado sintético006»: 12 preguntas y 12 respuestas sin tarjeta;
- * - «Prueba sintética IPC B»: 2 preguntas y 2 respuestas con tarjeta registrada.
- * Las fechas de los dos chats son fijas y anteriores a los 45 chats que añade la prueba,
- * para que el archivo conserve su orden. Solo filas ficticias: sin archivos del usuario.
+ * Synthetic SQLite profile with the seven migrations, generated on each run.
+ * Reproduces in code the content that fixes E-01…E-10 copied from
+ * construccion/…/10B-datos/20-007-sintetico.sqlite, which is not part of the repository
+ * and therefore did not exist in CI:
+ * - 45 jobs with 90 seedHistory results, all COMPLETED, AI NOT_REQUIRED;
+ * - «Legado sintético006»: 12 questions and 12 answers without a card;
+ * - «Prueba sintética IPC B»: 2 questions and 2 answers with a registered card.
+ * The dates of the two chats are fixed and earlier than the 45 chats the test adds,
+ * so the archive keeps its order. Fake rows only: no user files.
  */
 export function buildSyntheticProfile(dbPath: string): void {
   const db = new Database(dbPath);

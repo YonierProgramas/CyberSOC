@@ -7,7 +7,7 @@ import { evidenceAiMigration } from '../src/core/persistence/migrations/003_evid
 import { ScanJobRepository } from '../src/core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../src/core/persistence/ScanResultRepository';
 
-describe('Migración 004 y persistencia de zonas', () => {
+describe('Migration 004 and zone persistence', () => {
   const databases: Database[] = [];
   afterEach(() => {
     for (const db of databases.splice(0)) db.close();
@@ -22,7 +22,7 @@ describe('Migración 004 y persistencia de zonas', () => {
     ]).run();
     return db;
   }
-  it('migra datos históricos sin asignarles versiones o zonas inventadas', () => {
+  it('migrates historical data without assigning invented versions or zones', () => {
     const db = setup();
     db.exec(`INSERT INTO scan_jobs (id, target_path, target_kind, status, created_at)
       VALUES ('old', 'C:\\Windows', 'FOLDER', 'COMPLETED', '2026-01-01');`);
@@ -37,7 +37,7 @@ describe('Migración 004 y persistencia de zonas', () => {
       expect.objectContaining({ name: 'zone' }),
     ]);
   });
-  it('guarda perfil, versiones y zona; revierte la zona junto al resultado completo', () => {
+  it('stores profile, versions and zone; reverts the zone together with the full result', () => {
     const db = setup();
     new MigrationRunner(db).run();
     const jobs = new ScanJobRepository(db);

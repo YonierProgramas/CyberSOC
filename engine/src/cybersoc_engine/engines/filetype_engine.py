@@ -14,14 +14,14 @@ class FileType:
     executable: bool = False
 
 
-# Invariante: cada prefijo tiene un único tipo. El dict evita recorrer todos los
-# tipos: get cuesta O(1) promedio, además de O(l) para copiar/hashear l bytes.
+# Invariant: each prefix has a single type. The dict avoids walking all the
+# types: get costs O(1) average, plus O(l) to copy/hash l bytes.
 MAGIC_NUMBERS: dict[bytes, FileType] = {
-    # Calibración T3.11: además de las extensiones clásicas, formatos PE estándar de Windows
+    # T3.11 calibration: besides the classic extensions, common standard Windows PE
     # (.mui, .winmd, .tlb, .ax, .acm, .drv, .efi, .rll, .tsp, .ime, .iec, .rs) y de runtimes
-    # comunes (.pyd de Python, .node de Node.js). Son contenedores PE legítimos que no se abren
-    # con doble clic; marcarlos generaba 4 248 TYPE_MISMATCH en el corpus benigno. Un PE con
-    # extensión de documento (.pdf, .png…) sigue siendo TYPE_MISMATCH.
+    # formats (Python .pyd, Node.js .node). They are legitimate PE containers that are not opened
+    # by double click; flagging them produced 4,248 TYPE_MISMATCH in the benign corpus. A PE with
+    # a document extension (.pdf, .png…) is still TYPE_MISMATCH.
     b"MZ": FileType(
         "PE ejecutable",
         (
@@ -74,8 +74,8 @@ MAGIC_NUMBERS: dict[bytes, FileType] = {
     b"\x1f\x8b": FileType("GZIP", (".gz", ".gzip", ".tgz")),
     b"L\x00\x00\x00": FileType("Acceso directo LNK", (".lnk",)),
 }
-# El set elimina longitudes repetidas; construirlo cuesta O(m), ordenar O(k log k).
-# Se calcula una vez: el invariante es probar siempre el prefijo más largo primero.
+# The set removes repeated lengths; building it costs O(m), sorting O(k log k).
+# Computed once: the invariant is to always try the longest prefix first.
 PREFIX_LENGTHS = tuple(sorted({len(magic) for magic in MAGIC_NUMBERS}, reverse=True))
 SCRIPT_EXTENSIONS = (".ps1", ".psm1", ".bat", ".cmd", ".vbs", ".vbe", ".js", ".jse", ".py", ".sh")
 EXECUTABLE_EXTENSIONS = (".exe", ".scr", ".com", ".cpl", ".msi", ".lnk", *SCRIPT_EXTENSIONS)
@@ -98,12 +98,12 @@ DOCUMENT_EXTENSIONS = (
 
 
 def is_text(prefix: bytes) -> bool:
-    """Verificación conservadora de una muestra UTF-8 o UTF-16 con BOM."""
+    """Conservative check of a UTF-8 or UTF-16 with BOM sample."""
     if not prefix:
         return False
     encoding = "utf-16" if prefix.startswith((b"\xff\xfe", b"\xfe\xff")) else "utf-8-sig"
     try:
-        # final=False permite que la muestra termine a mitad de un carácter.
+        # final=False lets the sample end in the middle of a character.
         text = codecs.getincrementaldecoder(encoding)(errors="strict").decode(prefix, final=False)
     except UnicodeDecodeError:
         return False
@@ -112,7 +112,7 @@ def is_text(prefix: bytes) -> bool:
 
 def detect_type(prefix: bytes, extension: str | None) -> FileType | None:
     # k consultas de dict en orden descendente; O(sum(longitudes)) tiempo y
-    # O(longitud máxima) espacio auxiliar. Con 4, 3 y 2 bytes es O(1).
+    # O(maximum length) auxiliary space. With 4, 3 and 2 bytes it is O(1).
     for length in PREFIX_LENGTHS:
         if len(prefix) >= length:
             found = MAGIC_NUMBERS.get(prefix[:length])
@@ -148,7 +148,7 @@ class FileTypeEngine:
                     },
                 )
             )
-        # Solo se usa el nombre: un punto o un RLO en la carpeta no es un hallazgo.
+        # Only the name is used: a dot or RLO in the folder is not a finding.
         suffixes = PurePath(ctx.file.name).suffixes
         if (
             len(suffixes) >= 2
@@ -185,5 +185,5 @@ class FileTypeEngine:
                     facts={"character": "U+202E", "count": ctx.file.name.count("\u202e")},
                 )
             )
-        # Orden estable: discrepancia, doble extensión, RLO. Nunca hay veredicto.
+        # Stable order: mismatch, double extension, RLO. There is never a verdict.
         return evidence

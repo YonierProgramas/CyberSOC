@@ -4,12 +4,12 @@ import { z } from 'zod';
 import { win32 } from 'node:path';
 import { windowsPowerShellPath } from './windows-tools';
 
-// Un solo proceso por escaneo. Recibe cada ruta como Base64 de UTF-8 por stdin, nunca
-// como código. Solo consulta atributos; no abre contenido ni modifica archivos. Caché
-// acotada de padres: Dictionary consulta O(1) promedio y evita repetir la ascendencia.
-// Solo usa .NET y operadores, ningún cmdlet: con el entorno mínimo no hay caché de
-// análisis de módulos y la autocarga de ConvertFrom-Json podía recorrer todos los módulos
-// instalados y superar el plazo de 10 s (fallo B12-03 del CI de Windows).
+// A single process per scan. It receives each path as UTF-8 Base64 via stdin, never
+// as code. It only queries attributes; it neither opens content nor modifies files. Cache
+// bounded by parents: Dictionary lookup is O(1) average and avoids repeating the ancestry.
+// Uses only .NET and operators, no cmdlets: with the minimal environment there is no
+// module analysis cache and ConvertFrom-Json autoloading could walk all installed
+// modules and exceed the 10 s deadline (Windows CI failure B12-03).
 export const hiddenPathScript = `
 $ErrorActionPreference = 'Stop'
 $cache = [System.Collections.Generic.Dictionary[string,bool]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -18,8 +18,8 @@ while (($line = [Console]::ReadLine()) -ne $null) {
     $path = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($line))
     $hidden = $false
     $current = $path
-    # Windows marca la raíz del volumen Hidden/System: no convierte todos sus
-    # descendientes en ocultos. Solo se consideran archivos y carpetas bajo ella.
+    # Windows marks the volume root Hidden/System: that does not make all its
+    # descendants hidden. Only files and folders below it are considered.
     $root = [System.IO.Path]::GetPathRoot($path)
     while ($current -and $current -ne $root) {
       if ($current -ne $path -and $cache.ContainsKey($current)) {
@@ -38,7 +38,7 @@ while (($line = [Console]::ReadLine()) -ne $null) {
       $current = $parent
     }
     $parent = [System.IO.Path]::GetDirectoryName($path)
-    # No cachear el padre a partir de un archivo oculto: la señal puede ser solo suya.
+    # Do not cache the parent from a hidden file: the signal may be its own only.
     if (-not $hidden -and $parent) {
       if ($cache.Count -ge 512) { $cache.Clear() }
       $cache[$parent] = $false

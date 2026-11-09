@@ -1,4 +1,4 @@
-// Smoke test de la API de Claude (CA-0.8). Usa la red y consume tokens: no forma parte de las pruebas.
+// Claude API smoke test (CA-0.8). Uses the network and consumes tokens: not part of the test suite.
 // Uso: CYBERSOC_ANTHROPIC_API_KEY=... npm run ai:smoke
 import { z } from 'zod';
 import { ClaudeProvider } from '../src/core/ai/providers/ClaudeProvider.ts';
@@ -8,7 +8,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 const apiKey = process.env.CYBERSOC_ANTHROPIC_API_KEY?.trim() ?? '';
 const model = process.env.CYBERSOC_ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL;
 
-// Defensa adicional: la clave nunca debe aparecer en la salida.
+// Additional defense: the key must never appear in the output.
 function print(line: string): void {
   console.log(apiKey ? line.split(apiKey).join('[REDACTADO]') : line);
 }

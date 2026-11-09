@@ -25,8 +25,8 @@ def inspect_pe(
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[2])
     try:
-        # Timeout real: subprocess.run mata y recoge el auxiliar al vencer.
-        # No se inicia el archivo analizado: solo nuestro módulo fijo recibe bytes.
+        # Real timeout: subprocess.run kills and reaps the helper on expiry.
+        # The analyzed file is not launched: only our fixed module receives bytes.
         completed = subprocess.run(
             [sys.executable, "-m", "cybersoc_engine.analysis.pe_worker"],
             input=data,
@@ -102,8 +102,8 @@ class PEEngine:
                     {"sections": anomalous},
                 )
             )
-        # Invariante: imports únicos normalizados; construir O(i), consultar O(1)
-        # promedio. La combinación exige acceso, escritura y ejecución remotas.
+        # Invariant: unique normalized imports; build O(i), lookup O(1)
+        # average. The combination requires remote access, write and execute.
         imports = {name.casefold() for name in ctx.pe_data["imports"]}
         if {"openprocess", "virtualallocex", "writeprocessmemory"} <= imports and imports & {
             "createremotethread",

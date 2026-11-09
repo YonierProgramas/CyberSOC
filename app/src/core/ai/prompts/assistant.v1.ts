@@ -1,14 +1,14 @@
 import { buildDelimitedPrompt } from './delimited';
 
-/** Cambiar el texto del prompt exige una versión nueva. */
+/** Changing the prompt text requires a new version. */
 export const ASSISTANT_PROMPT_VERSION = 'assistant.v1';
 
-/** `max_tokens` de cada turno: alcanza para unas 400 palabras. */
+/** `max_tokens` of each turn: enough for about 400 words. */
 export const ASSISTANT_MAX_TOKENS = 1_024;
 
 /**
- * Conjunto cerrado de acciones que el asistente puede recomendar. Son las mismas de
- * `recommendedActionSchema` (análisis S2/S3), descritas como las ve el usuario en la app.
+ * Closed set of actions the assistant may recommend. They are the same as
+ * `recommendedActionSchema` (S2/S3 analysis), described as the user sees them in the app.
  */
 export const ASSISTANT_ACTIONS = [
   'Poner el archivo en cuarentena (QUARANTINE).',
@@ -58,8 +58,8 @@ Formato
 - No escribas URLs, enlaces, direcciones de correo, comandos ni código.`;
 
 /**
- * Mensaje del usuario de cada turno: el foco actual entre etiquetas <contexto> y después la
- * pregunta. `focusJson` debe venir de `toPromptSafeJson` (lo comprueba buildDelimitedPrompt).
+ * User message of each turn: the current focus between <contexto> tags and then the
+ * question. `focusJson` must come from `toPromptSafeJson` (checked by buildDelimitedPrompt).
  */
 export function buildAssistantUserMessage(
   focusJson: string,

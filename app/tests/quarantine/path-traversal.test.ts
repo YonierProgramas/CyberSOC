@@ -6,8 +6,8 @@ import { QuarantineHarness, sha, type Seeded } from './harness';
 
 vi.setConfig({ testTimeout: 20_000 });
 
-// Un solo ítem en cuarentena sirve para todos los ataques: cada intento rechazado debe dejarlo
-// intacto. Si alguno lo dañara, los siguientes también fallarían y se vería en la salida.
+// A single quarantined item serves all attacks: each rejected attempt must leave it
+// intact. If one damaged it, the next ones would fail too and it would show in the output.
 const h = new QuarantineHarness();
 let input: Seeded;
 let item: QuarantineItem;
@@ -21,7 +21,7 @@ beforeAll(async () => {
 });
 afterAll(() => h.close());
 
-/** Rutas absolutas de ataque; todas apuntan dentro de la carpeta de la prueba. */
+/** Absolute attack paths; all point inside the test folder. */
 function attacks(): Array<[string, string]> {
   const r = h.root; // p. ej. C:\Users\...\Temp\cybersoc-adversarial-XXXX
   const noDrive = r.slice(2); // \Users\...
@@ -58,14 +58,14 @@ function attacks(): Array<[string, string]> {
   ];
 }
 
-describe('restaurar con targetPath hostil: se rechaza y la cuarentena queda intacta', () => {
+describe('restoring with a hostile targetPath: rejected and the quarantine stays intact', () => {
   it.each(attacks().map(([name]) => [name]))('%s', async (name) => {
     const target = attacks().find(([n]) => n === name)![1];
     h.confirm.mockClear();
     await expect(
       h.manager.restore(item.id, { trustHash: false, targetPath: target }),
     ).rejects.toMatchObject({ code: 'INVALID_PATH' });
-    // Se rechaza antes de pedir confirmación y sin escribir nada.
+    // Rejected before asking for confirmation and without writing anything.
     expect(h.confirm).not.toHaveBeenCalled();
     const record = h.record(item.id);
     expect(record.status).toBe('QUARANTINED');
@@ -77,9 +77,9 @@ describe('restaurar con targetPath hostil: se rechaza y la cuarentena queda inta
     });
   });
 
-  it('rutas relativas (con o sin ..) se rechazan aunque el directorio actual sea válido', async () => {
+  it('relative paths (with or without ..) are rejected even if the current directory is valid', async () => {
     const cwd = process.cwd();
-    process.chdir(h.root); // si se aceptaran, caerían dentro de la carpeta de la prueba
+    process.chdir(h.root); // if accepted, they would land inside the test folder
     try {
       for (const target of [
         'fuera.txt',
@@ -99,7 +99,7 @@ describe('restaurar con targetPath hostil: se rechaza y la cuarentena queda inta
     expect(h.record(item.id).status).toBe('QUARANTINED');
   });
 
-  it('la ruta original manipulada en la BD tampoco permite traversal', async () => {
+  it('the tampered original path in the DB does not allow traversal either', async () => {
     const other = await h.seed('otra.txt');
     const second = await h.manager.quarantine(other.id);
     h.tamper(second.id, 'original_path', `${h.root}\\sub\\..\\otra.txt`);
@@ -110,7 +110,7 @@ describe('restaurar con targetPath hostil: se rechaza y la cuarentena queda inta
     expect(await exists(second.vaultFile)).toBe(true);
   });
 
-  it('después de todos los ataques, una restauración legítima devuelve el mismo SHA-256', async () => {
+  it('after all attacks, a legitimate restoration returns the same SHA-256', async () => {
     const restored = await h.manager.restore(item.id, { trustHash: false });
     expect(restored.status).toBe('RESTORED');
     expect(restored.restoredTo).toBe(input.path);
@@ -118,16 +118,16 @@ describe('restaurar con targetPath hostil: se rechaza y la cuarentena queda inta
   });
 });
 
-describe('validatePath: nombres reservados de Windows', () => {
+describe('validatePath: reserved Windows names', () => {
   it.each(['CON', 'prn.txt', 'Aux', 'nul.log', 'COM9', 'lpt1.txt'])(
-    'rechaza %s (ya cubierto)',
+    'rejects %s (already covered)',
     (name) => {
       expect(() => validatePath(`C:\\carpeta\\${name}`)).toThrow();
     },
   );
-  // Regresión T4.3-A: Windows también reserva COM¹-COM³ y LPT¹-LPT³.
-  // COM0 y LPT0 se rechazan conservadoramente como nombres ambiguos de dispositivos.
-  // Solo se comprueba la validación: no se crea ningún archivo.
+  // T4.3-A regression: Windows also reserves COM¹-COM³ and LPT¹-LPT³.
+  // COM0 and LPT0 are conservatively rejected as ambiguous device names.
+  // Only validation is checked: no file is created.
   for (const name of [
     'COM0',
     'LPT0',
@@ -138,7 +138,7 @@ describe('validatePath: nombres reservados de Windows', () => {
     'LPT²',
     'LPT³',
   ])
-    it(`[HALLAZGO A] rechaza ${name} como segmento`, () => {
+    it(`[FINDING A] rejects ${name} as a segment`, () => {
       expect(() => validatePath(`C:\\carpeta\\${name}.txt`)).toThrow();
     });
 });

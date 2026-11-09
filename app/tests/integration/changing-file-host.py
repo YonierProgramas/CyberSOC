@@ -1,4 +1,4 @@
-"""Fixture local: error real del motor para el contrato y la persistencia TS."""
+"""Local fixture: a real engine error for the contract and TS persistence."""
 import json
 import sys
 import tempfile

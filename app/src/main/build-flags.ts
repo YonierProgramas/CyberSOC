@@ -1,5 +1,5 @@
-// Vite reemplaza estas constantes y elimina ramas de instrumentación del release.
-// En tests TS sin bundler se conserva el comportamiento histórico de evidencia.
+// Vite replaces these constants and removes instrumentation branches from the release.
+// In TS tests without a bundler the historical evidence behavior is kept.
 declare const __CYBERSOC_RELEASE__: boolean;
 declare const __CYBERSOC_RESOURCE_DIGEST__: string;
 export const RELEASE =

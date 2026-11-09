@@ -6,12 +6,12 @@ import {
   type AIAssessment,
 } from '../schemas';
 
-/** Se guarda en `ai_analyses.prompt_version`. Cambiar el texto del prompt exige una versión nueva. */
+/** Stored in `ai_analyses.prompt_version`. Changing the prompt text requires a new version. */
 export const PROMPT_VERSION = 'analysis.v1';
 
-/** `max_tokens` del análisis de un resultado (plan S2: ≈ 1 200). */
+/** `max_tokens` of a result analysis (S2 plan: ≈ 1,200). */
 export const ANALYSIS_MAX_TOKENS = 1_200;
-/** Único reintento tras una respuesta INCOMPLETE ("1 reintento con más tokens"). */
+/** Single retry after an INCOMPLETE response ("1 retry with more tokens"). */
 export const ANALYSIS_RETRY_MAX_TOKENS = 2_400;
 
 const actions = recommendedActionSchema.options.join(', ');
@@ -42,16 +42,16 @@ Formato
 - confidence, entre 0 y 1, es qué tan seguro estás de tu opinion con esta evidencia.`;
 
 export interface AnalysisRequestOptions {
-  /** Motivos del descarte anterior (de `AIResponseValidator`), para el reintento con retroalimentación. */
+  /** Reasons for the earlier rejection (from `AIResponseValidator`), for the retry with feedback. */
   previousErrors?: readonly string[];
   maxTokens?: number;
   signal?: AbortSignal;
 }
 
 /**
- * Petición de análisis para `AIProvider.generateStructured`. `contextJson` es el JSON exacto de
- * `AIContextBuilder` (el mismo de `ai_analyses.context_json`): escapa `<`, `>` y `&`, así que un
- * campo hostil no puede cerrar la etiqueta <contexto>.
+ * Analysis request for `AIProvider.generateStructured`. `contextJson` is the exact JSON from
+ * `AIContextBuilder` (the same as `ai_analyses.context_json`): it escapes `<`, `>` and `&`, so a
+ * hostile field cannot close the <contexto> tag.
  */
 export function buildAnalysisRequest(
   contextJson: string,
@@ -59,7 +59,7 @@ export function buildAnalysisRequest(
 ): StructuredRequest<AIAssessment> {
   if (/[<>]/.test(contextJson)) {
     throw new Error(
-      'El contexto debe venir de AIContextBuilder (sin < ni > literales).',
+      'The context must come from AIContextBuilder (without literal < or >).',
     );
   }
   const parts = [

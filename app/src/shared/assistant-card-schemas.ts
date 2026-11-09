@@ -4,7 +4,7 @@ import { scanProfileSchema } from './scan-profile';
 import { ASSISTANT_CARD_SCHEMA_V1 } from './ipc';
 
 const shortId = z.string().min(1).max(128);
-// Mismos subesquemas de la respuesta viva; ninguna cota anterior cambia.
+// Same subschemas of the live response; no earlier bound changes.
 export const assistantReferenceSchema = z.strictObject({
   type: z.enum(['result', 'job', 'rule', 'zone']),
   id: shortId,

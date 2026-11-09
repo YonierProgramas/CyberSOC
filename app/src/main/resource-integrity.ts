@@ -5,8 +5,8 @@ import { join, resolve } from 'node:path';
 const sha256 = (data: Buffer) =>
   createHash('sha256').update(data).digest('hex');
 
-/** Digest esperado compilado dentro de ASAR; EXE/fuses verifican ese ASAR.
- * No autentica un reemplazo conjunto del EXE sin firma/editor de confianza.
+/** Expected digest compiled inside the ASAR; EXE/fuses verify that ASAR.
+ * It does not authenticate a joint EXE replacement without a trusted signature/publisher.
  */
 export function verifyResources(resources: string, expected: string): void {
   if (!/^[a-f0-9]{64}$/.test(expected))
@@ -19,8 +19,8 @@ export function verifyResources(resources: string, expected: string): void {
   );
   if (!Array.isArray(entries) || entries.length === 0)
     throw new Error('Manifiesto vacío.');
-  // Invariante: una ruta única por archivo. Set.add/has/delete O(1) promedio;
-  // recorrido O(n), memoria O(n). Cada archivo encontrado se elimina una sola vez.
+  // Invariant: one unique path per file. Set.add/has/delete O(1) average;
+  // traversal O(n), O(n) memory. Each file found is removed only once.
   const remaining = new Set<string>();
   for (const entry of entries as {
     path: string;

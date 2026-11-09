@@ -14,10 +14,10 @@ const signatureSchema = z.strictObject({
 export type RuleInfo = z.infer<typeof ruleSchema>;
 export type SignatureInfo = z.infer<typeof signatureSchema>;
 
-/** Snapshot del catálogo cargado por main; no acepta rutas ni SQL de la IA. */
+/** Snapshot of the catalog loaded by main; it accepts no paths or SQL from the AI. */
 export class ToolCatalogRepository {
-  // Invariante: un registro por ID/hash normalizado. Carga O(n), búsqueda O(1)
-  // promedio; las copias de salida impiden alterar el catálogo por referencia.
+  // Invariant: one record per normalized ID/hash. Load O(n), lookup O(1)
+  // average; output copies prevent altering the catalog by reference.
   private readonly rules = new Map<string, RuleInfo>();
   private readonly signatures = new Map<string, SignatureInfo>();
   constructor(

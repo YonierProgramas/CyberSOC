@@ -59,7 +59,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-it('I-07/I-09/I-14: recorre250 mensajes sin duplicados, cursor ligado al chat, tool input ausente y pregunta sin respuesta', () => {
+it('I-07/I-09/I-14: walks 250 messages without duplicates, chat-bound cursor, missing tool input and unanswered question', () => {
   const id = seedMessages(db);
   const other = repo.create('otro').id;
   repo.append(other, [{ role: 'user', content: 'otra' }]);
@@ -105,7 +105,7 @@ it('I-07/I-09/I-14: recorre250 mensajes sin duplicados, cursor ligado al chat, t
     ).toThrow();
 });
 
-it('I-08/I-14: leer y paginar no cambia activa/Queue ni llama reset/open/ask/proveedor', async () => {
+it('I-08/I-14: reading and paging do not change active/Queue nor call reset/open/ask/provider', async () => {
   const fake = new FakeAIProvider()
     .enqueueFinal(final('respuesta A'))
     .enqueueReplyError('OFFLINE');
@@ -143,7 +143,7 @@ it('I-08/I-14: leer y paginar no cambia activa/Queue ni llama reset/open/ask/pro
   ).toBe(1);
 });
 
-it('I-10: backup coherente006→007 conserva tablas/filas y revierte una007 fallida; downgrade rechazado', async () => {
+it('I-10: coherent 006→007 backup keeps tables/rows and reverts a failed 007; downgrade rejected', async () => {
   const old = new Database(join(root, 'old006.sqlite'));
   new MigrationRunner(old, six).run();
   const legacy = new ConversationRepository(old);
@@ -251,7 +251,7 @@ it('I-10: backup coherente006→007 conserva tablas/filas y revierte una007 fall
   }
 });
 
-it('I-11/I-18: ida y vuelta fiel; seis acciones recalculadas por recurso/veredicto y TTL de sesión', () => {
+it('I-11/I-18: faithful round trip; six actions recomputed per resource/verdict and session TTL', () => {
   seedHistory(db, 3, 6);
   let time = 1000;
   const reports = new ReportBuilder(db, { now: () => time, ttlMs: 10 });
@@ -324,10 +324,10 @@ it('I-11/I-18: ida y vuelta fiel; seis acciones recalculadas por recurso/veredic
   ).not.toContain('availability');
 });
 
-it('I-15: CHECK SQLite cuenta UTF-8 exacto, acepta2097152 y rechaza2097153; estados incoherentes rechazados', () => {
+it('I-15: SQLite CHECK counts exact UTF-8, accepts 2097152 and rejects 2097153; incoherent states rejected', () => {
   const id = repo.create().id;
   repo.append(id, [{ role: 'assistant', content: 'legado' }]);
-  const message = repo.recentMessages(id); // No user: consultar ID directamente.
+  const message = repo.recentMessages(id); // No user: query the ID directly.
   expect(message).toEqual([]);
   const messageId = String(
     db.prepare('SELECT id FROM ai_messages WHERE conversation_id=?').get(id)!
@@ -391,7 +391,7 @@ it('I-15: CHECK SQLite cuenta UTF-8 exacto, acepta2097152 y rechaza2097153; esta
     ).toThrow();
 });
 
-it('I-15/I-16: tarjetas máximas válidas; exceso/invalidez OMITTED sin perder texto y lectura inválida segura', () => {
+it('I-15/I-16: maximum valid cards; excess/invalid OMITTED without losing text and safe invalid read', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const id = repo.create().id;
   for (const char of ['x', '€', '\u0001']) {
@@ -447,8 +447,8 @@ it('I-15/I-16: tarjetas máximas válidas; exceso/invalidez OMITTED sin perder t
     expect(byteSize).toBe(
       char === 'x' ? 309393 : char === '€' ? 921439 : 1839508,
     );
-    // El cálculo conservador del anexo usa seis bytes más: aquí maxFileSizeMB
-    // respeta el máximo REAL del esquema (MAX_SAFE_INTEGER / 1 MiB), no MAX_SAFE_INTEGER.
+    // The annex's conservative calculation uses six more bytes: here maxFileSizeMB
+    // respects the REAL schema maximum (MAX_SAFE_INTEGER / 1 MiB), not MAX_SAFE_INTEGER.
     expect(byteSize).toBeLessThan(ASSISTANT_CARD_MAX_BYTES);
     console.log(
       JSON.stringify({
@@ -519,7 +519,7 @@ it('I-15/I-16: tarjetas máximas válidas; exceso/invalidez OMITTED sin perder t
   expect(JSON.stringify(warn.mock.calls)).not.toContain('texto completo');
 });
 
-it('I-16: foco fuera de cota omite solo tarjeta; respuesta viva y Queue conservan su comportamiento', async () => {
+it('I-16: out-of-bound focus omits only the card; live response and Queue keep their behavior', async () => {
   vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   const long = 'x'.repeat(32768);
   const jobs = new ScanJobRepository(db);
@@ -552,7 +552,7 @@ it('I-16: foco fuera de cota omite solo tarjeta; respuesta viva y Queue conserva
   });
 });
 
-it('I-15: reproduce plan103266B y reporte Unicode96374B de7.E bajo la007 real', () => {
+it('I-15: reproduces plan 103266B and Unicode report 96374B from 7.E under the real 007', () => {
   const id = repo.create().id;
   const plan = emptyCard();
   const path = 'C:/Ejemplo/' + 'a'.repeat(1013);
@@ -585,7 +585,7 @@ it('I-15: reproduce plan103266B y reporte Unicode96374B de7.E bajo la007 real', 
     citedResultIds: [],
     label: 'Generado por IA',
   };
-  // El orden de propiedades de 7.E ponía scanPlan antes de report; no afecta bytes.
+  // The 7.E property order put scanPlan before report; it does not affect bytes.
   expect(Buffer.byteLength(JSON.stringify(plan))).toBe(103266);
   expect(Buffer.byteLength(JSON.stringify(report))).toBe(96374);
   for (const card of [plan, report]) {
@@ -608,7 +608,7 @@ it('I-15: reproduce plan103266B y reporte Unicode96374B de7.E bajo la007 real', 
   }
 });
 
-it('I-17/I-18: fallo SQL revierte respuesta/tarjeta sin avanzar Queue; viva y archivada fieles', async () => {
+it('I-17/I-18: SQL failure reverts response/card without advancing Queue; live and archived faithful', async () => {
   const fake = new FakeAIProvider()
     .enqueueFinal(final('respuesta uno'))
     .enqueueFinal(final('respuesta no confirmada'));
@@ -655,7 +655,7 @@ it('I-17/I-18: fallo SQL revierte respuesta/tarjeta sin avanzar Queue; viva y ar
   ).toMatchObject({ kind: 'USER', text: 'dos', answered: false });
 });
 
-it('I-20:30 tarjetas válidas de1MiB → páginas≤8MiB, sin omisiones y con cursor estable ante append', () => {
+it('I-20: 30 valid 1 MiB cards → pages ≤ 8 MiB, no omissions and stable cursor on append', () => {
   const id = repo.create().id,
     card = cardAtBytes(1024 * 1024);
   assistantCardV1Schema.parse(card);
@@ -697,7 +697,7 @@ it('I-20:30 tarjetas válidas de1MiB → páginas≤8MiB, sin omisiones y con cu
   expect(new Set(found).size).toBe(30);
 });
 
-it('lista conversaciones con total/conteos correctos, orden estable y páginas completas', () => {
+it('lists conversations with correct total/counts, stable order and complete pages', () => {
   vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(
     '2026-11-04T12:00:00.000Z',
   );

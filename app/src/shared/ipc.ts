@@ -70,8 +70,8 @@ export interface ScanProgress {
   percent: number | null;
   currentPath?: string;
   elapsedMs: number;
-  /** Top 10 por puntuación del motor, descendente y estable por llegada.
-   * Solo resultados SCANNED con puntuación; no representa cambios posteriores de IA/allowlist.
+  /** Top 10 by engine score, descending and stable by arrival.
+   * Only SCANNED results with a score; it does not reflect later AI/allowlist changes.
    */
   topRisk: Array<{
     resultId: string;
@@ -220,30 +220,30 @@ export interface ConversationMessageDTO {
 
 export interface OpenConversationDTO {
   conversation: ConversationDTO;
-  /** Mensajes de los últimos 10 turnos; el historial completo permanece en SQLite. */
+  /** Messages of the last 10 turns; the complete history stays in SQLite. */
   messages: ConversationMessageDTO[];
   historyTurns: number;
 }
-/** Longitud máxima de la pregunta del usuario al Copilot. */
+/** Maximum length of the user question to the Copilot. */
 export const ASSISTANT_MESSAGE_MAX_CHARS = 2_000;
 
 export interface AssistantAskQuery {
   message: string;
-  /** Resultado o escaneo seleccionado (solo uno). Sin foco, responde en términos generales. */
+  /** Selected result or scan (only one). Without focus, it answers in general terms. */
   focus?: { resultId?: string; jobId?: string };
 }
 
 export interface AssistantFocusDTO {
   kind: 'NONE' | 'RESULT' | 'JOB';
   id: string | null;
-  /** Nombre del archivo o ruta del escaneo, para "Hablando de: …". */
+  /** File name or scan path, for "Hablando de: …". */
   label: string | null;
 }
 
 export interface AssistantReplyDTO {
-  /** ANSWERED: respuesta de la IA. UNAVAILABLE: la IA falló o no está configurada. CANCELLED: hubo "Nueva conversación". */
+  /** ANSWERED: AI response. UNAVAILABLE: the AI failed or is not configured. CANCELLED: there was a "Nueva conversación". */
   status: 'ANSWERED' | 'UNAVAILABLE' | 'CANCELLED';
-  /** Respuesta o mensaje claro para el usuario. Siempre se muestra como texto plano. */
+  /** Response or clear message for the user. Always displayed as plain text. */
   text: string;
   errorKind:
     | 'NOT_CONFIGURED'
@@ -258,19 +258,19 @@ export interface AssistantReplyDTO {
     | 'TOOL_LIMIT'
     | null;
   focus: AssistantFocusDTO;
-  /** Turnos guardados en la ventana del historial después de esta pregunta (máximo 10). */
+  /** Turns stored in the history window after this question (at most 10). */
   historyTurns: number;
-  /** Chips: IDs reales citados (S5). Ya validados por el Core. */
+  /** Chips: real cited IDs (S5). Already validated by the Core. */
   references: AssistantReferenceDTO[];
-  /** Botones: cada acción exige confirmación del usuario en la UI. */
+  /** Buttons: each action requires user confirmation in the UI. */
   suggestedActions: AssistantActionDTO[];
-  /** Tarjeta de reporte: cifras del Core + redacción marcada "Generado por IA". */
+  /** Report card: Core figures + wording labeled "Generado por IA". */
   report: AssistantReportCardDTO | null;
-  /** Tarjeta de plan de escaneo: NUNCA se ejecuta sin "Ejecutar plan" + confirmación. */
+  /** Scan plan card: NEVER runs without "Ejecutar plan" + confirmation. */
   scanPlan: ScanPlanCardDTO | null;
-  /** Herramientas de solo lectura que consultó la IA en esta pregunta. */
+  /** Read-only tools the AI queried for this question. */
   toolCalls: AssistantToolCallDTO[];
-  /** Motivos (del Core) por los que se descartó la respuesta final, si se descartó. */
+  /** Reasons (from the Core) why the final response was discarded, if it was. */
   rejected: string[];
 }
 
@@ -292,7 +292,7 @@ export interface AssistantActionDTO {
 
 export interface AssistantReportCardDTO {
   reportDraftId: string;
-  /** Cifras calculadas por el Core desde SQLite, nunca por la IA. */
+  /** Figures computed by the Core from SQLite, never by the AI. */
   total: number;
   verdicts: { verdict: string; count: number }[];
   executiveSummary: string;
@@ -316,7 +316,7 @@ export interface ScanPlanCardDTO {
 export interface AssistantToolCallDTO {
   name: string;
   ok: boolean;
-  /** Código de error de la herramienta (UNKNOWN_TOOL, INVALID_ARGUMENTS…) o null. */
+  /** Tool error code (UNKNOWN_TOOL, INVALID_ARGUMENTS…) or null. */
   code: string | null;
 }
 
@@ -383,7 +383,7 @@ export interface CyberSocApi {
   };
   readonly quarantine: {
     readonly list: (query?: QuarantineQuery) => Promise<QuarantineItemDTO[]>;
-    /** Invocar únicamente después de la confirmación explícita en la UI. */
+    /** Invoke only after explicit confirmation in the UI. */
     readonly quarantine: (resultId: string) => Promise<QuarantineItemDTO>;
     readonly restore: (
       itemId: string,
@@ -463,7 +463,7 @@ export const QUARANTINE_RESTORE = 'quarantine:restore';
 export const QUARANTINE_DELETE = 'quarantine:delete';
 export const QUARANTINE_CHANGED = 'quarantine:changed';
 
-// La fábrica evita cargar Zod en el preload sandbox: allí solo se importan canales y tipos.
+// The factory avoids loading Zod in the sandboxed preload: only channels and types are imported there.
 export function createQuarantineSchemas(z: typeof import('zod').z) {
   const quarantineStatusSchema = z.enum([
     'PENDING',
@@ -482,7 +482,7 @@ export function createQuarantineSchemas(z: typeof import('zod').z) {
   });
   const quarantineRestoreOptionsSchema = z.strictObject({
     trustHash: z.boolean(),
-    // La normalización y la seguridad de la ruta se comprueban en el gestor.
+    // Path normalization and safety are checked in the manager.
     targetPath: z
       .string()
       .min(1)
@@ -500,7 +500,7 @@ export function createQuarantineSchemas(z: typeof import('zod').z) {
     quarantineRestoreOptionsSchema,
   ]);
 
-  // Lista explícita de campos públicos: nunca serializar registros de SQLite completos.
+  // Explicit list of public fields: never serialize complete SQLite records.
   const quarantineItemSchema = z.strictObject({
     id: quarantineIdSchema,
     resultId: quarantineIdSchema.nullable(),
@@ -533,13 +533,13 @@ export type QuarantineRestoreOptions = z.infer<
   QuarantineSchemas['restoreOptions']
 >;
 export type QuarantineItemDTO = z.infer<QuarantineSchemas['item']>;
-/** Invalidación para volver a consultar la lista, incluso si una operación dejó FAILED. */
+/** Invalidation to query the list again, even if an operation left FAILED. */
 export interface QuarantineChanged {
   itemId: string | null;
   resultId: string | null;
 }
 
-// Anexo D: adiciones independientes de los contratos anteriores.
+// Annex D: additions independent of the earlier contracts.
 export const DASHBOARD_GET_OVERVIEW = 'dashboard:getOverview';
 export const SCAN_LIST_JOBS_PAGE = 'scan:listJobsPage';
 export const ASSISTANT_LIST_CONVERSATIONS_PAGE =

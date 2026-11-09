@@ -36,13 +36,13 @@ export function ModalDialog({
       data-testid={testId}
       aria-labelledby={titleId}
       onKeyDown={(event) => {
-        // El diálogo nativo gestiona Tab/Escape sin cerrar ni activar la
-        // trampa de foco del panel exterior que contiene la confirmación.
+        // The native dialog handles Tab/Escape without closing or triggering the
+        // focus trap of the outer panel that contains the confirmation.
         if (event.key === 'Escape' || event.key === 'Tab')
           event.stopPropagation();
       }}
       onCancel={(event) => {
-        // Actualizar también React permite reabrir la misma confirmación.
+        // Updating React as well allows reopening the same confirmation.
         event.preventDefault();
         if (!cancelDisabled) onCancel();
       }}

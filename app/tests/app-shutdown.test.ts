@@ -22,7 +22,7 @@ vi.mock('../src/main/composition-root', () => ({
   createEngine: () => ({ close: mocks.close, reconnect: mocks.reconnect }),
 }));
 
-it('before-quit espera al cierre del motor y evita cierres simultaneos', async () => {
+it('before-quit waits for the engine shutdown and avoids simultaneous closes', async () => {
   let finish!: () => void;
   mocks.close.mockReturnValue(
     new Promise<void>((resolve) => {

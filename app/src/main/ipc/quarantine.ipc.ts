@@ -29,10 +29,10 @@ import {
 } from '../../shared/ipc';
 import { requireTrustedSender, trustedWindow } from './scan-validation';
 
-/** El contexto IPC habilita pedir permiso; nunca equivale a consentimiento humano.
- * AsyncLocalStorage mantiene aisladas las confirmaciones de operaciones concurrentes.
- * Fuera de ese contexto el gestor sigue rechazando cualquier disparo automático.
- * Cada paso (incluido RESTORE_DETECTED) requiere su propio diálogo nativo en main.
+/** The IPC context enables asking for permission; it never equals human consent.
+ * AsyncLocalStorage keeps confirmations of concurrent operations isolated.
+ * Outside that context the manager keeps rejecting any automatic trigger.
+ * Each step (including RESTORE_DETECTED) requires its own native dialog in main.
  */
 export class QuarantineUIConfirmation {
   private readonly context = new AsyncLocalStorage<{
@@ -69,7 +69,7 @@ export class QuarantineUIConfirmation {
       cancelId: 0,
       noLink: true,
     });
-    // El renderer puede cerrarse o navegar mientras espera la decisión humana.
+    // The renderer may close or navigate while waiting for the human decision.
     if (!context.active) return false;
     context.validate();
     return answer.response === 1;
@@ -198,7 +198,7 @@ export function registerQuarantineIpc(
         validate(event);
         return undefined;
       } catch (error) {
-        // No devolver errores internos, trazas, argumentos ni registros con claves.
+        // Do not return internal errors, traces, arguments or records with keys.
         const code =
           error instanceof QuarantineError && safeCodes.includes(error.code)
             ? error.code
@@ -207,10 +207,10 @@ export function registerQuarantineIpc(
           `No se pudo completar la operación de cuarentena (${code}).`,
         );
       } finally {
-        // También refrescar FAILED/PENDING tras un error. El evento no afirma éxito.
+        // Also refresh FAILED/PENDING after an error. The event does not claim success.
         if (active && change) {
           const window = trustedWindow(getWindow, trustedRendererUrl);
-          // Una ventana que se cerró/navegó no debe recibir el resultado pendiente.
+          // A window that closed/navigated must not receive the pending result.
           if (
             window?.webContents === event.sender &&
             window.webContents.mainFrame === event.senderFrame
@@ -218,7 +218,7 @@ export function registerQuarantineIpc(
             try {
               window.webContents.send(QUARANTINE_CHANGED, change);
             } catch {
-              /* La ventana puede cerrarse durante el envío; la BD ya conserva el estado. */
+              /* The window may close during the send; the DB already holds the state. */
             }
           }
         }

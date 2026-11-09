@@ -30,7 +30,7 @@ export default tseslint.config(
           paths: [
             {
               name: 'electron',
-              message: 'El core debe ser independiente de Electron.',
+              message: 'The core must be independent of Electron.',
             },
           ],
           patterns: ['electron/*'],
@@ -40,12 +40,12 @@ export default tseslint.config(
         'error',
         {
           selector: 'ImportExpression[source.value=/^electron(\\/|$)/]',
-          message: 'El core no puede cargar Electron de forma dinamica.',
+          message: 'The core must not load Electron dynamically.',
         },
         {
           selector:
             "CallExpression[callee.name='require'][arguments.0.value=/^electron(\\/|$)/]",
-          message: 'El core no puede cargar Electron con require.',
+          message: 'The core must not load Electron with require.',
         },
       ],
     },

@@ -39,7 +39,7 @@ const codes = [
   'ENGINE_CRASHED',
 ] as const;
 
-it('mantiene los tipos del dominio y los enums exactos del plan', () => {
+it('keeps the domain types and exact plan enums', () => {
   expectTypeOf<FileScanStatus>().toEqualTypeOf<(typeof statuses)[number]>();
   expectTypeOf<FileErrorCode>().toEqualTypeOf<(typeof codes)[number]>();
   expectTypeOf<FileTask>().toEqualTypeOf<{
@@ -52,7 +52,7 @@ it('mantiene los tipos del dominio y los enums exactos del plan', () => {
   expect(fileErrorCodeSchema.options).toEqual(codes);
 });
 
-it('conserva correlacion, Unicode y evidencia vacia sin veredicto en S1', () => {
+it('keeps correlation, Unicode and empty evidence without a verdict in S1', () => {
   expect(scanned.id).toBe(request.id);
   expect(scanned.result.taskId).toBe(request.params.taskId);
   expect(scanned.result.file!.name).toContain('ñ');
@@ -67,7 +67,7 @@ it.each([
   ['skipped-cloud', 'SKIPPED', 'CLOUD_PLACEHOLDER'],
   ['skipped-too-large', 'SKIPPED', 'TOO_LARGE'],
 ])(
-  'representa %s como resultado de archivo, no error RPC',
+  'represents %s as a file result, not an RPC error',
   (suffix, status, code) => {
     const value = scanFileResponseSchema.parse(
       load(`scan.file.response.${suffix}.json`),
@@ -79,39 +79,32 @@ it.each([
   },
 );
 
-it.each(statuses)(
-  'respeta los campos opcionales del resultado %s',
-  (status) => {
-    const result = {
-      taskId: 't_1',
-      status,
-      evidence: [],
-      layers: [],
-      durationMs: 0,
-      engineVersion: '0.1.0',
-    };
-    expect(engineResultSchema.parse(result)).toEqual(result);
-  },
-);
+it.each(statuses)('respects the optional fields of result %s', (status) => {
+  const result = {
+    taskId: 't_1',
+    status,
+    evidence: [],
+    layers: [],
+    durationMs: 0,
+    engineVersion: '0.1.0',
+  };
+  expect(engineResultSchema.parse(result)).toEqual(result);
+});
 
-it('acepta extension nula pero exige la propiedad', () => {
+it('accepts a null extension but requires the property', () => {
   const file = { ...scanned.result.file!, extension: null };
   expect(
     engineResultSchema.parse({ ...scanned.result, file }).file?.extension,
   ).toBeNull();
 });
 
-it.each(['file', 'hashes', 'error'])(
-  'rechaza null explicito en %s',
-  (field) => {
-    expect(
-      engineResultSchema.safeParse({ ...scanned.result, [field]: null })
-        .success,
-    ).toBe(false);
-  },
-);
+it.each(['file', 'hashes', 'error'])('rejects explicit null in %s', (field) => {
+  expect(
+    engineResultSchema.safeParse({ ...scanned.result, [field]: null }).success,
+  ).toBe(false);
+});
 
-it.each(codes)('acepta el codigo de archivo %s', (code) => {
+it.each(codes)('accepts file code %s', (code) => {
   expect(
     engineResultSchema.safeParse({
       ...scanned.result,
@@ -121,7 +114,7 @@ it.each(codes)('acepta el codigo de archivo %s', (code) => {
 });
 
 it.each(['CLEAN', 'NOT_EVALUATED', '', 1, null])(
-  'rechaza estado fuera del contrato: %s',
+  'rejects status outside the contract: %s',
   (status) => {
     expect(
       engineResultSchema.safeParse({ ...scanned.result, status }).success,
@@ -130,7 +123,7 @@ it.each(['CLEAN', 'NOT_EVALUATED', '', 1, null])(
 );
 
 it.each(['UNKNOWN', -32603, null])(
-  'rechaza codigo de archivo fuera del contrato: %s',
+  'rejects file code outside the contract: %s',
   (code) => {
     expect(
       engineResultSchema.safeParse({
@@ -147,14 +140,14 @@ it.each([
   'g'.repeat(64),
   'a'.repeat(65),
   'a'.repeat(64) + '\n',
-])('rechaza SHA-256 mal formado: %s', (sha256) => {
+])('rejects malformed SHA-256: %s', (sha256) => {
   expect(
     engineResultSchema.safeParse({ ...scanned.result, hashes: { sha256 } })
       .success,
   ).toBe(false);
 });
 
-it.each([true, '512', null])('no convierte tipos numericos: %s', (value) => {
+it.each([true, '512', null])('does not convert numeric types: %s', (value) => {
   expect(
     scanFileParamsSchema.safeParse({
       ...request.params,
@@ -173,7 +166,7 @@ it.each([true, '512', null])('no convierte tipos numericos: %s', (value) => {
   ).toBe(false);
 });
 
-it('rechaza opciones y propiedades no acordadas', () => {
+it('rejects unagreed options and properties', () => {
   expect(
     scanFileParamsSchema.safeParse({
       ...request.params,

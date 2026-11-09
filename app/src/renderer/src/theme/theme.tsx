@@ -57,7 +57,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         try {
           localStorage.setItem(THEME_KEY, next);
         } catch {
-          /* La preferencia visual no es un ajuste del motor. */
+          /* The visual preference is not an engine setting. */
         }
         applyTheme(next, reducedMotion);
       },
@@ -66,7 +66,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         try {
           localStorage.setItem(MOTION_KEY, next ? 'reduce' : 'full');
         } catch {
-          /* Igual que el tema: solo presentación local. */
+          /* Same as the theme: local presentation only. */
         }
         applyTheme(theme, next);
       },

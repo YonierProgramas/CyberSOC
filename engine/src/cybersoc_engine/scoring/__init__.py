@@ -1,1 +1,1 @@
-"""Puntuación determinista del motor; RiskPolicy decide el veredicto final de la app."""
+"""Deterministic engine scoring; RiskPolicy decides the final app verdict."""

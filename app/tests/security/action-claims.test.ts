@@ -16,7 +16,7 @@ it.each([
   'Ya lo borré.',
   'He **eliminado** el archivo.',
   'He bor\u200brado la cuarentena.',
-])('rechaza afirmación de operación sin recibo: %s', (text) => {
+])('rejects an operation claim without a receipt: %s', (text) => {
   expect(hasUnsupportedActionClaim(text)).toBe(true);
 });
 it.each([
@@ -29,7 +29,7 @@ it.each([
   'He consultado las evidencias del archivo.',
   'He encontrado dos resultados.',
   'El motor detectó este archivo; yo no cambio veredictos.',
-])('conserva negativas y explicaciones: %s', (text) => {
+])('keeps refusals and explanations: %s', (text) => {
   expect(hasUnsupportedActionClaim(text)).toBe(false);
 });
 
@@ -39,7 +39,7 @@ beforeEach(() => {
 });
 afterEach(() => h.close());
 
-it('pide una corrección y publica solo la respuesta corregida; conserva estado', async () => {
+it('asks for a correction and publishes only the corrected response; keeps state', async () => {
   const before = h.snapshot();
   const fake = new FakeAIProvider()
     .enqueueFinal(final('He borrado la cuarentena.'))
@@ -56,7 +56,7 @@ it('pide una corrección y publica solo la respuesta corregida; conserva estado'
   expect(h.snapshot()).toEqual(before);
 });
 it.each(['report', 'scanPlan'] as const)(
-  'rechaza también afirmaciones en %s',
+  'also rejects claims in %s',
   async (field) => {
     const draft = h.deps.reports.build();
     const wire = final(

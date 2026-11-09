@@ -1,5 +1,5 @@
-# Adaptación del borrador Codex T6.2 (base 6d9394d), no se modifica su worktree.
-# Solo el equipo de build usa uv/red. El cliente recibe un runtime completo.
+# Adapted from the Codex T6.2 draft (base 6d9394d); its worktree is not modified.
+# Only the build machine uses uv/network. The client receives a complete runtime.
 param([switch]$Rebuild)
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -53,8 +53,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Extracción de Python falló.' }
 if (Get-ChildItem -LiteralPath $runtimeDirectory -Recurse -Force |
     Where-Object { $_.Attributes -band [IO.FileAttributes]::ReparsePoint }) { throw 'Runtime con enlaces no permitido.' }
 
-# Retirar herramientas de instalación del runtime propio, no de Python del usuario.
-# Se comprueba cada destino absoluto antes de una eliminación recursiva.
+# Remove installation tools from our own runtime, not from the user Python.
+# Each absolute target is checked before a recursive deletion.
 $licenseDirectory = Join-Path $runtimeDirectory 'licenses/build-tools'
 New-Item -ItemType Directory -Force -Path $licenseDirectory | Out-Null
 $site = Join-Path $runtimeDirectory 'Lib/site-packages'
@@ -104,7 +104,7 @@ foreach ($folder in @('src','data')) {
 Copy-Item -LiteralPath (Join-Path $engineDirectory 'uv.lock') -Destination (Join-Path $bundledEngine 'uv.lock')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'runtime-source.json') -Destination (Join-Path $runtimeDirectory 'runtime-source.json')
 $python = Join-Path $runtimeDirectory 'python.exe'
-# Lista explícita: solo dentro del runtime extraído/verificado, nunca Python del usuario.
+# Explicit list: only inside the extracted/verified runtime, never the user Python.
 $remove = @('include','libs','tcl','pythonw.exe','Lib/ensurepip','Lib/venv','Lib/idlelib','Lib/tkinter','Lib/turtledemo','Lib/test',
     'DLLs/_tkinter.pyd','DLLs/tcl86t.dll','DLLs/tk86t.dll','DLLs/zlib1.dll')
 $remove += @(Get-ChildItem -LiteralPath (Join-Path $runtimeDirectory 'DLLs') -File -Filter '*_test*.pyd' | ForEach-Object { 'DLLs/' + $_.Name })
@@ -113,7 +113,7 @@ foreach ($relative in $remove) {
     if (-not $target.StartsWith($runtimeDirectory + [IO.Path]::DirectorySeparatorChar)) { throw 'Limpieza fuera de runtime.' }
     if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
 }
-# No omitir silenciosamente un catálogo futuro con otra extensión.
+# Do not silently skip a future catalog with another extension.
 foreach ($file in Get-ChildItem -LiteralPath (Join-Path $engineDirectory 'data') -Recurse -File) {
     if ($file.Extension -notin @('.json','.yaml','.yml')) { throw "Catálogo no contemplado: $($file.Name)" }
 }
@@ -121,8 +121,8 @@ foreach ($file in Get-ChildItem -LiteralPath (Join-Path $engineDirectory 'data')
 if ($LASTEXITCODE -ne 0) { throw 'RECORD de wheels inválido.' }
 & $python -I -B (Join-Path $PSScriptRoot 'collect-notices.py') $stageDirectory $cacheDirectory $appDirectory
 if ($LASTEXITCODE -ne 0) { throw 'Avisos legales incompletos.' }
-# Compilar aquí, con el mismo 3.12 privado, evita compilar pydantic al primer
-# saludo de 5 s. Solo escribe copias de build; el motor en ejecución usa -B.
+# Compiling here, with the same private 3.12, avoids compiling pydantic on the first
+# 5 s hello. It only writes build copies; the running engine uses -B.
 & $python -I -B -m compileall -q -j 1 --invalidation-mode checked-hash -s $stageDirectory -p resources (Join-Path $runtimeDirectory 'Lib') (Join-Path $bundledEngine 'src')
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el bytecode privado de Python 3.12.' }
 Write-Output 'PRIVATE_BYTECODE_READY Python 3.12, hash-checked, solo recursos de build'

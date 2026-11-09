@@ -143,7 +143,7 @@ def test_sample_is_bounded_and_stream_stays_open():
             self.read_sizes = []
 
         def read(self, size=-1):
-            assert size > 0  # Nunca leer todo de una vez.
+            assert size > 0  # Never read everything at once.
             self.read_sizes.append(size)
             return super().read(size)
 

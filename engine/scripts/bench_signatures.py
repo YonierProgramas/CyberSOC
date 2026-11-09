@@ -1,4 +1,4 @@
-"""Compara 100 000 consultas idénticas; no lee muestras ni mide su hashing."""
+"""Compares 100,000 identical queries; it neither reads samples nor measures their hashing."""
 
 import hashlib
 import random
@@ -8,8 +8,8 @@ from time import perf_counter
 
 
 def benchmark(*, size: int = 1000, queries: int = 100000, repeats: int = 3) -> str:
-    # Invariante: ambas estructuras contienen los mismos hashes sintéticos únicos.
-    # Construcción O(n), memoria O(n); no se incluye esta fase en los tiempos.
+    # Invariant: both structures hold the same unique synthetic hashes.
+    # O(n) build, O(n) memory; this phase is not included in the timings.
     entries = [
         (hashlib.sha256(f"firma sintetica {i}".encode()).hexdigest(), i) for i in range(size)
     ]
@@ -25,12 +25,12 @@ def benchmark(*, size: int = 1000, queries: int = 100000, repeats: int = 3) -> s
     list_times = []
     for _ in range(repeats):
         started = perf_counter()
-        # get: O(1) promedio por búsqueda; q consultas cuestan O(q) promedio.
+        # get: O(1) average per lookup; q queries cost O(q) on average.
         dict_hits = sum(table.get(key) is not None for key in samples)
         dict_times.append(perf_counter() - started)
         started = perf_counter()
         list_hits = 0
-        # Lista: O(n) en el peor caso por búsqueda; q consultas cuestan O(q*n).
+        # List: O(n) worst case per lookup; q queries cost O(q*n).
         for key in samples:
             for stored, _value in entries:
                 if stored == key:
@@ -49,5 +49,5 @@ def benchmark(*, size: int = 1000, queries: int = 100000, repeats: int = 3) -> s
 
 
 if __name__ == "__main__":
-    # Este script es una herramienta independiente: stdout del motor no se usa.
+    # This script is a standalone tool: the engine stdout is not used.
     sys.stdout.write(benchmark())

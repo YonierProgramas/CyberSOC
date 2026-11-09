@@ -12,9 +12,9 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-// Regresión B-01/AUD-12: collect-notices.py debe copiar las licencias de cada wheel.
-// Usa el Python 3.12 del motor (misma versión que el runtime empaquetado) y un
-// site-packages ficticio en TEMP. El modo --list-wheel-licenses no descarga ni escribe.
+// B-01/AUD-12 regression: collect-notices.py must copy the licenses of each wheel.
+// Uses the engine Python 3.12 (same version as the packaged runtime) and a
+// fake site-packages in TEMP. The --list-wheel-licenses mode neither downloads nor writes.
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, 'collect-notices.py');
 const python = join(
@@ -24,7 +24,7 @@ const python = join(
 );
 
 test(
-  'avisos: encuentra LICENSE de cada dist-info, también dentro de licenses/',
+  'notices: finds LICENSE of each dist-info, also inside licenses/',
   { skip: !existsSync(python) && 'falta engine/.venv (uv sync --locked)' },
   () => {
     const site = mkdtempSync(join(tmpdir(), 'cybersoc-avisos-'));

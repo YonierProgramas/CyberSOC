@@ -16,8 +16,8 @@ import {
   type RiskDecision,
 } from '../src/core/risk/RiskPolicy';
 
-it('RiskPolicy: tabla de casos y cobertura nativa del 100 % de líneas, ramas y funciones', () => {
-  // Cobertura nativa de Node: evita añadir un proveedor de cobertura como dependencia.
+it('RiskPolicy: case table and native 100 % coverage of lines, branches and functions', () => {
+  // Native Node coverage: avoids adding a coverage provider as a dependency.
   const output = execFileSync(
     process.execPath,
     [
@@ -37,7 +37,7 @@ it('RiskPolicy: tabla de casos y cobertura nativa del 100 % de líneas, ramas y 
       timeout: 20_000,
     },
   );
-  // Evita que un informe vacío pase los umbrales sin medir nada.
+  // Prevents an empty report from passing the thresholds without measuring anything.
   expect(output).toContain('RiskPolicy.ts');
   expect(output).toContain('# fail 0');
 }, 25_000);
@@ -79,7 +79,7 @@ const aiInputs: Array<PolicyAIAnalysis | null | undefined> = [
   ),
 ];
 
-// Oráculo independiente de la implementación: las condiciones del plan, literalmente.
+// Oracle independent of the implementation: the plan conditions, literally.
 function shouldEscalate(
   verdict: EngineVerdict,
   score: number,
@@ -96,7 +96,7 @@ function shouldEscalate(
   );
 }
 
-describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
+describe('RiskPolicy v2: invariants over all combinations', () => {
   const combinations = verdicts.flatMap((verdict) =>
     scores.flatMap((score) => aiInputs.map((ai) => ({ verdict, score, ai }))),
   );
@@ -106,7 +106,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
       ai as PolicyAIAnalysis | null | undefined,
     );
 
-  it(`la IA nunca produce DETECTED ni baja un veredicto (${combinations.length} combinaciones)`, () => {
+  it(`the AI never produces DETECTED nor lowers a verdict (${combinations.length} combinations)`, () => {
     for (const { verdict, score, ai } of combinations) {
       const decision = decide(verdict, score, ai);
       if (verdict !== 'DETECTED')
@@ -115,7 +115,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
     }
   });
 
-  it('solo escala CLEAN → SUSPICIOUS con todas las condiciones, nivel MEDIO y origen AI_ESCALATION', () => {
+  it('only escalates CLEAN → SUSPICIOUS with all conditions, MEDIO level and AI_ESCALATION origin', () => {
     for (const { verdict, score, ai } of combinations) {
       const decision = decide(verdict, score, ai);
       if (shouldEscalate(verdict, score, ai)) {
@@ -128,7 +128,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
       } else {
         expect(decision.finalVerdict).toBe(verdict);
         expect(decision.origin).toBe('ENGINE');
-        // Sin escalamiento, el nivel es el mismo que sin IA.
+        // Without escalation, the level is the same as without AI.
         expect(decision.finalLevel).toBe(
           decide(verdict, score, null).finalLevel,
         );
@@ -136,7 +136,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
     }
   });
 
-  it('la revisión solo se pide con SUSPICIOUS + LIKELY_BENIGN y confianza ≥ 0.8', () => {
+  it('review is only requested with SUSPICIOUS + LIKELY_BENIGN and confidence ≥ 0.8', () => {
     for (const { verdict, score, ai } of combinations) {
       const decision = decide(verdict, score, ai);
       const expected =
@@ -149,7 +149,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
     }
   });
 
-  it('DETECTED siempre queda en nivel CRÍTICO', () => {
+  it('DETECTED always stays at CRÍTICO level', () => {
     for (const score of scores) {
       expect(decideRisk({ verdict: 'DETECTED', score }).finalLevel).toBe(
         'CRÍTICO',
@@ -159,7 +159,7 @@ describe('RiskPolicy v2: invariantes sobre todas las combinaciones', () => {
 });
 
 describe('RiskPolicy v2 + RiskAssessmentRepository', () => {
-  it('un escalamiento por IA se guarda tal cual en risk_assessments', () => {
+  it('an AI escalation is stored as is in risk_assessments', () => {
     const directory = mkdtempSync(join(tmpdir(), 'cybersoc-risk-policy-'));
     const db = new Database(join(directory, 'riesgo.db'));
     try {

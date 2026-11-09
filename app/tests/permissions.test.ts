@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { isPermissionAllowed } from '../src/main/permissions';
 
-describe('permisos web de la ventana (B-06)', () => {
-  it('solo concede escribir en el portapapeles para copiar un hash', () => {
+describe('window web permissions (B-06)', () => {
+  it('only grants clipboard write to copy a hash', () => {
     expect(isPermissionAllowed('clipboard-sanitized-write')).toBe(true);
   });
 
-  it('niega cámara, micrófono, ubicación, notificaciones y lectura del portapapeles', () => {
+  it('denies camera, microphone, location, notifications and clipboard read', () => {
     for (const permission of [
       'media',
       'geolocation',

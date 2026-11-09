@@ -7,7 +7,7 @@ import { MigrationRunner } from '../src/core/persistence/MigrationRunner';
 import { initialMigration } from '../src/core/persistence/migrations/001_init';
 import { createDatabase } from '../src/main/composition-root';
 
-describe('SQLite con una base temporal', () => {
+describe('SQLite with a temporary database', () => {
   let directory: string;
   let database: Database;
 
@@ -24,7 +24,7 @@ describe('SQLite con una base temporal', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it('activa WAL y claves foraneas en cada conexion', () => {
+  it('enables WAL and foreign keys on each connection', () => {
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({
       journal_mode: 'wal',
     });
@@ -45,7 +45,7 @@ describe('SQLite con una base temporal', () => {
     });
   });
 
-  it('crea exactamente el esquema 001 del plan', () => {
+  it('creates exactly the plan 001 schema', () => {
     expect(new MigrationRunner(database, [initialMigration]).run()).toEqual([
       1,
     ]);
@@ -69,7 +69,7 @@ describe('SQLite con una base temporal', () => {
     ]);
   });
 
-  it('no reaplica la migracion ni altera datos o fechas tras reabrir', () => {
+  it('does not reapply the migration or alter data or dates after reopening', () => {
     const runner = new MigrationRunner(database);
     runner.run();
     const history = database.prepare('SELECT * FROM schema_migrations').all();
@@ -90,7 +90,7 @@ describe('SQLite con una base temporal', () => {
     ).toMatchObject({ value_json: '{"nombre":"oscuro"}' });
   });
 
-  it('revierte esquema e historial si una migracion falla', () => {
+  it('reverts schema and history if a migration fails', () => {
     const runner = new MigrationRunner(database, [
       initialMigration,
       {
@@ -111,7 +111,7 @@ describe('SQLite con una base temporal', () => {
     expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
-  it('rechaza historial desconocido sin modificarlo', () => {
+  it('rejects an unknown history without modifying it', () => {
     new MigrationRunner(database).run();
     database.exec(
       "INSERT INTO schema_migrations VALUES (8, '008_future', 'unchanged')",
@@ -123,10 +123,10 @@ describe('SQLite con una base temporal', () => {
     );
   });
 
-  it('rechaza versiones repetidas antes de escribir', () => {
+  it('rejects repeated versions before writing', () => {
     expect(() =>
       new MigrationRunner(database, [initialMigration, initialMigration]).run(),
-    ).toThrow('crecientes');
+    ).toThrow('increasing');
     expect(
       database
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -134,7 +134,7 @@ describe('SQLite con una base temporal', () => {
     ).toEqual([]);
   });
 
-  it('cierra de forma idempotente y libera el archivo', () => {
+  it('closes idempotently and releases the file', () => {
     database.close();
     expect(() => database.close()).not.toThrow();
     expect(() => database.prepare('SELECT 1')).toThrow();
@@ -142,7 +142,7 @@ describe('SQLite con una base temporal', () => {
     expect(new MigrationRunner(database).run()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
-  it('composition root usa la ruta inyectada y migra antes de devolver la BD', () => {
+  it('composition root uses the injected path and migrates before returning the DB', () => {
     const created = createDatabase(directory);
     try {
       expect(created.path).toBe(join(directory, 'cybersoc.db'));

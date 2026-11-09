@@ -1,17 +1,17 @@
 import { anonymizePath } from './AIContextBuilder';
 
-// Ruta absoluta de Windows (C:\…, C:/…) o con prefijo largo \\?\C:\…
+// Absolute Windows path (C:\…, C:/…) or with the long prefix \\?\C:\…
 const WINDOWS_PATH = /^(?:\\\\\?\\)?[A-Za-z]:[\\/]/;
 
 /**
- * Copia del resultado de una herramienta lista para enviarse al proveedor de IA (AUD-04).
- * Cada texto que es una ruta de Windows pasa por anonymizePath: C:\Users\<persona> se
- * convierte en %USERPROFILE%, también dentro de objetos y listas anidados (path,
- * targetPath, originalPath, paths…). Los demás textos no se tocan.
+ * Copy of a tool result ready to be sent to the AI provider (AUD-04).
+ * Every text that is a Windows path goes through anonymizePath: C:\Users\<person> becomes
+ * %USERPROFILE%, also inside nested objects and lists (path,
+ * targetPath, originalPath, paths…). Other texts are left untouched.
  *
- * Solo afecta a lo que viaja al proveedor. El Core sigue usando el resultado original:
- * por ejemplo, el validador de planes toma las rutas reales de su propio list_zones.
- * Recorrido en profundidad: O(n) en el número de valores del resultado.
+ * It only affects what travels to the provider. The Core keeps using the original result:
+ * for example, the plan validator takes the real paths from its own list_zones.
+ * Depth-first traversal: O(n) in the number of values of the result.
  */
 export function anonymizeToolResult<T>(value: T): T {
   return walk(value) as T;

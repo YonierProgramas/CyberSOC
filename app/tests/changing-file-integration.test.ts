@@ -11,7 +11,7 @@ import { ScanJobRepository } from '../src/core/persistence/ScanJobRepository';
 import { ScanResultRepository } from '../src/core/persistence/ScanResultRepository';
 import { ScanOrchestrator } from '../src/core/scan/ScanOrchestrator';
 
-it('AUD-02: error real Python cruza contrato y persiste ERROR, nunca CLEAN', async () => {
+it('AUD-02: real Python error crosses the contract and persists ERROR, never CLEAN', async () => {
   const python = resolve(
     '../engine/.venv',
     process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
@@ -71,7 +71,7 @@ it('AUD-02: error real Python cruza contrato y persiste ERROR, nunca CLEAN', asy
         'SELECT status, verdict, engine_score FROM scan_results WHERE job_id=?',
       )
       .all(id);
-    // El contrato SQLite conserva NOT_EVALUATED para el error técnico; nunca CLEAN.
+    // The SQLite contract keeps NOT_EVALUATED for the technical error; never CLEAN.
     expect(stored).toEqual([
       { status: 'ERROR', verdict: 'NOT_EVALUATED', engine_score: null },
     ]);

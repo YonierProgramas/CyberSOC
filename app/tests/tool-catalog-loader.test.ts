@@ -5,7 +5,7 @@ import {
 } from '../src/core/ai/ToolCatalogLoader';
 import { ENGINE_DATA } from './fixtures/copilot';
 
-it('carga las 4 reglas YAML y las firmas JSON reales del motor', () => {
+it('loads the 4 YAML rules and the real engine JSON signatures', () => {
   const catalog = loadToolCatalog(ENGINE_DATA);
   expect(catalog.rule('R-TEST-DOWNLOADER')).toEqual({
     id: 'R-TEST-DOWNLOADER',
@@ -25,7 +25,7 @@ it('carga las 4 reglas YAML y las firmas JSON reales del motor', () => {
   ).toMatchObject({ id: 'CSD-TEST-001' });
 });
 
-it('parseRuleYaml: comillas, comentarios, severidad desconocida y condiciones largas', () => {
+it('parseRuleYaml: quotes, comments, unknown severity and long conditions', () => {
   const rule = parseRuleYaml(
     [
       '# comentario',
@@ -38,7 +38,7 @@ it('parseRuleYaml: comillas, comentarios, severidad desconocida y condiciones la
     ].join('\r\n'),
   );
   expect(rule.id).toBe('R-X');
-  expect(rule.description).toBe('Nombre'); // sin description usa name
+  expect(rule.description).toBe('Nombre'); // without description it uses name
   expect(rule.severity).toBe('INFO');
   expect(rule.conditions.length).toBeLessThanOrEqual(601);
   expect(rule.conditions.endsWith('…')).toBe(true);

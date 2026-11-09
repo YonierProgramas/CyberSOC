@@ -56,8 +56,8 @@ beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'cybersoc-tools-'));
   db = new Database(join(root, 'test.db'));
   new MigrationRunner(db).run();
-  // Una transacción para el fixture: evita cientos de commits/fsync por caso.
-  // Los datos y el aislamiento por test se conservan; no cambia el timeout.
+  // One transaction for the fixture: avoids hundreds of commits/fsync per case.
+  // Data and per-test isolation are kept; the timeout does not change.
   db.transaction(() => {
     const jobs = new ScanJobRepository(db);
     for (const [id, date] of [
@@ -237,7 +237,7 @@ beforeEach(() => {
     removableDrives: async () => [{ driveId: 'e:', path: 'E:\\' }],
   };
   registry = createToolRegistry(context, new ReportBuilder(db));
-  // SQLite rechaza cualquier escritura accidental durante la ejecución de herramientas.
+  // SQLite rejects any accidental write during tool execution.
   db.exec('PRAGMA query_only = ON');
 });
 afterEach(() => {
@@ -266,7 +266,7 @@ function rowCount(value: unknown): number {
 }
 
 describe.each(cases)('%s', (name, valid, invalid) => {
-  it('acepta argumentos válidos y limita filas y caracteres en modo solo lectura', async () => {
+  it('accepts valid arguments and limits rows and characters in read-only mode', async () => {
     const before = db.prepare('SELECT total_changes() AS n').get();
     const result = await registry.execute(name, valid);
     expect(result.ok).toBe(true);
@@ -274,13 +274,13 @@ describe.each(cases)('%s', (name, valid, invalid) => {
     expect(rowCount(result)).toBeLessThanOrEqual(20);
     expect(db.prepare('SELECT total_changes() AS n').get()).toEqual(before);
   });
-  it('rechaza argumentos inválidos', async () => {
+  it('rejects invalid arguments', async () => {
     expect(await registry.execute(name, invalid)).toMatchObject({
       ok: false,
       error: { code: 'INVALID_ARGUMENTS' },
     });
   });
-  it('rechaza campos extras, null y un texto que pretende ser JSON', async () => {
+  it('rejects extra fields, null and a text pretending to be JSON', async () => {
     for (const args of [{ ...valid, write: true }, null, JSON.stringify(valid)])
       expect(await registry.execute(name, args)).toMatchObject({
         ok: false,
@@ -289,7 +289,7 @@ describe.each(cases)('%s', (name, valid, invalid) => {
   });
 });
 
-it('cada especificación es JSON Schema estricto y los opcionales admiten null en Zod', async () => {
+it('each specification is strict JSON Schema and optional fields accept null in Zod', async () => {
   const definitions = registry.definitions();
   expect(definitions).toHaveLength(14);
   for (const spec of definitions) {
@@ -311,7 +311,7 @@ it('cada especificación es JSON Schema estricto y los opcionales admiten null e
   expect(registry.definitions()[0]!.input_schema.properties).not.toEqual({});
 });
 
-it('get_scan_summary coincide con SQL y el resumen válido más reciente', async () => {
+it('get_scan_summary matches SQL and the latest valid summary', async () => {
   const result = await registry.execute('get_scan_summary', {});
   const summary = data<{
     job: { id: string };
@@ -366,7 +366,7 @@ it.each([
   { zone: 'DESCARGAS' },
   { jobId: 'job-main', zone: 'SISTEMA' },
 ] as const)(
-  'get_layer_report coincide con SQL y motivos para %j',
+  'get_layer_report matches SQL and reasons for %j',
   async (scope) => {
     const input: { resultId?: string; jobId?: string; zone?: string } = scope;
     const report = data<{ rows: Record<string, unknown>[] }>(
@@ -408,7 +408,7 @@ it.each([
   },
 );
 
-it('list_scans y list_results ordenan y filtran como SQL, con truncamiento explícito', async () => {
+it('list_scans and list_results sort and filter like SQL, with explicit truncation', async () => {
   const scans = data<{ rows: { id: string }[] }>(
     await registry.execute('list_scans', { limit: 1 }),
   );
@@ -439,7 +439,7 @@ it('list_scans y list_results ordenan y filtran como SQL, con truncamiento expl�
   );
 });
 
-it('TopK coincide con ORDER BY, mantiene empates y no toma filas de otro escaneo', async () => {
+it('TopK matches ORDER BY, keeps ties and takes no rows from another scan', async () => {
   const result = data<{ rows: { id: string }[] }>(
     await registry.execute('get_top_risk_results', { k: 10 }),
   );
@@ -455,7 +455,7 @@ it('TopK coincide con ORDER BY, mantiene empates y no toma filas de otro escaneo
   expect(result.rows.some((r) => r.id === 'old-result')).toBe(false);
 });
 
-it('detalle, evidencias, comparación y análisis provienen de las filas pedidas', async () => {
+it('detail, evidence, comparison and analysis come from the requested rows', async () => {
   const detail = data<{
     result: { engineScore: number; sha256: string };
     layers: unknown[];
@@ -510,7 +510,7 @@ it('detalle, evidencias, comparación y análisis provienen de las filas pedidas
   ).toEqual({ resultId: 'r01', analysis: null });
 });
 
-it('cuarentena consulta estado, limita a 20 y no revela material criptográfico', async () => {
+it('quarantine queries status, limits to 20 and reveals no cryptographic material', async () => {
   const result = await registry.execute('get_quarantine_items', {});
   expect(result.truncated).toBe(true);
   expect(data<{ rows: unknown[] }>(result).rows).toHaveLength(20);
@@ -530,7 +530,7 @@ it('cuarentena consulta estado, limita a 20 y no revela material criptográfico'
   );
 });
 
-it('lookup_hash diferencia conocido, firma local, allowlist y desconocido', async () => {
+it('lookup_hash distinguishes known, local signature, allowlist and unknown', async () => {
   const known = data<Record<string, unknown>>(
     await registry.execute('lookup_hash', { sha256: hash.toUpperCase() }),
   );
@@ -555,7 +555,7 @@ it('lookup_hash diferencia conocido, firma local, allowlist y desconocido', asyn
   });
 });
 
-it('reglas y zonas usan el catálogo y rutas inyectados, y refrescan USB cada vez', async () => {
+it('rules and zones use the injected catalog and paths, and refresh USB every time', async () => {
   expect(
     data(
       await registry.execute('get_rule_info', { ruleId: 'R-TEST-DOWNLOADER' }),
@@ -590,7 +590,7 @@ it('reglas y zonas usan el catálogo y rutas inyectados, y refrescan USB cada ve
 });
 
 it.each(['get_result_detail', 'get_evidence', 'get_ai_analysis'])(
-  '%s rechaza ID inexistente sin arrojar excepción',
+  '%s rejects a nonexistent ID without throwing',
   async (name) => {
     expect(
       await registry.execute(name, { resultId: "' OR 1=1 --" }),
@@ -601,14 +601,14 @@ it.each([
   { resultId: 'r00', jobId: 'job-main' },
   { resultId: 'r00', zone: 'SISTEMA' },
   { zone: 'INVENTADA' },
-])('rechaza ámbito ambiguo o inválido: %j', async (input) => {
+])('rejects ambiguous or invalid scope: %j', async (input) => {
   expect(await registry.execute('get_layer_report', input)).toMatchObject({
     ok: false,
     error: { code: 'INVALID_ARGUMENTS' },
   });
 });
 
-it('herramienta desconocida, SQL fallido y promesa rechazada producen error controlado', async () => {
+it('unknown tool, failed SQL and rejected promise produce a controlled error', async () => {
   expect(await registry.execute('delete_all', {})).toMatchObject({
     ok: false,
     error: { code: 'UNKNOWN_TOOL' },
@@ -629,7 +629,7 @@ it('herramienta desconocida, SQL fallido y promesa rechazada producen error cont
   });
 });
 
-it('Map rechaza duplicados y nombres de prototipo no son ejecutores', async () => {
+it('Map rejects duplicates and prototype names are not executors', async () => {
   const local = new ToolRegistry();
   const tool = {
     name: 'test',
@@ -638,14 +638,14 @@ it('Map rechaza duplicados y nombres de prototipo no son ejecutores', async () =
     execute: () => ({ ok: true }),
   };
   local.register(tool);
-  expect(() => local.register(tool)).toThrow('duplicado');
+  expect(() => local.register(tool)).toThrow('duplicate');
   expect(await local.execute('__proto__', {})).toMatchObject({ ok: false });
   expect(() =>
     local.register({ ...tool, name: 'wrong', arguments: z.object({}) }),
-  ).toThrow('estricto');
+  ).toThrow('strict');
 });
 
-it('límite global incluye filas anidadas, caracteres escapados y envoltura; no cambia cifras', () => {
+it('global limit includes nested rows, escaped characters and envelope; figures unchanged', () => {
   const limited = boundResult({
     count: 30,
     rows: Array.from({ length: 30 }, (_, i) => ({
@@ -666,7 +666,7 @@ it('límite global incluye filas anidadas, caracteres escapados y envoltura; no 
   });
 });
 
-it('los límites se aplican a todas las herramientas aunque devuelvan texto hostil enorme', async () => {
+it('limits apply to all tools even if they return huge hostile text', async () => {
   for (const [name, valid] of cases) {
     const local = new ToolRegistry();
     local.register({
@@ -690,7 +690,7 @@ it('los límites se aplican a todas las herramientas aunque devuelvan texto host
   }
 });
 
-it('los perfiles guardados se consultan sin reescribir settings', async () => {
+it('stored profiles are queried without rewriting settings', async () => {
   db.exec('PRAGMA query_only = OFF');
   const profiles = new ScanProfiles(db);
   profiles.set('DESCARGAS', {
@@ -709,7 +709,7 @@ it('los perfiles guardados se consultan sin reescribir settings', async () => {
   expect(db.prepare('SELECT * FROM settings').all()).toEqual(before);
 });
 
-it('datos corruptos del entorno son error de ejecución, no argumentos del usuario', async () => {
+it('corrupt environment data is an execution error, not user arguments', async () => {
   context.removableDrives = async () => [{ driveId: 'E:', path: 'F:\\' }];
   expect(await registry.execute('list_zones', {})).toMatchObject({
     ok: false,
@@ -717,7 +717,7 @@ it('datos corruptos del entorno son error de ejecución, no argumentos del usuar
   });
 });
 
-it('trunca evidencias reales numerosas y texto largo sin perder el conteo del resumen', async () => {
+it('truncates numerous real evidence and long text without losing the summary count', async () => {
   db.exec('PRAGMA query_only = OFF');
   new EvidenceRepository(db).insertMany(
     'r00',
@@ -755,7 +755,7 @@ it('trunca evidencias reales numerosas y texto largo sin perder el conteo del re
   expect(summary.counts.total).toBe(30);
 });
 
-it('escaneo vacío, sin evaluación y referencias inexistentes se distinguen', async () => {
+it('empty scan, without assessment and nonexistent references are distinguished', async () => {
   db.exec('PRAGMA query_only = OFF');
   new ScanJobRepository(db).create({
     id: 'empty',
@@ -803,7 +803,7 @@ it('escaneo vacío, sin evaluación y referencias inexistentes se distinguen', a
     });
 });
 
-it('el catálogo protege su snapshot y rechaza IDs o hashes duplicados', () => {
+it('the catalog protects its snapshot and rejects duplicate IDs or hashes', () => {
   const rule = context.catalog.rule('R-TEST-DOWNLOADER');
   rule.description = 'no modificar original';
   expect(context.catalog.rule(rule.id).description).not.toBe(rule.description);

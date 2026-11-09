@@ -12,8 +12,8 @@ let snapshot: EngineSnapshot = {
   status: null,
   failed: false,
 };
-// Invariante: cada suscriptor aparece una sola vez. Alta/baja en Set: O(1)
-// esperado; notificar a todos recorre los n suscriptores y cuesta O(n).
+// Invariant: each subscriber appears only once. Add/remove in Set: expected
+// O(1); notifying everyone walks the n subscribers and costs O(n).
 const listeners = new Set<(value: EngineSnapshot) => void>();
 let timer: number | null = null;
 let refreshing = false;
@@ -23,7 +23,7 @@ function emit(next: EngineSnapshot) {
   for (const listener of listeners) listener(snapshot);
 }
 
-/** Publica una consulta real de estado. No inventa «operativo». */
+/** Publishes a real status query. It does not invent «operativo». */
 export function publishEngineStatus(
   status: SystemStatus | null,
   failed: boolean,

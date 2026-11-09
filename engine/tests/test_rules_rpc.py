@@ -108,7 +108,7 @@ def test_rules_reload_rpc_applies_changes_and_rejects_invalid_without_losing_cur
         assert scan(sample).evidence
         rule.write_text("bad: [", encoding="utf-8")
         assert rpc("rules.reload")["error"]["code"] == -32603
-        assert "Regla inválida en rule.yaml" in caplog.text
+        assert "Invalid rule in rule.yaml" in caplog.text
         assert (
             StatsResponse.model_validate(rpc("engine.stats")).result.rulesetVersion
             == first.rulesetVersion

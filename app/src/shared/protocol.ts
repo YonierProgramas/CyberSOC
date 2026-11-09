@@ -162,7 +162,7 @@ export const scanFileParamsSchema = z.strictObject({
     layers: z
       .array(layerSchema)
       .refine((layers) => {
-        // El Set contiene capas únicas; construcción O(n), pertenencia O(1) promedio.
+        // The Set holds unique layers; O(n) build, O(1) average membership.
         return new Set(layers).size === layers.length;
       }, 'Capa repetida')
       .optional(),
@@ -191,7 +191,7 @@ export type DriveInfoRequest = z.infer<typeof driveInfoRequestSchema>;
 export type DriveInfoResult = z.infer<typeof driveInfoResultSchema>;
 export type DriveInfoResponse = z.infer<typeof driveInfoResponseSchema>;
 export const evidenceSchema = z.strictObject({
-  // Fin absoluto: impide aceptar un salto de línea después del identificador.
+  // Absolute end: prevents accepting a line break after the identifier.
   id: z.string().regex(/^ev[1-9][0-9]*(?![\s\S])/),
   source: evidenceSourceSchema,
   code: z.string().min(1),
@@ -200,7 +200,7 @@ export const evidenceSchema = z.strictObject({
   points: z.number().int().nonnegative(),
   decisive: z.boolean(),
   confidence: z.number().min(0).max(1),
-  // Diccionario de hechos: claves únicas; acceso promedio O(1), validación O(n).
+  // Facts dictionary: unique keys; O(1) average access, O(n) validation.
   facts: z.record(z.string(), z.json()),
 });
 export const layerTraceSchema = z
@@ -239,7 +239,7 @@ export const layerTraceSchema = z
     ) {
       context.addIssue({
         code: 'custom',
-        message: 'DISABLED no ejecuta análisis',
+        message: 'DISABLED runs no analysis',
       });
     }
   });
@@ -280,7 +280,7 @@ export const scoreBreakdownSchema = z
     if (!valid)
       context.addIssue({
         code: 'custom',
-        message: 'Desglose de puntuación inconsistente',
+        message: 'Inconsistent score breakdown',
       });
   });
 
@@ -306,7 +306,7 @@ export const engineResultSchema = z
       .optional(),
     evidence: z.array(evidenceSchema),
     layers: z.array(layerTraceSchema).superRefine((layers, context) => {
-      // Invariante: el Set contiene solo capas ya vistas, sin repetidas.
+      // Invariant: the Set holds only layers already seen, without repeats.
       // has/add cuestan O(1) promedio; recorrer n capas cuesta O(n) tiempo y espacio.
       const seen = new Set<string>();
       layers.forEach((trace, index) => {
@@ -345,7 +345,7 @@ export const engineResultSchema = z
     ) {
       context.addIssue({
         code: 'custom',
-        message: 'Desglose incompatible con evaluación',
+        message: 'Breakdown incompatible with the assessment',
       });
     }
     const values = [result.verdict, result.score, result.riskLevel];
@@ -353,16 +353,16 @@ export const engineResultSchema = z
     const reject = (message: string) =>
       context.addIssue({ code: 'custom', message });
     if (values.some((value) => value === undefined)) {
-      reject('La evaluación debe incluir verdict, score y riskLevel');
+      reject('The assessment must include verdict, score and riskLevel');
       return;
     }
     if (result.verdict === 'ERROR' || result.verdict === 'NOT_ANALYZED') {
       if (result.score !== null || result.riskLevel !== null)
-        reject('Sin análisis no hay puntuación ni nivel');
+        reject('No analysis means no score or level');
       return;
     }
     if (result.score == null || result.riskLevel == null) {
-      reject('Un veredicto de riesgo requiere puntuación y nivel');
+      reject('A risk verdict requires score and level');
       return;
     }
     const expected =
@@ -373,14 +373,13 @@ export const engineResultSchema = z
           : result.score < 85
             ? 'ALTO'
             : 'CRÍTICO';
-    if (result.riskLevel !== expected)
-      reject('Nivel incompatible con puntuación');
+    if (result.riskLevel !== expected) reject('Level incompatible with score');
     if (
       (result.verdict === 'CLEAN' && result.score >= 30) ||
       (result.verdict === 'SUSPICIOUS' && result.score < 30) ||
       (result.verdict === 'DETECTED' && result.score < 85)
     )
-      reject('Veredicto incompatible con puntuación');
+      reject('Verdict incompatible with score');
   });
 
 export const scanFileRequestSchema = z.strictObject({

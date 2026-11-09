@@ -51,10 +51,10 @@ def _file_info(path: Path, metadata: os.stat_result) -> FileInfo:
 def _same_file(
     before: os.stat_result, after: os.stat_result, *, compare_ctime: bool = False
 ) -> bool:
-    # Identidad de descriptor/ruta y metadatos estables, no atime (leer puede cambiarlo).
-    # Comparación O(1). No es un bloqueo exclusivo ni una instantánea del sistema.
-    # En Windows/Python 3.12 stat y fstat pueden dar distinta semántica a ctime.
-    # Solo se compara ctime entre dos lecturas hechas por la MISMA API.
+    # Descriptor/path identity and stable metadata, not atime (reading may change it).
+    # O(1) comparison. It is neither an exclusive lock nor a system snapshot.
+    # On Windows/Python 3.12 stat and fstat may give ctime different semantics.
+    # ctime is only compared between two reads made through the SAME API.
     keys = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
     if compare_ctime:
         keys += ("st_ctime_ns",)
@@ -103,18 +103,18 @@ class FileInspector:
                     return result
                 result.file = _file_info(target, opened)
                 if not _same_file(metadata, opened):
-                    raise FileChangedError("Archivo sustituido o cambiado al abrir")
+                    raise FileChangedError("File replaced or changed on open")
 
                 def check_unchanged() -> None:
                     try:
                         current = target.stat(follow_symlinks=False)
                         descriptor = os.fstat(fh.fileno())
                     except OSError:
-                        raise FileChangedError("No se pudo verificar el archivo abierto") from None
+                        raise FileChangedError("Could not verify the open file") from None
                     if not _same_file(opened, descriptor, compare_ctime=True) or not _same_file(
                         metadata, current, compare_ctime=True
                     ):
-                        raise FileChangedError("Archivo cambiado durante el análisis")
+                        raise FileChangedError("File changed during analysis")
 
                 self.pipeline.analyze(
                     fh,
@@ -127,8 +127,8 @@ class FileInspector:
                 )
                 check_unchanged()
         except FileChangedError:
-            # Ninguna evidencia/hash de una lectura incoherente puede respaldar un
-            # veredicto, ni siquiera una firma encontrada antes de detectar el cambio.
+            # No evidence/hash from an inconsistent read may back a
+            # verdict, not even a signature found before the change was detected.
             result.status = "ERROR"
             result.error = FileError(
                 code="IO_ERROR", message="El archivo cambió durante el análisis"

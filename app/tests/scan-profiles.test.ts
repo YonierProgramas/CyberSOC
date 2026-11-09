@@ -5,12 +5,12 @@ import { ScanProfiles } from '../src/core/zones/ScanProfiles';
 import { layerSchema, zoneSchema } from '../src/shared/protocol';
 import { scanProfileChoiceSchema } from '../src/shared/scan-profile';
 
-describe('Map de perfiles por zona', () => {
+describe('Map of profiles by zone', () => {
   const databases: Database[] = [];
   afterEach(() => {
     for (const db of databases.splice(0)) db.close();
   });
-  it('aplica todos los valores de la tabla del plan', () => {
+  it('applies all values of the plan table', () => {
     const profiles = new ScanProfiles();
     for (const zone of zoneSchema.options) {
       const profile = profiles.get(zone);
@@ -26,7 +26,7 @@ describe('Map de perfiles por zona', () => {
       );
     }
   });
-  it('persiste en settings y devuelve copias independientes', () => {
+  it('persists in settings and returns independent copies', () => {
     const database = new Database(':memory:');
     databases.push(database);
     new MigrationRunner(database).run();
@@ -54,7 +54,7 @@ describe('Map de perfiles por zona', () => {
     { maxFileSizeMB: Infinity },
     { includeHidden: 'false' },
     { sorpresa: true },
-  ])('rechaza perfil personalizado inválido: %j', (invalid) => {
+  ])('rejects invalid custom profile: %j', (invalid) => {
     expect(() =>
       scanProfileChoiceSchema.parse({
         layers: ['HASH', 'SIGNATURES'],
@@ -64,13 +64,13 @@ describe('Map de perfiles por zona', () => {
       }),
     ).toThrow();
   });
-  it('acepta AUTO y un perfil válido', () => {
+  it('accepts AUTO and a valid profile', () => {
     expect(scanProfileChoiceSchema.parse('AUTO')).toBe('AUTO');
     expect(
       scanProfileChoiceSchema.parse(new ScanProfiles().get('SISTEMA')),
     ).toHaveProperty('includeHidden', false);
   });
-  it('no tolera settings corruptos ni restaura silenciosamente capas', () => {
+  it('does not tolerate corrupt settings or silently restore layers', () => {
     const database = new Database(':memory:');
     databases.push(database);
     new MigrationRunner(database).run();

@@ -28,7 +28,7 @@ type Encryption = Pick<
 export interface SecretStoreOptions {
   encryption?: Encryption;
   platform?: NodeJS.Platform;
-  // Solo composition-root activa esta alternativa en una app sin empaquetar.
+  // Only composition-root enables this alternative in an unpackaged app.
   developmentKey?: () => string | undefined;
 }
 
@@ -53,7 +53,7 @@ export class SecretStore {
       this.requireEncryption();
       const encrypted = this.#encryption.encryptString(parsed.data);
       if (encrypted.length === 0) throw new Error();
-      // El texto plano nunca llega a SQLite, tampoco como parámetro SQL.
+      // Plain text never reaches SQLite, not even as an SQL parameter.
       const value = JSON.stringify({
         version: 1,
         ciphertext: encrypted.toString('base64'),
@@ -68,7 +68,7 @@ export class SecretStore {
           .run(API_KEY_SETTING, value, new Date().toISOString());
       });
     } catch {
-      // No adjuntar cause: un error de sistema/BD puede contener el secreto.
+      // Do not attach cause: a system/DB error may contain the secret.
       throw new Error('No se pudo guardar la API key de forma segura.');
     }
   }
@@ -85,7 +85,7 @@ export class SecretStore {
     }
   }
 
-  // Exclusivo de main. No se expone por IPC ni se conserva la clave en la instancia.
+  // Exclusive to main. Not exposed over IPC and the key is not kept in the instance.
   getApiKey(): string | null {
     try {
       const row = this.#database

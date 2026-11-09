@@ -1,17 +1,17 @@
 /**
- * Mensaje de usuario común de los prompts S3: una introducción, el contexto entre etiquetas
- * <contexto> y, en el reintento, los motivos del descarte anterior (de un validador, nunca
- * texto del modelo).
+ * Common user message of the S3 prompts: an introduction, the context between
+ * <contexto> tags and, on retry, the reasons for the earlier rejection (from a validator, never
+ * model text).
  */
 export function buildDelimitedPrompt(
   intro: string,
   contextJson: string,
   previousErrors: readonly string[] = [],
 ): string {
-  // El JSON debe venir de toPromptSafeJson: sin < ni > literales no puede cerrar la etiqueta.
+  // The JSON must come from toPromptSafeJson: without literal < or > it cannot close the tag.
   if (/[<>]/.test(contextJson)) {
     throw new Error(
-      'El contexto debe serializarse con toPromptSafeJson (sin < ni > literales).',
+      'The context must be serialized with toPromptSafeJson (without literal < or >).',
     );
   }
   const parts = [intro, `<contexto>\n${contextJson}\n</contexto>`];

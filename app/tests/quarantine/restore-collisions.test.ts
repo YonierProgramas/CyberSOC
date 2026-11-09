@@ -19,7 +19,7 @@ async function quarantined(name = 'original.txt') {
   return { input, item };
 }
 
-/** Restauración correcta: contenido idéntico, sin blob ni temporales, estado RESTORED. */
+/** Correct restoration: identical content, no blob or temporaries, RESTORED state. */
 async function expectRestored(itemId: string, hash: string) {
   const record = h.record(itemId);
   expect(record.status).toBe('RESTORED');
@@ -29,7 +29,7 @@ async function expectRestored(itemId: string, hash: string) {
   return record.restoredTo!;
 }
 
-it('sobre un archivo existente: no lo sobrescribe y restaura con sufijo', async () => {
+it('onto an existing file: does not overwrite it and restores with a suffix', async () => {
   const { input, item } = await quarantined();
   await fs.writeFile(input.path, 'Archivo nuevo del usuario');
   const target = await (async () => {
@@ -42,7 +42,7 @@ it('sobre un archivo existente: no lo sobrescribe y restaura con sufijo', async 
   );
 });
 
-it('sobre una cadena de sufijos ya ocupados: busca el siguiente libre sin tocar ninguno', async () => {
+it('onto a chain of taken suffixes: looks for the next free one without touching any', async () => {
   const { input, item } = await quarantined();
   const taken = [
     'original.txt',
@@ -58,7 +58,7 @@ it('sobre una cadena de sufijos ya ocupados: busca el siguiente libre sin tocar 
     expect(await fs.readFile(join(h.root, name), 'utf8')).toBe(name);
 });
 
-it('sobre una carpeta con el mismo nombre que el original: la carpeta y su contenido quedan intactos', async () => {
+it('onto a folder with the same name as the original: the folder and its content stay intact', async () => {
   const { input, item } = await quarantined();
   await fs.mkdir(input.path);
   await fs.writeFile(join(input.path, 'dentro.txt'), 'no tocar');
@@ -72,7 +72,7 @@ it('sobre una carpeta con el mismo nombre que el original: la carpeta y su conte
   );
 });
 
-it('targetPath que es una carpeta existente: no la reemplaza ni escribe dentro de otra ruta protegida', async () => {
+it('targetPath that is an existing folder: neither replaces it nor writes inside another protected path', async () => {
   const { input, item } = await quarantined();
   const folder = join(h.root, 'destino');
   await fs.mkdir(folder);
@@ -84,7 +84,7 @@ it('targetPath que es una carpeta existente: no la reemplaza ni escribe dentro d
   expect(await fs.readdir(folder)).toEqual(['previo.txt']);
 });
 
-it('targetPath con barra final hacia una carpeta existente: tampoco la reemplaza', async () => {
+it('targetPath with a trailing slash to an existing folder: does not replace it either', async () => {
   const { input, item } = await quarantined();
   const folder = join(h.root, 'destino');
   await fs.mkdir(folder);
@@ -97,7 +97,7 @@ it('targetPath con barra final hacia una carpeta existente: tampoco la reemplaza
   expect(await fs.readdir(folder)).toEqual([]);
 });
 
-it('carpeta del original borrada: falla sin cambiar el estado ni perder el blob', async () => {
+it('original folder deleted: fails without changing the state or losing the blob', async () => {
   const { input, item } = await quarantined('sub/original.txt');
   await fs.rm(dirname(input.path), { recursive: true });
   await expect(
@@ -109,7 +109,7 @@ it('carpeta del original borrada: falla sin cambiar el estado ni perder el blob'
   expect(await exists(item.vaultFile)).toBe(true);
 });
 
-it('una parte de la ruta destino es un archivo, no una carpeta: falla sin cambiar nada', async () => {
+it('a part of the target path is a file, not a folder: fails without changing anything', async () => {
   const { item } = await quarantined();
   await fs.writeFile(join(h.root, 'archivo'), 'soy un archivo');
   await expect(
@@ -124,7 +124,7 @@ it('una parte de la ruta destino es un archivo, no una carpeta: falla sin cambia
   );
 });
 
-it('la carpeta destino es una junction: se rechaza sin escribir en su destino', async () => {
+it('the target folder is a junction: rejected without writing to its destination', async () => {
   const { item } = await quarantined();
   const real = join(h.root, 'real');
   await fs.mkdir(real);
@@ -139,10 +139,10 @@ it('la carpeta destino es una junction: se rechaza sin escribir en su destino', 
   expect(h.record(item.id).status).toBe('QUARANTINED');
 });
 
-it('el destino aparece entre la confirmación y la publicación: no se sobrescribe (link atómico)', async () => {
+it('the target appears between confirmation and publishing: not overwritten (atomic link)', async () => {
   const { input, item } = await quarantined();
   h.confirm.mockImplementation(async (request) => {
-    // El usuario confirma; justo después otro programa crea el archivo destino.
+    // The user confirms; right after, another program creates the target file.
     if (request.action === 'RESTORE_DETECTED')
       await fs.writeFile(input.path, 'creado en la carrera');
     return true;
@@ -156,7 +156,7 @@ it('el destino aparece entre la confirmación y la publicación: no se sobrescri
   expect(await h.restoreTemps()).toEqual([]);
 });
 
-it('dos ítems restaurados a la vez al mismo targetPath: solo uno lo ocupa y el otro sigue en cuarentena', async () => {
+it('two items restored at once to the same targetPath: only one takes it and the other stays quarantined', async () => {
   const a = await quarantined('a.txt');
   const b = await quarantined('b.txt');
   const target = join(h.root, 'mismo-destino.txt');
@@ -165,7 +165,7 @@ it('dos ítems restaurados a la vez al mismo targetPath: solo uno lo ocupa y el 
     h.manager.restore(b.item.id, { trustHash: false, targetPath: target }),
   ]);
   const ok = results.filter((r) => r.status === 'fulfilled');
-  // Pueden terminar las dos (la segunda con sufijo) o fallar una con EEXIST; nunca sobrescribir.
+  // Both may finish (the second with a suffix) or one may fail with EEXIST; never overwrite.
   const statuses = [h.record(a.item.id).status, h.record(b.item.id).status];
   expect(ok.length).toBeGreaterThanOrEqual(1);
   expect(statuses.every((s) => s === 'RESTORED' || s === 'QUARANTINED')).toBe(
@@ -182,7 +182,7 @@ it('dos ítems restaurados a la vez al mismo targetPath: solo uno lo ocupa y el 
   expect(await h.restoreTemps()).toEqual([]);
 });
 
-it('no se puede restaurar dos veces el mismo ítem', async () => {
+it('the same item cannot be restored twice', async () => {
   const { input, item } = await quarantined();
   await h.manager.restore(item.id, { trustHash: false });
   await expect(

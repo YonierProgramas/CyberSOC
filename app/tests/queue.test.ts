@@ -10,7 +10,7 @@ function random(seed: number): () => number {
 }
 
 describe('Queue', () => {
-  it('sale en el mismo orden en que entro', () => {
+  it('comes out in the same order it went in', () => {
     const queue = new Queue<number>();
     queue.enqueue(1);
     queue.enqueue(2);
@@ -23,7 +23,7 @@ describe('Queue', () => {
     expect(queue.isEmpty()).toBe(true);
   });
 
-  it('dequeue y peek en vacia devuelven undefined', () => {
+  it('dequeue and peek on empty return undefined', () => {
     const queue = new Queue<string>();
     expect(queue.dequeue()).toBeUndefined();
     expect(queue.peek()).toBeUndefined();
@@ -32,8 +32,8 @@ describe('Queue', () => {
     expect(queue.peakSize).toBe(0);
   });
 
-  it('da la vuelta al buffer y conserva el orden', () => {
-    // La capacidad inicial es 8: al llenarla, el indice de entrada vuelve a 0.
+  it('wraps around the buffer and keeps the order', () => {
+    // The initial capacity is 8: when full, the input index returns to 0.
     const queue = new Queue<number>();
     for (let value = 0; value < 8; value += 1) queue.enqueue(value);
     expect([queue.dequeue(), queue.dequeue(), queue.dequeue()]).toEqual([
@@ -51,8 +51,8 @@ describe('Queue', () => {
     expect(output).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
-  it('redimensiona con la cola dando la vuelta y no pierde elementos', () => {
-    // Llena 8, saca 4 y mete 5: la quinta entrada obliga a crecer con head distinto de 0.
+  it('resizes with the queue wrapped around and loses no elements', () => {
+    // Fills 8, removes 4 and adds 5: the fifth entry forces growth with head other than 0.
     const queue = new Queue<number>();
     for (let value = 0; value < 8; value += 1) queue.enqueue(value);
     for (let count = 0; count < 4; count += 1) queue.dequeue();
@@ -65,7 +65,7 @@ describe('Queue', () => {
     expect(output).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
-  it('peakSize recuerda el maximo y clear no lo baja', () => {
+  it('peakSize remembers the maximum and clear does not lower it', () => {
     const queue = new Queue<number>();
     for (let value = 0; value < 5; value += 1) queue.enqueue(value);
     queue.dequeue();
@@ -81,7 +81,7 @@ describe('Queue', () => {
     expect(queue.peakSize).toBe(5);
   });
 
-  it('coincide con un arreglo de referencia en operaciones aleatorias', () => {
+  it('matches a reference array under random operations', () => {
     const next = random(0x5eed);
     const queue = new Queue<number>();
     const reference: number[] = [];

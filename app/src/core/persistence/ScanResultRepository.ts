@@ -69,7 +69,7 @@ export interface InsertCompleteResult {
   result: Omit<InsertScanResult, 'verdict' | 'engineScore' | 'riskLevel'>;
   evidence: readonly Evidence[];
   layers: readonly LayerTrace[];
-  // 003 exige puntuación y nivel: no inventar evaluación para un archivo no analizado.
+  // 003 requires score and level: do not invent an assessment for an unanalyzed file.
   assessment: Omit<InsertRiskAssessment, 'resultId'> | null;
 }
 
@@ -88,7 +88,7 @@ export class ScanResultRepository {
   private readonly byJob: StatementSync;
 
   constructor(private readonly database: Database) {
-    // Los productores S1 conservan NOT_EVALUATED mientras no entreguen una decisión.
+    // S1 producers keep NOT_EVALUATED until they deliver a decision.
     this.insert = database.prepare(`INSERT INTO scan_results
       (id, job_id, seq, path, file_name, extension, size_bytes, modified_at, status,
        sha256, error_code, error_message, duration_ms, scanned_at,
@@ -141,8 +141,8 @@ export class ScanResultRepository {
     ) {
       throw new Error('Un análisis completado o decisivo requiere evaluación.');
     }
-    // Una sola transacción exterior: cualquier fallo revierte las cuatro tablas.
-    // Los SAVEPOINT de los repositorios internos nunca confirman por separado.
+    // A single outer transaction: any failure rolls back the four tables.
+    // SAVEPOINTs of the inner repositories never commit separately.
     return this.database.transaction(() => {
       const saved = this.insertResult({
         ...result,
@@ -182,7 +182,7 @@ export class ScanResultRepository {
     requireNonNegativeInteger(limit, 'limit');
     const parsed = statuses.map((status) => aiStatusSchema.parse(status));
     if (parsed.length === 0) return [];
-    // Solo se interpolan marcadores; los estados siempre son parámetros SQL.
+    // Only placeholders are interpolated; statuses are always SQL parameters.
     const placeholders = parsed.map(() => '?').join(', ');
     return this.database
       .prepare(

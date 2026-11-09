@@ -18,7 +18,7 @@ def test_single_pass_consumers_and_bounded_memory():
     block = bytes(range(256)) * (CHUNK_BYTES // 256)
 
     class VirtualFile:
-        # 32 MiB virtuales: no construir una copia completa ni permitir seek/read(-1).
+        # 32 virtual MiB: do not build a full copy or allow seek/read(-1).
         remaining = 32
         reads = 0
 
@@ -90,7 +90,7 @@ def test_entropy_files(tmp_path, kind, capsys):
         assert 4 <= entropy <= 5
     assert histogram.total == len(content)
     assert sum(histogram.counts) == len(content)
-    # La evidencia sale solo desde pytest; stdout del motor continúa siendo JSON-RPC.
+    # Evidence comes only from pytest; the engine stdout remains JSON-RPC.
     with capsys.disabled():
         __import__("sys").stdout.write(
             f"ENTROPIA {kind}: {entropy:.6f} bits/byte; bytes={len(content)}\n"

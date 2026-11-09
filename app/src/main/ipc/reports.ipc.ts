@@ -34,8 +34,8 @@ export function registerReportsIpc(
       try {
         const window = validate(event);
         const [query] = argsSchema.parse(args);
-        // La copia se toma antes del diálogo: caducidad/expulsión posterior no cambia
-        // el reporte que el usuario está confirmando ni requiere otra consulta a la BD.
+        // The copy is taken before the dialog: later expiry/eviction does not change
+        // the report the user is confirming nor require another DB query.
         const content = serializeReport(
           reports.get(query.reportDraftId),
           query.format,
@@ -56,7 +56,7 @@ export function registerReportsIpc(
           selected.filePath.includes('\0')
         )
           throw new Error('Destino inválido.');
-        // Único punto de escritura: exclusivamente la ruta aceptada en el diálogo nativo.
+        // Single write point: exclusively the path accepted in the native dialog.
         await writeFile(selected.filePath, content, 'utf8');
         return { status: 'SAVED' };
       } catch {

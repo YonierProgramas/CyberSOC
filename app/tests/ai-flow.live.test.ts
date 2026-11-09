@@ -9,7 +9,7 @@ vi.mock('electron', async () => ({
 }));
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
 
-// CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.
+// CI never calls Claude, even if it receives a key by mistake. Locally it requires opt-in.
 const skip =
   Boolean(process.env.CI) ||
   !process.env.CYBERSOC_ANTHROPIC_API_KEY?.trim() ||
@@ -20,14 +20,14 @@ if (skip)
   );
 
 describe.skipIf(skip)(
-  'live — firma de prueba → API de Claude → VALID persistido',
+  'live — test signature → Claude API → persisted VALID',
   () => {
     let harness: AIFlowHarness | undefined;
     afterEach(async () => {
       await harness?.close();
     });
 
-    it('guarda un análisis real VALID con tokens positivos y conserva DETECTED', async () => {
+    it('stores a real VALID analysis with positive tokens and keeps DETECTED', async () => {
       const model = appConfigSchema.parse({}).ai.analysisModel;
       harness = new AIFlowHarness(
         () =>
@@ -57,14 +57,14 @@ describe.skipIf(skip)(
         });
       });
       harness.worker.start();
-      // Una ejecución del flujo: hasta dos intentos de validación; sin repetir fallos de red.
+      // One run of the flow: up to two validation attempts; no repeated network failures.
       const state = await completed;
       await harness.worker.stop();
       const saved = new AIAnalysisRepository(harness.db).latestValidByResult(
         id,
       );
       const tokens = (saved?.inputTokens ?? 0) + (saved?.outputTokens ?? 0);
-      // Solo datos acotados de auditoría: ni respuesta, contexto, error HTTP ni credencial.
+      // Only bounded audit data: no response, context, HTTP error or credential.
       console.info(
         'AI_LIVE_RESULT',
         JSON.stringify({

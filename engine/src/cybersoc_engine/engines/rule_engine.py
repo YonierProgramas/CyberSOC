@@ -40,16 +40,16 @@ type NonEmpty = Annotated[str, Field(min_length=1, max_length=4096)]
 
 
 class RuleConfigError(ValueError):
-    """Error claro de configuración local; nunca incluye el contenido de un archivo escaneado."""
+    """Clear local configuration error; it never includes the content of a scanned file."""
 
 
 class StrictSafeLoader(yaml.SafeLoader):
     def compose_node(self, parent, index):
         if self.check_event(yaml.AliasEvent):
-            raise RuleConfigError("no se permiten aliases YAML")
+            raise RuleConfigError("YAML aliases are not allowed")
         depth = getattr(self, "_depth", 0) + 1
         if depth > 32:
-            raise RuleConfigError("anidamiento YAML excesivo")
+            raise RuleConfigError("excessive YAML nesting")
         self._depth = depth
         try:
             return super().compose_node(parent, index)
@@ -57,13 +57,13 @@ class StrictSafeLoader(yaml.SafeLoader):
             self._depth -= 1
 
     def construct_mapping(self, node, deep=False):
-        # Dict: una clave aparece una sola vez. has/insert O(1) promedio; O(k)
-        # para validar k claves. Rechazar duplicados evita sobrescribir condiciones.
+        # Dict: a key appears only once. has/insert O(1) average; O(k)
+        # to validate k keys. Rejecting duplicates avoids overwriting conditions.
         result = {}
         for key_node, value_node in node.value:
             key = self.construct_object(key_node, deep=deep)
             if not isinstance(key, str) or key in result:
-                raise RuleConfigError("clave YAML repetida o no textual")
+                raise RuleConfigError("repeated or non-text YAML key")
             result[key] = self.construct_object(value_node, deep=deep)
         return result
 
@@ -80,9 +80,9 @@ class Pattern(ContractModel):
                 else self.value.encode("ascii" if self.encoding == "ascii" else "utf-16-le")
             )
         except (ValueError, UnicodeError) as error:
-            raise ValueError("patrón incompatible con su codificación") from error
+            raise ValueError("pattern incompatible with its encoding") from error
         if not value or len(value) > 4096:
-            raise ValueError("patrón vacío o mayor de 4096 bytes")
+            raise ValueError("pattern empty or larger than 4096 bytes")
         return value
 
     @model_validator(mode="after")
@@ -106,7 +106,7 @@ class Strings(ContractModel):
     @model_validator(mode="after")
     def valid_patterns(self) -> "Strings":
         if self.any is None and self.all is None:
-            raise ValueError("strings requiere any o all")
+            raise ValueError("strings requires any or all")
         for pattern in [*(self.any or []), *(self.all or [])]:
             pattern_bytes(pattern)
         return self
@@ -119,7 +119,7 @@ class Imports(ContractModel):
     @model_validator(mode="after")
     def nonempty(self) -> "Imports":
         if self.any is None and self.all is None:
-            raise ValueError("peImports requiere any o all")
+            raise ValueError("peImports requires any or all")
         return self
 
 
@@ -130,9 +130,9 @@ class SizeRange(ContractModel):
     @model_validator(mode="after")
     def ordered(self) -> "SizeRange":
         if self.min is None and self.max is None:
-            raise ValueError("sizeRange requiere min o max")
+            raise ValueError("sizeRange requires min or max")
         if self.min is not None and self.max is not None and self.min > self.max:
-            raise ValueError("sizeRange invertido")
+            raise ValueError("inverted sizeRange")
         return self
 
 
@@ -161,7 +161,7 @@ class Conditions(ContractModel):
                 "entropyAbove",
             )
         ):
-            raise ValueError("la regla requiere al menos una condición")
+            raise ValueError("the rule requires at least one condition")
         return self
 
 
@@ -178,7 +178,7 @@ class RuleDefinition(ContractModel):
     @model_validator(mode="after")
     def points_match_policy(self) -> "RuleDefinition":
         if self.points != SEVERITY_POINTS[self.severity]:
-            raise ValueError("points debe coincidir con el peso de severity del plan")
+            raise ValueError("points must match the plan severity weight")
         return self
 
 
@@ -193,11 +193,11 @@ class RuleCatalog:
     def __init__(self, directory: Path = DEFAULT_RULES) -> None:
         paths = sorted(directory.glob("*.yaml"))
         if not paths:
-            raise RuleConfigError("No hay reglas YAML locales")
+            raise RuleConfigError("There are no local YAML rules")
         if len(paths) > 256:
-            raise RuleConfigError("Máximo 256 reglas locales")
+            raise RuleConfigError("At most 256 local rules")
         compiled = []
-        # Set de IDs ya usados: invariante sin duplicados; O(1) promedio por inserción.
+        # Set of used IDs: invariant with no duplicates; O(1) average per insert.
         ids: set[str] = set()
         digest = hashlib.sha256()
         for path in paths:
@@ -205,11 +205,11 @@ class RuleCatalog:
                 with path.open("rb") as stream:
                     content = stream.read(MAX_RULE_BYTES + 1)
                 if len(content) > MAX_RULE_BYTES:
-                    raise RuleConfigError("YAML mayor de 1 MiB")
+                    raise RuleConfigError("YAML larger than 1 MiB")
                 document = yaml.load(content.decode("utf-8"), Loader=StrictSafeLoader)
                 definition = RuleDefinition.model_validate(document)
                 if definition.id in ids:
-                    raise RuleConfigError("ID de regla repetido")
+                    raise RuleConfigError("Repeated rule ID")
                 ids.add(definition.id)
                 strings = definition.conditions.strings
                 compiled.append(
@@ -227,15 +227,15 @@ class RuleCatalog:
                 first = error.errors(include_input=False)[0]
                 location = ".".join(str(key) for key in first["loc"])
                 raise RuleConfigError(
-                    f"Regla inválida en {path.name}: {location} ({first['type']})"
+                    f"Invalid rule in {path.name}: {location} ({first['type']})"
                 ) from error
             except (OSError, UnicodeError, yaml.YAMLError, RuleConfigError) as error:
                 detail = (
                     str(error)
                     if isinstance(error, RuleConfigError)
-                    else "YAML ilegible o sintaxis inválida"
+                    else "Unreadable YAML or invalid syntax"
                 )
-                raise RuleConfigError(f"Regla inválida en {path.name}: {detail}") from error
+                raise RuleConfigError(f"Invalid rule in {path.name}: {detail}") from error
         self.rules = tuple(compiled)
         self.version = "sha256:" + digest.hexdigest()
 
@@ -251,8 +251,8 @@ class RuleStore:
         return self._catalog
 
     def reload(self) -> RuleCatalog:
-        # Construir primero y sustituir solo si TODO valida: un error conserva
-        # el catálogo previo. Cada análisis retiene su propia referencia estable.
+        # Build first and swap only if EVERYTHING validates: an error keeps
+        # the previous catalog. Each analysis retains its own stable reference.
         candidate = RuleCatalog(self.directory)
         self._catalog = candidate
         return candidate
@@ -263,7 +263,7 @@ default_rules = RuleStore()
 
 def classify_file_type(prefix: bytes, extension: str | None) -> str | None:
     detected = detect_type(prefix, extension)
-    # Dict nombre -> identificador de reglas: claves únicas, consulta O(1) promedio.
+    # Dict name -> rule identifier: unique keys, O(1) average lookup.
     names = {
         "PE ejecutable": "PE",
         "PDF": "PDF",
@@ -318,9 +318,9 @@ class RuleConsumer:
                 continue
             window = self.tails[index] + chunk[:remaining]
             for pattern in patterns:
-                # Set de patrones encontrados, sin duplicados; O(1) promedio para
-                # pertenencia. bytes.find busca en un bloque acotado, nunca en todo
-                # el archivo. Conservamos len(patrón)-1 para cruzar bloques.
+                # Set of patterns found, without duplicates; O(1) average for
+                # membership. bytes.find searches a bounded block, never the whole
+                # file. We keep len(pattern)-1 to cross blocks.
                 if pattern not in self.found[index] and window.find(pattern) >= 0:
                     self.found[index].add(pattern)
             overlap = max(len(pattern) for pattern in patterns) - 1
@@ -341,7 +341,7 @@ class RuleEngine:
 
     def analyze(self, ctx: AnalysisContext) -> list[Evidence]:
         if ctx.rule_catalog is None:
-            raise RuleConfigError("Falta el catálogo del recorrido")
+            raise RuleConfigError("The traversal catalog is missing")
         evidence = []
         for rule in ctx.rule_catalog.rules:
             definition = rule.definition
@@ -364,8 +364,8 @@ class RuleEngine:
             if c.peImports is not None:
                 if ctx.pe_imports is None:
                     continue
-                # Set de imports normalizados: O(i) construcción y O(1) promedio
-                # por consulta. No se interpreta texto de un PE como imports reales.
+                # Set of normalized imports: O(i) build and O(1) average
+                # per lookup. Text in a PE is not interpreted as real imports.
                 imports = {name.casefold() for name in ctx.pe_imports}
                 if c.peImports.any and not any(
                     name.casefold() in imports for name in c.peImports.any

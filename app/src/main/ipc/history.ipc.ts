@@ -36,7 +36,7 @@ export interface HistoryService {
   listMessages(query: ConversationMessagesQuery): ConversationMessagesPageDTO;
 }
 
-/** Los cuatro canales aditivos tienen el mismo cierre/validación, sin tocar los antiguos. */
+/** The four additive channels share the same close/validation, without touching the old ones. */
 export function registerHistoryIpc(
   getWindow: () => BrowserWindow | null,
   trustedRendererUrl: string,
@@ -63,7 +63,7 @@ export function registerHistoryIpc(
           error.message === 'INVALID_RANGE'
         )
           throw new Error('INVALID_RANGE');
-        // No propagar errores SQLite/Zod, rutas, contenido o argumentos privados.
+        // Do not propagate SQLite/Zod errors, paths, content or private arguments.
         throw new Error(message);
       }
     });

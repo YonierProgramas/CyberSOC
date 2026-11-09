@@ -55,14 +55,14 @@ class AnalysisPipeline:
         max_bytes: int | None = None,
         check_unchanged: Callable[[], None] | None = None,
     ) -> None:
-        """Un solo recorrido alimenta HASH, cabecera, histograma y búsqueda de reglas."""
+        """A single traversal feeds HASH, header, histogram and rule search."""
         rules = None
         rules_invalid = False
         if not self.disabled("RULES", layers):
             try:
                 rules = RuleConsumer(default_rules.current())
             except RuleConfigError as error:
-                logger.error("No se cargaron reglas: %s", error)
+                logger.error("Rules were not loaded: %s", error)
                 rules_invalid = True
         hashing, header, histogram = HashConsumer(), HeaderConsumer(), ByteHistogram()
         sample = BoundedSample(
@@ -87,7 +87,7 @@ class AnalysisPipeline:
                 and result.file is not None
                 and size != result.file.sizeBytes
             ):
-                raise FileChangedError("Tamaño procesado incoherente")
+                raise FileChangedError("Inconsistent processed size")
             result.hashes = FileHashes(sha256=hashing.hexdigest())
         except (OSError, ValueError) as error:
             reason = map_file_error(error).code if isinstance(error, OSError) else "IO_ERROR"
@@ -112,8 +112,8 @@ class AnalysisPipeline:
             )
         )
         result.status = "SCANNED"
-        # HASH incluye el recorrido compartido; RULES también informa su búsqueda
-        # durante ese recorrido. Los ms de capas no se suman para medir duración total.
+        # HASH includes the shared traversal; RULES also reports its search
+        # during that traversal. Layer ms are not added up to measure total duration.
         prefix = header.data
         ctx = AnalysisContext(
             file=result.file,
@@ -157,10 +157,10 @@ class AnalysisPipeline:
                     )
                     continue
                 if engine.layer_id == "RULES" and rules_invalid:
-                    raise RuleConfigError("Catálogo de reglas inválido")
-                # Solo datos del recorrido; ninguna capa vuelve a leer o abrir la ruta.
+                    raise RuleConfigError("Invalid rule catalog")
+                # Traversal data only; no layer reads or opens the path again.
                 findings = engine.analyze(ctx)
-                # La lista conserva el orden de capas/hallazgos. Recorrer e
+                # The list keeps the order of layers/findings. Walking e
                 # evidencias cuesta O(e); append cuesta O(1) amortizado.
                 findings = [
                     item.model_copy(update={"id": f"ev{len(result.evidence) + i}"})
@@ -186,8 +186,8 @@ class AnalysisPipeline:
                     )
                 )
             except Exception:
-                # El fallo de una capa no borra el hash ni termina el servidor.
-                # No exponer mensajes de excepciones que puedan contener rutas.
+                # A layer failure neither erases the hash nor ends the server.
+                # Do not expose exception messages that may contain paths.
                 result.status = "ERROR"
                 result.error = FileError(
                     code="IO_ERROR", message="No se completó una capa de análisis"
@@ -207,7 +207,7 @@ class AnalysisPipeline:
 
     @staticmethod
     def disabled(layer: Layer, layers: list[Layer] | None) -> bool:
-        # La lista es acotada a siete capas: pertenencia O(k), sin cambiar su orden.
+        # The list is bounded to seven layers: O(k) membership, without changing their order.
         return layers is not None and layer not in ("HASH", "SIGNATURES") and layer not in layers
 
     @staticmethod
@@ -217,7 +217,7 @@ class AnalysisPipeline:
         )
 
     def complete_skipped(self, result: EngineResult, layers: list[Layer] | None = None) -> None:
-        # Invariante: el set contiene las capas que ya tienen traza. Crear el set
+        # Invariant: the set holds the layers that already have a trace. Creating the set
         # cuesta O(n); consultar pertenencia O(1) promedio; completar cuesta O(n).
         recorded = {trace.layer for trace in result.layers}
         for layer in ("HASH", *(engine.layer_id for engine in self.engines)):

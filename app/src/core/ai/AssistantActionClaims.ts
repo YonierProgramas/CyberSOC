@@ -1,9 +1,9 @@
 /**
- * El Copilot no tiene recibos de operaciones de escritura: no puede atribuirse una.
- * Esta barrera reconoce afirmaciones explícitas en español; no es un verificador
- * universal de lenguaje natural. La integridad depende de las herramientas de lectura.
- * Se revisan cláusulas separadas para que «no puedo..., pero ya borré...» no eluda
- * el rechazo. Las negativas legítimas se conservan sin conceder capacidad de actuar.
+ * The Copilot has no receipts for write operations: it cannot claim one.
+ * This barrier recognizes explicit claims in Spanish; it is not a universal
+ * natural-language verifier. Integrity depends on the read-only tools.
+ * Clauses are checked separately so that «no puedo..., pero ya borré...» cannot evade
+ * the rejection. Legitimate refusals are kept without granting any ability to act.
  */
 export function hasUnsupportedActionClaim(text: string): boolean {
   const normalized = text
@@ -24,7 +24,7 @@ export function hasUnsupportedActionClaim(text: string): boolean {
   for (const clause of normalized.split(/[.!?;:\n]|\b(?:pero|sin embargo)\b/)) {
     for (const match of clause.matchAll(assertion)) {
       const prefix = clause.slice(0, match.index);
-      // Solo negación adyacente a ESTA afirmación; «no solo» no es una negación.
+      // Only negation adjacent to THIS claim; «no solo» is not a negation.
       if (
         /\b(?:no|nunca|jamas)\s+(?:(?:yo|lo|la|los|las|ya|aun|todavia)\s+)*$/.test(
           prefix,

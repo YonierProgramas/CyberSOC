@@ -6,7 +6,7 @@ const evidence = join(
   '../../../../construccion/sprints/sprint-10-escritorio-historial/evidencias/10D-interfaz',
 );
 
-/** Este recorrido no usa el informe HTML de S6. */
+/** This walkthrough does not use the S6 HTML report. */
 export default defineConfig({
   testDir: '.',
   testMatch: 'desktop-ui.e2e.ts',

@@ -49,7 +49,7 @@ function assessment(
   };
 }
 
-describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
+describe('ScanOrchestrator with FakeEngineClient and temporary SQLite', () => {
   let directory: string;
   let database: Database;
   let jobs: ScanJobRepository;
@@ -124,7 +124,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     };
   }
 
-  it('top de riesgo en vivo: cada progreso coincide con el top-10 persistido hasta entonces', async () => {
+  it('live risk top: each progress matches the top-10 persisted so far', async () => {
     const scores = [
       40, 90, 80, 90, 30, 60, 85, 90, 75, 80, 50, 100, 95, 90, 90,
     ];
@@ -159,13 +159,13 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     }
     expect(early).toEqual(earlyCopy);
     expect(progress.at(-1)!.value.topRisk).toHaveLength(10);
-    // El DTO cruza IPC sin estructuras de Node, funciones ni contenido del archivo.
+    // The DTO crosses IPC without Node structures, functions or file content.
     expect(JSON.parse(JSON.stringify(progress.at(-1)!.value.topRisk))).toEqual(
       progress.at(-1)!.value.topRisk,
     );
   });
 
-  it('top: excluye omitidos, errores y resultados sin score; conserva cero y se reinicia por trabajo', async () => {
+  it('top: excludes skipped, errors and results without score; keeps zero and resets per job', async () => {
     engine.responses.push(
       async (params) => ({ ...scanned(params), ...assessment(0) }),
       async (params) => scanned(params),
@@ -204,7 +204,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     ).toBe(true);
   });
 
-  it('top: un suscriptor no puede alterar el ranking interno', async () => {
+  it('top: a subscriber cannot alter the internal ranking', async () => {
     const pending = deferred<EngineResult>();
     engine.responses.push(
       async (params) => ({ ...scanned(params), ...assessment(70) }),
@@ -235,7 +235,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     ).toBe(true);
   });
 
-  it('top: nunca publica un resultado cuyo guardado falló', async () => {
+  it('top: never publishes a result whose save failed', async () => {
     engine.responses.push(async (params) => ({
       ...scanned(params),
       ...assessment(100),
@@ -254,7 +254,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     );
   });
 
-  it('top al cancelar incluye solo el archivo en curso que alcanzó a guardarse', async () => {
+  it('top on cancel includes only the in-progress file that got saved', async () => {
     const pending = deferred<EngineResult>();
     engine.responses.push(() => pending.promise);
     const { launch, orchestrator, progress } = setup(20);
@@ -274,7 +274,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(engine.calls).toHaveLength(1);
   });
 
-  it('FIFO: contadores finales coinciden con filas y veredictos son NOT_EVALUATED (CA-1.2)', async () => {
+  it('FIFO: final counters match rows and verdicts are NOT_EVALUATED (CA-1.2)', async () => {
     engine.responses.push(
       async (params) => ({
         ...scanned(params),
@@ -328,7 +328,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('capacidad 2 bloquea descubrimiento y cancelar espera solo el archivo en curso (CA-1.3)', async () => {
+  it('capacity 2 blocks discovery and cancelling waits only for the file in progress (CA-1.3)', async () => {
     const pending = deferred<EngineResult>();
     engine.responses.push(() => pending.promise);
     const { launch, orchestrator, discovered, finished } = setup(20);
@@ -364,7 +364,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(finished).toHaveLength(1);
   });
 
-  it('cancela antes de iniciar y rechaza otro id sin afectar el trabajo', async () => {
+  it('cancels before starting and rejects another id without affecting the job', async () => {
     const { launch, orchestrator } = setup();
     const { id, done } = launch();
     await expect(orchestrator.cancel('wrong')).rejects.toThrow(
@@ -382,7 +382,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
   });
 
   it.each([3, 4])(
-    'caídas: %i fallos producen hasta 3 reinicios (CA-1.7)',
+    'crashes: %i failures produce up to 3 restarts (CA-1.7)',
     async (failures) => {
       for (let i = 0; i < failures; i++)
         engine.responses.push(async () => {
@@ -406,7 +406,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     },
   );
 
-  it('timeout usa tamaño, registra TIMEOUT, reinicia e ignora la respuesta tardía', async () => {
+  it('timeout uses size, records TIMEOUT, restarts and ignores the late response', async () => {
     config.engine.requestTimeoutMs = 100;
     const pending = deferred<EngineResult>();
     engine.responses.push(() => pending.promise);
@@ -427,7 +427,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('usa timeout base si lstat falla y deja al motor devolver el error del archivo', async () => {
+  it('uses base timeout if lstat fails and lets the engine return the file error', async () => {
     engine.responses.push(async (params) => ({
       taskId: params.taskId,
       status: 'ERROR',
@@ -449,7 +449,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(results.listByJob(id, 0, 10)[0]?.errorCode).toBe('FILE_NOT_FOUND');
   });
 
-  it('emite progreso al menos cada segundo, máximo 5/s, incluso esperando un archivo', async () => {
+  it('emits progress at least every second, at most 5/s, even while waiting on a file', async () => {
     const pending = deferred<EngineResult>();
     engine.responses.push(() => pending.promise);
     const { launch, progress } = setup(1);
@@ -470,7 +470,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(progress.at(-1)?.value.percent).toBe(100);
   });
 
-  it('reinicio fallido termina FAILED y no consume otro archivo', async () => {
+  it('failed restart ends FAILED and consumes no other file', async () => {
     engine.responses.push(async () => {
       throw new Error('muerto');
     });
@@ -487,7 +487,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(engine.restarts).toBe(1);
   });
 
-  it('un error RPC no se confunde con un error de archivo ni reinicia el motor', async () => {
+  it('an RPC error is not confused with a file error and does not restart the engine', async () => {
     engine.responses.push(async () => {
       throw new RpcRemoteError(-32601, 'scan.file no existe');
     });
@@ -499,7 +499,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(engine.restarts).toBe(0);
   });
 
-  it('fallo de descubrimiento detiene ambas fases sin dejar el trabajo activo', async () => {
+  it('discovery failure stops both phases without leaving the job active', async () => {
     const broken: ScanDiscovery = {
       peakStackSize: 0,
       dirsVisited: 0,
@@ -519,7 +519,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
       status: 'FAILED',
       errorMessage: 'discovery failed',
     });
-    // Un descubridor que no informa omisiones deja «desconocido», no «ninguna».
+    // A discoverer that does not report skips leaves «desconocido», not «ninguna».
     expect(JSON.parse(final.metricsJson!)).toMatchObject({
       skippedEntries: null,
       skippedByReason: null,
@@ -530,7 +530,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     await vi.advanceTimersByTimeAsync(250);
   });
 
-  it('cancelar no queda esperando un next de descubrimiento atascado', async () => {
+  it('cancelling does not keep waiting on a stuck discovery next', async () => {
     const pending = deferred<void>();
     const stalled: ScanDiscovery = {
       peakStackSize: 0,
@@ -556,7 +556,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(engine.calls).toHaveLength(0);
   });
 
-  it('los listeners defectuosos no interrumpen persistencia ni finished', async () => {
+  it('faulty listeners interrupt neither persistence nor finished', async () => {
     const errors = vi.fn();
     const { launch, orchestrator, finished } = setup(1, { onError: errors });
     orchestrator.prependListener('progress', () => {
@@ -569,7 +569,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(errors).toHaveBeenCalled();
   });
 
-  it('reutiliza FileDiscovery sin modificarlo, con carpeta y archivo reales', async () => {
+  it('reuses FileDiscovery without modifying it, with a real folder and file', async () => {
     vi.useRealTimers();
     const root = join(directory, 'archivos');
     mkdirSync(join(root, 'hijo'), { recursive: true });
@@ -594,7 +594,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
     expect(engine.calls.every((call) => call.timeoutMs === 10_001)).toBe(true);
   });
 
-  it('carpeta vacía completa con cero filas y porcentaje 100', async () => {
+  it('empty folder completes with zero rows and 100 percent', async () => {
     const { launch, progress } = setup(0);
     const { done } = launch();
     await vi.advanceTimersByTimeAsync(250);
@@ -607,7 +607,7 @@ describe('ScanOrchestrator con FakeEngineClient y SQLite temporal', () => {
   });
 });
 
-it('fórmula autorizada: base + ceil(bytes / MiB × 1000), limitada al temporizador Node', () => {
+it('authorized formula: base + ceil(bytes / MiB × 1000), limited to the Node timer', () => {
   expect(fileTimeoutMs(30_000, 0)).toBe(30_000);
   expect(fileTimeoutMs(30_000, 1)).toBe(30_001);
   expect(fileTimeoutMs(30_000, 1_572_864)).toBe(31_500);

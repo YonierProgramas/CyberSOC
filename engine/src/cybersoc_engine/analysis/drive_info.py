@@ -1,4 +1,4 @@
-"""Tipo de unidad sin abrir archivos, resolver enlaces ni consultar recursos de red."""
+"""Drive type without opening files, resolving links or querying network resources."""
 
 import ctypes
 import ntpath
@@ -22,7 +22,7 @@ def drive_type(path: str) -> DriveType:
         return "UNKNOWN"
     drive, tail = ntpath.splitdrive(normalized)
     if drive.startswith("\\\\"):
-        # UNC se reconoce léxicamente: nunca se contacta al servidor para clasificarlo.
+        # UNC is recognized lexically: the server is never contacted to classify it.
         parts = drive[2:].split("\\")
         return "NETWORK" if len(parts) == 2 and all(parts) else "UNKNOWN"
     if (
@@ -34,12 +34,12 @@ def drive_type(path: str) -> DriveType:
     ):
         return "UNKNOWN"
     try:
-        # GetDriveTypeW exige la barra final. Solo consulta metadatos de la unidad;
-        # no se usa la ruta del archivo ni se abre una unidad de red mapeada.
+        # GetDriveTypeW requires the trailing slash. It only queries drive metadata;
+        # the file path is not used and no mapped network drive is opened.
         code = _get_drive_type(drive.upper() + "\\")
     except OSError:
         return "UNKNOWN"
-    # Dict inmutable por uso: cada código tiene un único tipo. Consulta O(1) promedio.
+    # Dict immutable by use: each code has a single type. O(1) average lookup.
     types: dict[int, DriveType] = {2: "REMOVABLE", 3: "FIXED", 4: "NETWORK", 5: "CDROM"}
-    # UNKNOWN, NO_ROOT_DIR, RAMDISK y códigos desconocidos no pertenecen a otro tipo.
+    # UNKNOWN, NO_ROOT_DIR, RAMDISK and unknown codes belong to no other type.
     return types.get(code, "UNKNOWN")

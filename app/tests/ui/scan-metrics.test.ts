@@ -5,8 +5,8 @@ import {
   verdictLabel,
 } from '../../src/renderer/src/scan/format';
 
-describe('métricas del trabajo: entradas omitidas (AUD-10)', () => {
-  it('lee skippedEntries y tolera métricas antiguas o corruptas', () => {
+describe('job metrics: skipped entries (AUD-10)', () => {
+  it('reads skippedEntries and tolerates old or corrupt metrics', () => {
     expect(
       readMetrics(JSON.stringify({ skippedEntries: 3 })).skippedEntries,
     ).toBe(3);
@@ -17,7 +17,7 @@ describe('métricas del trabajo: entradas omitidas (AUD-10)', () => {
     expect(readMetrics(null).skippedEntries).toBe(null);
   });
 
-  it('solo avisa cuando hubo omisiones, con singular y plural', () => {
+  it('only warns when there were skips, with singular and plural', () => {
     const base = readMetrics(null);
     expect(skippedNotice(base)).toBe(null);
     expect(skippedNotice({ ...base, skippedEntries: 0 })).toBe(null);
@@ -30,8 +30,8 @@ describe('métricas del trabajo: entradas omitidas (AUD-10)', () => {
   });
 });
 
-describe('etiqueta de veredicto (AUD-11)', () => {
-  it('CLEAN se presenta como «Sin hallazgos», no como seguro', () => {
+describe('verdict label (AUD-11)', () => {
+  it('CLEAN is presented as «Sin hallazgos», not as safe', () => {
     expect(verdictLabel('CLEAN')).toBe('Sin hallazgos');
     expect(verdictLabel('DETECTED')).toBe('Detectado');
   });

@@ -11,7 +11,7 @@ const resources = resolve(
 );
 const python = join(resources, 'runtime/python.exe');
 
-test('runtime del paquete: saludo real en 5 s con PATH y Python externos aislados', () => {
+test('package runtime: real hello within 5 s with external PATH and Python isolated', () => {
   assert(
     existsSync(python),
     'Primero prepara el runtime y ejecuta package:dir.',

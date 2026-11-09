@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 
-it('ScanJob: tabla de casos y cobertura nativa de líneas, ramas y funciones ≥ 90 %', () => {
+it('ScanJob: case table and native coverage of lines, branches and functions ≥ 90 %', () => {
   // Node's built-in coverage avoids an additional coverage provider dependency.
   const output = execFileSync(
     process.execPath,

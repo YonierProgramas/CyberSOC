@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest';
 import { windowsPowerShellPath } from '../src/main/windows-tools';
 
-it('resuelve PowerShell del SO cargado sin obedecer PATH/SystemRoot ajenos', () => {
+it('resolves the loaded OS PowerShell without obeying foreign PATH/SystemRoot', () => {
   vi.stubEnv('PATH', 'C:/fixture-malicioso');
   vi.stubEnv('SystemRoot', 'C:/fixture-malicioso');
   try {

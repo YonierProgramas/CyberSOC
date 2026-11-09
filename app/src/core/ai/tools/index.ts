@@ -16,7 +16,7 @@ import { register as layerReport } from './get_layer_report';
 import { registerBuildReport } from './buildReport';
 import type { ReportBuilder } from '../../reports/ReportBuilder';
 
-/** main debe inyectar los repositorios y lectores reales; no hay valores ficticios por defecto. */
+/** main must inject the real repositories and readers; there are no fake defaults. */
 export function createToolRegistry(
   context: ToolContext,
   reports: ReportBuilder,

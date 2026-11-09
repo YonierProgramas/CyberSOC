@@ -7,8 +7,8 @@ const settingsKey = 'scan.zoneProfiles.v1';
 const profilesSchema = z.record(zoneSchema, scanProfileSchema);
 
 export class ScanProfiles {
-  // Invariante: hay un perfil válido por cada zona y nunca faltan HASH/SIGNATURES.
-  // Map consulta/actualiza una zona en O(1) promedio; cargar/copiar cuesta O(Z·L).
+  // Invariant: there is a valid profile per zone and HASH/SIGNATURES are never missing.
+  // Map looks up/updates a zone in O(1) average; loading/copying costs O(Z·L).
   private readonly profiles = new Map<Zone, ScanProfile>();
 
   constructor(private readonly database?: Database) {
@@ -40,7 +40,7 @@ export class ScanProfiles {
   }
 
   get(zone: Zone): ScanProfile {
-    // Copia defensiva: el llamante no puede desactivar capas del registro interno.
+    // Defensive copy: the caller cannot disable layers of the internal registry.
     return structuredClone(this.profiles.get(zoneSchema.parse(zone))!);
   }
 

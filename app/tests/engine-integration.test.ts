@@ -12,7 +12,7 @@ const python = resolve(
 );
 
 it.skipIf(!existsSync(python))(
-  'motor real: hello, ping, scan.file con HASH, SIGNATURES FILETYPE y RULES, reconexion y shutdown',
+  'real engine: hello, ping, scan.file with HASH, SIGNATURES FILETYPE and RULES, reconnect and shutdown',
   async () => {
     const messages: string[] = [];
     const paths = resolveEnginePaths(process.cwd(), false, '');

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { verifyResources } from '../src/main/resource-integrity';
 
-it('rechaza manifiesto alterado, archivo alterado, extra y escape antes de ejecución', () => {
+it('rejects altered manifest, altered file, extra and escape before execution', () => {
   const root = mkdtempSync(join(tmpdir(), 'cybersoc-integrity-'));
   for (const directory of ['runtime', 'engine', 'notices'])
     mkdirSync(join(root, directory));

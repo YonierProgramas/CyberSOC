@@ -68,8 +68,8 @@ export function jobStatusLabel(status: ScanJobStatus): string {
   return labels[status];
 }
 
-// CLEAN significa que ninguna capa ejecutada encontró indicios, no que el archivo sea
-// seguro. Por eso se dice «Sin hallazgos», el término de la guía visual (AUD-11).
+// CLEAN means that the score stayed below the suspicious threshold, not that the file is
+// safe. That is why it says «Sin hallazgos», the term from the visual guide (AUD-11).
 export function verdictLabel(verdict: ScanResultDTO['verdict']): string {
   if (verdict === 'CLEAN') return 'Sin hallazgos';
   if (verdict === 'SUSPICIOUS') return 'Sospechoso';
@@ -263,8 +263,8 @@ export function readMetrics(metricsJson: string | null): ScanMetrics {
   }
 }
 
-// Aviso de recorrido incompleto (AUD-10). null o 0 no muestran nada: los trabajos
-// anteriores no registraban omisiones y no se puede afirmar que estén completos ni no.
+// Incomplete traversal notice (AUD-10). null or 0 show nothing: earlier jobs
+// did not record skips and cannot be claimed to be complete or not.
 export function skippedNotice(metrics: ScanMetrics): string | null {
   const count = metrics.skippedEntries;
   if (count === null || count <= 0) return null;

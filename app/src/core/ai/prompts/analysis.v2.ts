@@ -7,12 +7,12 @@ import {
 } from '../schemas';
 import { buildDelimitedPrompt } from './delimited';
 
-/** Se guarda en `ai_analyses.prompt_version`. Cambiar el texto del prompt exige una versión nueva. */
+/** Stored in `ai_analyses.prompt_version`. Changing the prompt text requires a new version. */
 export const PROMPT_VERSION = 'analysis.v2';
 
-/** `max_tokens` del análisis: las correlaciones explícitas alargan algo la respuesta. */
+/** `max_tokens` of the analysis: explicit correlations make the response somewhat longer. */
 export const ANALYSIS_MAX_TOKENS = 1_500;
-/** Único reintento tras una respuesta INCOMPLETE ("1 reintento con más tokens"). */
+/** Single retry after an INCOMPLETE response ("1 retry with more tokens"). */
 export const ANALYSIS_RETRY_MAX_TOKENS = 3_000;
 
 const actions = recommendedActionSchema.options.join(', ');
@@ -54,15 +54,15 @@ Formato
 - confidence, entre 0 y 1, es qué tan seguro estás de tu opinion con esta evidencia.`;
 
 export interface AnalysisRequestOptions {
-  /** Motivos del descarte anterior (de `AIResponseValidator`), para el reintento con retroalimentación. */
+  /** Reasons for the earlier rejection (from `AIResponseValidator`), for the retry with feedback. */
   previousErrors?: readonly string[];
   maxTokens?: number;
   signal?: AbortSignal;
 }
 
 /**
- * Petición de análisis v2. `contextJson` es el JSON exacto de `AIContextBuilder` (el mismo de
- * `ai_analyses.context_json`). La salida sigue siendo `ai-assessment/v1`.
+ * v2 analysis request. `contextJson` is the exact JSON from `AIContextBuilder` (the same as
+ * `ai_analyses.context_json`). The output is still `ai-assessment/v1`.
  */
 export function buildAnalysisRequest(
   contextJson: string,

@@ -3,8 +3,8 @@ import { startupFailureMessage } from '../src/main/startup-failure';
 
 const folder = 'C:\\Usuarios\\demo\\AppData\\Roaming\\CyberSOC Defender';
 
-describe('mensaje de arranque fallido (B-03)', () => {
-  it('explica un perfil de otra instalación o versión sin pedir borrar datos', () => {
+describe('failed startup message (B-03)', () => {
+  it('explains a profile from another installation or version without asking to delete data', () => {
     const text = startupFailureMessage(
       new Error('Esquema incompatible. No hay downgrade.'),
       folder,
@@ -16,7 +16,7 @@ describe('mensaje de arranque fallido (B-03)', () => {
     expect(text).not.toMatch(/\bborra (la|los|el)\b/i);
   });
 
-  it('distingue copia previa fallida, enlaces y motor', () => {
+  it('distinguishes failed prior copy, links and engine', () => {
     expect(
       startupFailureMessage(
         new Error('La base o su copia no superan integridad/FK.'),
@@ -34,7 +34,7 @@ describe('mensaje de arranque fallido (B-03)', () => {
     ).toContain('Reinstala');
   });
 
-  it('un error desconocido o que no es Error sigue dando guía segura', () => {
+  it('an unknown error or non-Error still gives safe guidance', () => {
     const text = startupFailureMessage('fallo raro', folder);
     expect(text).toContain('error inesperado');
     expect(text).toContain('No borres la carpeta de datos');

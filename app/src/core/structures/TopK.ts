@@ -5,12 +5,12 @@ interface Entry<T> {
 }
 
 /**
- * MIN-heap acotado: conserva los k mejores vistos, sin guardar el resto.
- * Invariante: ningún hijo es peor que su padre. La raíz es el PEOR del top:
- * menor puntuación o, en empate, llegada más reciente. Así sabemos en O(1)
- * a quién expulsar si llega uno mejor. Un max-heap expondría al mejor,
- * precisamente el que queremos conservar, no al candidato a reemplazar.
- * El arreglo representa el árbol: padre floor((i-1)/2), hijos 2*i+1 y 2*i+2.
+ * Bounded MIN-heap: keeps the k best seen, without storing the rest.
+ * Invariant: no child is worse than its parent. The root is the WORST of the top:
+ * lowest score or, on a tie, most recent arrival. So we know in O(1)
+ * whom to evict if a better one arrives. A max-heap would expose the best,
+ * precisely the one we want to keep, not the replacement candidate.
+ * The array represents the tree: parent floor((i-1)/2), children 2*i+1 and 2*i+2.
  */
 export class TopK<T> {
   private readonly heap: Entry<T>[] = [];
@@ -20,52 +20,52 @@ export class TopK<T> {
 
   constructor(k: number, score: (item: T) => number) {
     if (!Number.isSafeInteger(k) || k < 0)
-      throw new RangeError('k debe ser un entero seguro no negativo.');
+      throw new RangeError('k must be a non-negative safe integer.');
     this.k = k;
     this.score = score;
   }
 
-  /** O(1); nunca supera k. Memoria O(min(k, elementos recibidos)). */
+  /** O(1); never exceeds k. O(min(k, elements received)) memory. */
   get size(): number {
     return this.heap.length;
   }
 
   /**
-   * O(log k) si entra al top; O(1) si se descarta (score se supone O(1)).
-   * La puntuación se calcula una sola vez y se guarda junto a la llegada:
-   * ni ordenar ni comparar vuelve a invocar score. k=0 no evalúa el elemento.
+   * O(log k) if it enters the top; O(1) if discarded (score is assumed O(1)).
+   * The score is computed only once and stored with the arrival:
+   * neither sorting nor comparing invokes score again. k=0 does not evaluate the element.
    */
   add(value: T): void {
     if (this.k === 0) return;
     const score = this.score(value);
     if (!Number.isFinite(score))
-      throw new RangeError('La puntuación debe ser un número finito.');
+      throw new RangeError('The score must be a finite number.');
     if (this.nextSeq >= Number.MAX_SAFE_INTEGER)
-      throw new RangeError('Se agotó la secuencia segura del top.');
+      throw new RangeError('The top safe sequence is exhausted.');
     const entry = { value, score, seq: this.nextSeq++ };
     if (this.size < this.k) {
       this.heap.push(entry);
       this.siftUp(this.size - 1);
     } else if (this.worse(this.heap[0]!, entry)) {
-      // Reemplazar solo la raíz evita desplazar el arreglo completo.
+      // Replacing only the root avoids shifting the whole array.
       this.heap[0] = entry;
       this.siftDown(0);
     }
   }
 
-  /** O(m log m), m<=k: ordena una copia; no consume ni reordena el heap. */
+  /** O(m log m), m<=k: sorts a copy; it neither consumes nor reorders the heap. */
   values(): T[] {
     return [...this.heap]
       .sort((a, b) => b.score - a.score || a.seq - b.seq)
       .map((entry) => entry.value);
   }
 
-  /** O(1): en empates el más reciente es el primero que se expulsa. */
+  /** O(1): on ties the most recent is the first to be evicted. */
   private worse(a: Entry<T>, b: Entry<T>): boolean {
     return a.score < b.score || (a.score === b.score && a.seq > b.seq);
   }
 
-  /** O(log k): solo el nuevo nodo puede romper la relación con su padre. */
+  /** O(log k): only the new node can break the relation with its parent. */
   private siftUp(index: number): void {
     while (index > 0) {
       const parent = Math.floor((index - 1) / 2);
@@ -78,7 +78,7 @@ export class TopK<T> {
     }
   }
 
-  /** O(log k): baja por el peor hijo hasta restaurar la invariante. */
+  /** O(log k): sinks through the worst child until the invariant is restored. */
   private siftDown(index: number): void {
     while (2 * index + 1 < this.size) {
       const left = 2 * index + 1;
@@ -98,10 +98,10 @@ export class TopK<T> {
 }
 
 /**
- * Un solo recorrido, incluso para un generador. Selección O(n log k) frente
- * a O(n log n) de ordenar todo; después solo ordenamos los m<=k ganadores.
- * Cota incluyendo k=1: O(n log(k+1) + m log(m+1)); memoria auxiliar O(m).
- * Con k>=n se devuelven todos ordenados y no hay ventaja asintótica.
+ * A single traversal, even for a generator. O(n log k) selection versus
+ * O(n log n) for sorting everything; afterwards only the m<=k winners are sorted.
+ * Bound including k=1: O(n log(k+1) + m log(m+1)); O(m) auxiliary memory.
+ * With k>=n all are returned sorted and there is no asymptotic advantage.
  */
 export function topK<T>(
   items: Iterable<T>,

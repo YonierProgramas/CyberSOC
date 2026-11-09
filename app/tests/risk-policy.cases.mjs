@@ -7,9 +7,9 @@ import {
   levelForScore,
 } from '../src/core/risk/RiskPolicy.ts';
 
-// Tabla de casos de RiskPolicy v2, escrita a partir del plan de S3 («RiskPolicy v2»),
-// no de la implementación. Columnas:
-// nombre · motor · IA · veredicto final · nivel final · origen · regla · revisión · IA pendiente.
+// RiskPolicy v2 case table, written from the S3 plan («RiskPolicy v2»),
+// not from the implementation. Columns:
+// name · engine · AI · final verdict · final level · origin · rule · review · AI pending.
 const EV = ['ev1', 'ev2'];
 const valid = (opinion, confidence = 0.9, cited = ['ev1']) => ({
   validationStatus: 'VALID',
@@ -26,7 +26,7 @@ const suspicious = { verdict: 'SUSPICIOUS', score: 40, evidenceIds: EV };
 const detected = { verdict: 'DETECTED', score: 100, evidenceIds: EV };
 
 const cases = [
-  // --- IA ausente o inválida: el motor decide y se etiqueta «IA pendiente». ---
+  // --- AI absent or invalid: the engine decides and it is labeled «IA pendiente». ---
   [
     'CLEAN sin IA (undefined)',
     clean(0),
@@ -111,7 +111,7 @@ const cases = [
     false,
     true,
   ]),
-  // «VALID» con datos imposibles: se descarta como inválida.
+  // «VALID» with impossible data: discarded as invalid.
   [
     'IA con opinión fuera del enum',
     clean(),
@@ -168,7 +168,7 @@ const cases = [
     true,
   ],
 
-  // --- DETECTED: siempre DETECTED; la IA nunca baja un veredicto. ---
+  // --- DETECTED: always DETECTED; the AI never lowers a verdict. ---
   [
     'DETECTED + LIKELY_BENIGN 0.99',
     detected,
@@ -214,7 +214,7 @@ const cases = [
     false,
   ],
 
-  // --- SUSPICIOUS: siempre SUSPICIOUS; revisión solo con LIKELY_BENIGN y confianza ≥ 0.8. ---
+  // --- SUSPICIOUS: always SUSPICIOUS; review only with LIKELY_BENIGN and confidence ≥ 0.8. ---
   [
     'SUSPICIOUS + LIKELY_BENIGN 0.80 → revisión',
     suspicious,
@@ -282,7 +282,7 @@ const cases = [
     false,
   ],
 
-  // --- CLEAN: escalamiento solo con TODAS las condiciones. ---
+  // --- CLEAN: escalation only with ALL conditions. ---
   [
     'CLEAN + SUSPICIOUS 0.70, cita ev1, 25 pts → escala',
     clean(25),
@@ -305,7 +305,7 @@ const cases = [
     false,
     false,
   ],
-  // Límite de confianza.
+  // Confidence limit.
   [
     'CLEAN + SUSPICIOUS 0.69 → no escala',
     clean(25),
@@ -317,7 +317,7 @@ const cases = [
     false,
     false,
   ],
-  // Límite de puntuación.
+  // Score limit.
   [
     'CLEAN puntuación 0 + LIKELY_MALICIOUS 1.00 → no escala',
     clean(0),
@@ -374,7 +374,7 @@ const cases = [
     false,
     false,
   ],
-  // Opinión.
+  // Opinion.
   [
     'CLEAN + LIKELY_BENIGN → no escala',
     clean(25),
@@ -399,7 +399,7 @@ const cases = [
   ],
 ];
 
-describe('RiskPolicy v2: tabla de casos', () => {
+describe('RiskPolicy v2: case table', () => {
   for (const [
     name,
     engine,
@@ -425,13 +425,13 @@ describe('RiskPolicy v2: tabla de casos', () => {
       assert.equal(decision.reviewRequired, review);
       assert.equal(decision.aiPending, pending);
 
-      // Nunca DETECTED por la IA, nunca un veredicto más bajo que el del motor.
+      // Never DETECTED by the AI, never a verdict lower than the engine's.
       if (engine.verdict !== 'DETECTED')
         assert.notEqual(decision.finalVerdict, 'DETECTED');
       if (engine.verdict !== 'CLEAN')
         assert.equal(decision.finalVerdict, engine.verdict);
 
-      // Opinión y confianza solo se registran si la IA es válida.
+      // Opinion and confidence are only recorded if the AI is valid.
       if (pending) {
         assert.equal(decision.aiOpinion, null);
         assert.equal(decision.aiConfidence, null);
@@ -440,7 +440,7 @@ describe('RiskPolicy v2: tabla de casos', () => {
         assert.equal(decision.aiConfidence, ai.confidence);
       }
 
-      // Traza: empieza por el motor, nombra la regla aplicada y termina con el resultado.
+      // Trace: starts with the engine, names the applied rule and ends with the result.
       assert.match(
         decision.trace[0],
         new RegExp(`^Motor: veredicto ${engine.verdict}`),
@@ -460,7 +460,7 @@ describe('RiskPolicy v2: tabla de casos', () => {
         decision.trace.some((step) => step.includes(AI_PENDING_LABEL)),
         pending,
       );
-      // Con IA válida sobre CLEAN, la traza muestra las 4 condiciones y cuál falló.
+      // With a valid AI on CLEAN, the trace shows the 4 conditions and which one failed.
       if (engine.verdict === 'CLEAN' && !pending) {
         const conditions = decision.trace.filter((step) =>
           step.startsWith('Condición de escalamiento'),
@@ -475,14 +475,14 @@ describe('RiskPolicy v2: tabla de casos', () => {
         );
       }
 
-      // Pura: no modifica la entrada y repite el mismo resultado.
+      // Pure: it does not modify the input and repeats the same result.
       assert.deepEqual({ engine, ai }, input);
       assert.deepEqual(decideRisk(engine, ai), decision);
     });
   }
 });
 
-describe('RiskPolicy v2: entradas que no evalúa', () => {
+describe('RiskPolicy v2: inputs it does not evaluate', () => {
   for (const [name, engine] of [
     ['veredicto ERROR', { verdict: 'ERROR', score: 0 }],
     ['veredicto NOT_ANALYZED', { verdict: 'NOT_ANALYZED', score: 0 }],
@@ -500,7 +500,7 @@ describe('RiskPolicy v2: entradas que no evalúa', () => {
   }
 });
 
-describe('RiskPolicy v3: prioridad de la confianza humana', () => {
+describe('RiskPolicy v3: precedence of human trust', () => {
   for (const verdict of ['CLEAN', 'SUSPICIOUS', 'DETECTED']) {
     it(`allowlist sobre ${verdict} conserva hechos y decide CLEAN`, () => {
       const result = decideRisk(

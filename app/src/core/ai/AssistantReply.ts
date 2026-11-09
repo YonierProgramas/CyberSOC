@@ -30,13 +30,13 @@ export const ASSISTANT_REPLY_LIMITS = {
 const A = ASSISTANT_REPLY_LIMITS;
 
 /**
- * Respuesta final del Copilot v2 tal como viaja en `output_config.format`.
- * Sin uniones ni campos opcionales: la API admite como mucho 16 parámetros con unión por
- * petición y las 14 herramientas ya usan 16. Por eso `report` y `scanPlan` son listas de
- * 0 o 1 elementos y `targetId` usa "" cuando la acción no tiene destino.
- * Tampoco lleva topes de cantidad ni de largo: el modo estricto no los admite (la gramática
- * no los haría cumplir) y una lista larga no debe tumbar una respuesta válida. El Core
- * recorta a ASSISTANT_REPLY_LIMITS en validateAssistantReply.
+ * Copilot v2 final response as it travels in `output_config.format`.
+ * No unions or optional fields: the API allows at most 16 union parameters per
+ * request and the 14 tools already use 16. That is why `report` and `scanPlan` are lists of
+ * 0 or 1 elements and `targetId` uses "" when the action has no target.
+ * It has no count or length caps either: strict mode does not support them (the grammar
+ * would not enforce them) and a long list must not reject a valid response. The Core
+ * trims to ASSISTANT_REPLY_LIMITS in validateAssistantReply.
  */
 export const assistantReplyWireSchema = z.strictObject({
   answer: z.string().min(1).describe('Respuesta en texto plano, en español.'),
@@ -96,7 +96,7 @@ export interface AssistantReport {
   citedResultIds: string[];
 }
 
-/** Respuesta final validada, con la forma del plan S5 (`report?` y `scanPlan?`). */
+/** Validated final response, in the S5 plan shape (`report?` and `scanPlan?`). */
 export interface AssistantFinal {
   answer: string;
   references: AssistantReference[];
@@ -105,15 +105,15 @@ export interface AssistantFinal {
   scanPlan?: ValidScanPlan;
 }
 
-/** Consultas de solo lectura con las que el Core comprueba que todo lo citado existe. */
+/** Read-only queries the Core uses to check that everything cited exists. */
 export interface ReplyChecks {
-  /** Veredicto del resultado, o null si no existe. */
+  /** Result verdict, or null if it does not exist. */
   resultVerdict(id: string): string | null;
   jobExists(id: string): boolean;
   ruleExists(id: string): Promise<boolean>;
-  /** IDs de resultados del borrador, o null si no existe o caducó. */
+  /** Result IDs of the draft, or null if it does not exist or has expired. */
   reportResultIds(reportDraftId: string): string[] | null;
-  /** Filas reales de list_zones (las ejecuta el Core, no las copia de la IA). */
+  /** Real list_zones rows (run by the Core, not copied from the AI). */
   zones(): Promise<ZoneOption[]>;
 }
 
@@ -121,9 +121,9 @@ export type ReplyValidation =
   { ok: true; final: AssistantFinal } | { ok: false; errors: string[] };
 
 /**
- * Valida la respuesta final: todos los `id`, `targetId`, `reportDraftId` y `citedResultIds`
- * deben existir, las acciones deben ser del enum (lo garantiza el esquema) y el plan debe
- * pasar `validateScanPlan`. Los mensajes de error los escribe el Core, nunca la IA.
+ * Validates the final response: every `id`, `targetId`, `reportDraftId` and `citedResultIds`
+ * must exist, actions must belong to the enum (guaranteed by the schema) and the plan must
+ * pass `validateScanPlan`. Error messages are written by the Core, never the AI.
  */
 export async function validateAssistantReply(
   wire: AssistantReplyWire,
@@ -145,7 +145,7 @@ export async function validateAssistantReply(
     errors.push(
       'El Copilot no puede afirmar que ejecutó cambios, borrados, cuarentena o escaneos. Solo consulta y propone acciones para confirmar en la interfaz.',
     );
-  // Los topes se aplican recortando: un exceso de texto o de elementos no invalida la respuesta.
+  // Caps are applied by trimming: excess text or elements do not invalidate the response.
   const answer = clip(wire.answer.trim(), A.answer);
   if (answer === '') errors.push('La respuesta está vacía.');
 
@@ -273,12 +273,12 @@ function actionProblem(
   }
 }
 
-/** Recorta un texto largo de la IA sin rechazar la respuesta. */
+/** Trims long AI text without rejecting the response. */
 function clip(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
-/** Texto de la IA citado en un mensaje del Core: acotado y entre comillas. */
+/** AI text quoted in a Core message: bounded and in quotation marks. */
 function quote(value: string): string {
   const short = value.length > 40 ? `${value.slice(0, 40)}…` : value;
   return JSON.stringify(short);

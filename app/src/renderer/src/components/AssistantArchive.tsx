@@ -11,8 +11,8 @@ import { PlainText } from './PlainText';
 import { ReferenceChips } from './ReferenceChips';
 import { SuggestedActions } from './SuggestedActions';
 
-// Diccionarios: una etiqueta por clave del contrato; consulta O(1) en este
-// conjunto fijo. Recorrer las n acciones para mostrarlas cuesta O(n).
+// Dictionaries: one label per contract key; O(1) lookup in this
+// fixed set. Walking the n actions to display them costs O(n).
 const availabilityLabel: Record<ArchivedActionAvailability, string> = {
   AVAILABLE: 'Disponible',
   MISSING: 'Ya no existe',
@@ -51,7 +51,7 @@ export function AssistantArchive({
   const [messageLoading, setMessageLoading] = useState(false);
   const [messageFailed, setMessageFailed] = useState(false);
   const [messagesReady, setMessagesReady] = useState(false);
-  // Cada contador invalida solo su lectura; paginar chats no cancela mensajes.
+  // Each counter invalidates only its own read; paging chats does not cancel messages.
   const listRequest = useRef(0);
   const messageRequest = useRef(0);
   const requestedOffset = useRef(0);

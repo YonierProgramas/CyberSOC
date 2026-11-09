@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 
-/** El aviso más reciente que el historial todavía no ha leído. */
+/** The latest notice the history has not read yet. */
 export type ScanRefreshNotice =
   | { kind: 'progress'; jobId: string }
   | { kind: 'finished'; jobId: string }
   | { kind: 'result' };
 
 /**
- * Un análisis que termina no debe perderse detrás de un progreso anterior.
- * Un cambio de resultado no sustituye el id del análisis que acaba de llegar.
+ * An analysis that finishes must not get lost behind an earlier progress update.
+ * A result change does not replace the id of the analysis that just arrived.
  */
 function prefer(
   current: ScanRefreshNotice,
@@ -20,7 +20,7 @@ function prefer(
   return current;
 }
 
-/** Agrupa invalidaciones mientras hay una lectura pendiente, sin temporizadores. */
+/** Groups invalidations while a read is pending, without timers. */
 export function useScanRefresh(
   refresh: (notice: ScanRefreshNotice) => Promise<unknown>,
 ): void {
@@ -39,7 +39,7 @@ export function useScanRefresh(
           dirty = false;
           const current = queued ?? { kind: 'result' };
           queued = null;
-          // El historial decide si el aviso es un alta o una actualización.
+          // The history decides whether the notice is an addition or an update.
           await refresh(current);
         }
       } finally {

@@ -5,19 +5,19 @@ import {
   shouldProbeArrival,
 } from '../../src/renderer/src/paging/arrival';
 
-describe('historial: alta frente a actualización', () => {
-  it('un análisis nuevo que entra en el filtro vuelve a la página 1', () => {
+describe('history: addition versus update', () => {
+  it('a new analysis entering the filter returns to page 1', () => {
     expect(
       shouldProbeArrival({ matched: false, seen: false, finished: false }),
     ).toBe(true);
     expect(offsetAfterArrival(20, true)).toBe(0);
   });
 
-  it('un análisis nuevo que el filtro excluye conserva la página', () => {
+  it('a new analysis excluded by the filter keeps the page', () => {
     expect(offsetAfterArrival(20, false)).toBe(20);
   });
 
-  it('actualizar un análisis ya listado no vuelve a consultar la primera página', () => {
+  it('updating an already listed analysis does not query the first page again', () => {
     expect(
       shouldProbeArrival({ matched: true, seen: true, finished: true }),
     ).toBe(false);
@@ -26,13 +26,13 @@ describe('historial: alta frente a actualización', () => {
     ).toBe(false);
   });
 
-  it('un aviso intermedio de un id ya visto no es un alta', () => {
+  it('an intermediate notice of an already seen id is not an addition', () => {
     expect(
       shouldProbeArrival({ matched: false, seen: true, finished: false }),
     ).toBe(false);
   });
 
-  it('al terminar, un id que antes no cumplía el filtro sí se comprueba', () => {
+  it('on finish, an id that earlier did not match the filter is checked', () => {
     expect(
       shouldProbeArrival({ matched: false, seen: true, finished: true }),
     ).toBe(true);
@@ -40,8 +40,8 @@ describe('historial: alta frente a actualización', () => {
   });
 });
 
-describe('archivo: reabrir sin alta conserva la página', () => {
-  it('la primera lectura no trata el total existente como un alta', () => {
+describe('archive: reopening without an addition keeps the page', () => {
+  it('the first read does not treat the existing total as an addition', () => {
     expect(
       archiveOffsetAfterReopen({
         offset: 0,
@@ -52,7 +52,7 @@ describe('archivo: reabrir sin alta conserva la página', () => {
     ).toBe(0);
   });
 
-  it('reabrir con el mismo total conserva 21–40', () => {
+  it('reopening with the same total keeps 21–40', () => {
     expect(
       archiveOffsetAfterReopen({
         offset: 20,
@@ -63,7 +63,7 @@ describe('archivo: reabrir sin alta conserva la página', () => {
     ).toBe(20);
   });
 
-  it('una conversación nueva, de 49 a 50, vuelve a la página 1', () => {
+  it('a new conversation, from 49 to 50, returns to page 1', () => {
     expect(
       archiveOffsetAfterReopen({
         offset: 20,

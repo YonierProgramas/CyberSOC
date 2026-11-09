@@ -6,8 +6,8 @@ import {
 } from './schemas';
 
 /**
- * Resultado del validador; mismos valores que `ai_analyses.validation_status`, salvo
- * `PROVIDER_ERROR`, que lo asigna el servicio cuando el proveedor no devolvió respuesta.
+ * Validator result; same values as `ai_analyses.validation_status`, except
+ * `PROVIDER_ERROR`, which the service assigns when the provider returned no response.
  */
 export type AIValidationStatus =
   | 'VALID'
@@ -18,17 +18,17 @@ export type AIValidationStatus =
   | 'INCOMPLETE';
 
 export interface AIResponseInput {
-  /** Texto exacto devuelto por el modelo (`rawText` del proveedor). */
+  /** Exact text returned by the model (provider `rawText`). */
   rawText: string;
-  /** La respuesta se cortó por `max_tokens` (error INCOMPLETE del proveedor). */
+  /** The response was cut off by `max_tokens` (provider INCOMPLETE error). */
   truncated: boolean;
-  /** Contexto enviado: solo se usan los ids de sus evidencias. */
+  /** Context sent: only the ids of its evidence are used. */
   context: Pick<AIContext, 'evidence'>;
 }
 
 /**
- * `errors` son mensajes en español generados aquí, nunca copias del texto de la IA: se pueden
- * reenviar como retroalimentación en el reintento sin reinyectar lo que escribió el modelo.
+ * `errors` are Spanish messages generated here, never copies of the AI text: they can be
+ * sent back as feedback on the retry without reinjecting what the model wrote.
  */
 export type AIValidationResult =
   | { status: 'VALID'; assessment: AIAssessment; errors: [] }
@@ -44,10 +44,10 @@ const URL_PATTERNS: readonly RegExp[] = [
   /\b[a-z][a-z0-9+.-]*:\/\//i, // cualquier esquema://
   /\bwww\.[a-z0-9-]+\./i,
   /\b(?:javascript|vbscript|data|file|mailto):/i,
-  /\\\\[\w.-]+\\[\w$.-]+/, // ruta UNC \\servidor\recurso
+  /\\\\[\w.-]+\\[\w$.-]+/, // UNC path \\server\share
 ];
 
-// Sintaxis de comandos, no palabras sueltas: mencionar "PowerShell" o "el registro" es válido.
+// Command syntax, not loose words: mentioning "PowerShell" or "el registro" is valid.
 const COMMAND_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ['PowerShell', /\b(?:powershell|pwsh)(?:\.exe)?\s+[-/]\w/i],
   [
@@ -62,8 +62,8 @@ const COMMAND_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ],
   [
     'herramienta de sistema',
-    // Nombre seguido de un flag (-x o /x) en los dos siguientes tokens: "wscript ejecuta el
-    // archivo" es prosa válida; "certutil -urlcache -f …" es un comando.
+    // Name followed by a flag (-x or /x) within the next two tokens: "wscript ejecuta el
+    // archivo" is valid prose; "certutil -urlcache -f …" is a command.
     /\b(?:certutil|bitsadmin|mshta|rundll32|regsvr32|schtasks|wmic|vssadmin|bcdedit|icacls|takeown|wscript|cscript|msiexec|netsh)(?:\.exe)?\s+(?:\S+\s+)?[-/][a-z]/i,
   ],
   [
@@ -84,7 +84,7 @@ function fail(status: Failure['status'], errors: string[]): Failure {
   return { status, errors };
 }
 
-/** Describe un error de zod sin copiar valores de la respuesta (solo ruta y límite del esquema). */
+/** Describes a zod error without copying response values (only the path and the schema limit). */
 export function describeIssue(issue: z.core.$ZodIssue): string {
   const path = issue.path.length ? issue.path.join('.') : '(raíz)';
   let detail = ISSUE_TEXT[issue.code] ?? 'no cumple el esquema';
@@ -113,9 +113,9 @@ function listed(ids: readonly string[]): string {
   return ids.length > MAX_LISTED ? `${shown}…` : shown;
 }
 
-/** Pasos 1 a 4, en orden: el primero que falla decide el estado. */
+/** Steps 1 to 4, in order: the first one that fails decides the status. */
 function checkContent(input: AIResponseInput): AIValidationResult {
-  // 1. JSON válido.
+  // 1. Valid JSON.
   let json: unknown;
   try {
     json = JSON.parse(input.rawText);
@@ -123,14 +123,14 @@ function checkContent(input: AIResponseInput): AIValidationResult {
     return fail('INVALID_JSON', ['La respuesta no es JSON válido.']);
   }
 
-  // 2. Esquema zod (enums y longitudes máximas incluidos), además del JSON Schema del proveedor.
+  // 2. Zod schema (including enums and maximum lengths), in addition to the provider JSON Schema.
   const parsed = aiAssessmentSchema.safeParse(json);
   if (!parsed.success) {
     return fail('SCHEMA_ERROR', parsed.error.issues.map(describeIssue));
   }
   const value = parsed.data;
 
-  // 3. Semántica: toda referencia a evidencia existe y hay al menos una cita.
+  // 3. Semantics: every evidence reference exists and there is at least one citation.
   const known = new Set(input.context.evidence.map((item) => item.id));
   const referenced = new Set([
     ...value.citedEvidenceIds,
@@ -154,8 +154,8 @@ function checkContent(input: AIResponseInput): AIValidationResult {
   }
   if (semantic.length) return fail('UNKNOWN_EVIDENCE', semantic);
 
-  // 4. Seguridad: sin URLs ni comandos. Las longitudes máximas y el enum de la acción ya los
-  //    hace cumplir el esquema del paso 2.
+  // 4. Safety: no URLs or commands. Maximum lengths and the action enum are already
+  //    enforced by the schema in step 2.
   const unsafe = unsafeTextErrors(textFields(value));
   if (unsafe.length) return fail('UNSAFE', unsafe);
 
@@ -163,8 +163,8 @@ function checkContent(input: AIResponseInput): AIValidationResult {
 }
 
 /**
- * Paso 4 reutilizable (también lo usa el validador de JOB_SUMMARY): un error por campo con
- * URL o comando. Los mensajes nombran el campo y la categoría, nunca el texto encontrado.
+ * Reusable step 4 (also used by the JOB_SUMMARY validator): one error per field with a
+ * URL or command. Messages name the field and the category, never the text found.
  */
 export function unsafeTextErrors(fields: readonly TextField[]): string[] {
   const unsafe: string[] = [];
@@ -181,11 +181,11 @@ export function unsafeTextErrors(fields: readonly TextField[]): string[] {
 }
 
 /**
- * Valida una respuesta de `ai-assessment/v1` con los cinco pasos del plan de S2, en orden:
- * JSON → esquema → semántica → seguridad → completitud.
+ * Validates an `ai-assessment/v1` response with the five S2 plan steps, in order:
+ * JSON → schema → semantics → safety → completeness.
  *
- * Una respuesta cortada por `max_tokens` es siempre INCOMPLETE: su fallo en un paso anterior
- * (casi siempre JSON roto) es un síntoma, y el remedio es otro (reintentar con más tokens).
+ * A response cut off by `max_tokens` is always INCOMPLETE: its failure in an earlier step
+ * (almost always broken JSON) is a symptom, and the remedy differs (retry with more tokens).
  */
 export function validateAIResponse(input: AIResponseInput): AIValidationResult {
   const result = checkContent(input);

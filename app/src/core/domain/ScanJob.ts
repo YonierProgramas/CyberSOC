@@ -115,9 +115,7 @@ export class ScanJob {
     };
     for (const value of Object.values(next)) {
       if (!Number.isSafeInteger(value) || value < 0) {
-        throw new RangeError(
-          'Los contadores deben ser enteros no negativos seguros.',
-        );
+        throw new RangeError('Counters must be non-negative safe integers.');
       }
     }
     this.#counters = next;

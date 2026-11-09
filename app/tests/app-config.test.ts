@@ -35,7 +35,7 @@ describe('AppConfig', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
-  it('devuelve los valores por defecto sin escribir en settings', () => {
+  it('returns the defaults without writing to settings', () => {
     expect(store.load()).toEqual(defaults);
     expect(
       database.prepare('SELECT COUNT(*) AS count FROM settings').get(),
@@ -53,21 +53,21 @@ describe('AppConfig', () => {
     { ai: { autoAnalyzeLimitPerScan: -1 } },
     { ai: { sendFileNames: 'true' } },
     { extra: true },
-  ])('rechaza %j y no guarda nada', (input) => {
+  ])('rejects %j and stores nothing', (input) => {
     expect(() => store.save(input)).toThrow(ZodError);
     expect(
       database.prepare('SELECT COUNT(*) AS count FROM settings').get(),
     ).toMatchObject({ count: 0 });
   });
 
-  it('conserva lo ya guardado cuando el cambio es invalido', () => {
+  it('keeps what is stored when the change is invalid', () => {
     store.save({ engine: { requestTimeoutMs: 8_000 } });
     expect(() => store.save({ scan: { queueCapacity: 0 } })).toThrow(ZodError);
     expect(store.load().engine.requestTimeoutMs).toBe(8_000);
     expect(store.load().scan.queueCapacity).toBe(1_000);
   });
 
-  it('persiste la configuracion al reabrir la base', () => {
+  it('persists the configuration when reopening the database', () => {
     const saved = store.save({
       engine: { requestTimeoutMs: 12_000 },
       scan: { maxFileSizeMB: 32, queueCapacity: 4 },
@@ -95,7 +95,7 @@ describe('AppConfig', () => {
     ).toMatchObject({ value_json: '{"nombre":"oscuro"}' });
   });
 
-  it('rechaza un JSON de ajuste que no cumple el esquema', () => {
+  it('rejects a settings JSON that fails the schema', () => {
     database
       .prepare(
         'INSERT INTO settings (key, value_json, updated_at) VALUES (?, ?, ?)',

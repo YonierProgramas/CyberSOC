@@ -7,8 +7,8 @@ import { QuarantineHarness, sha, type Seeded } from './harness';
 
 vi.setConfig({ testTimeout: 20_000 });
 
-// 3 MB + 47 bytes: más de un bloque de lectura (1 MB), para alterar zonas que el descifrado
-// procesa después de haber escrito ya texto plano en el temporal.
+// 3 MB + 47 bytes: more than one read block (1 MB), to alter zones that decryption
+// processes after having already written plain text to the temporary file.
 const BIG = Buffer.alloc(3 * 1024 * 1024 + 47, 'Texto inofensivo. ');
 const HEADER = 17;
 const TAG = 16;
@@ -26,7 +26,7 @@ beforeEach(async () => {
 });
 afterEach(() => h.close());
 
-/** Tras un ataque: nada se restaura, el blob (tal como quedó) se conserva y el ítem sigue en cuarentena. */
+/** After an attack: nothing is restored, the blob (as it was left) is kept and the item stays quarantined. */
 async function expectRefused(blobAfter?: Buffer) {
   await expect(
     h.manager.restore(item.id, { trustHash: false }),
@@ -41,12 +41,12 @@ async function expectRefused(blobAfter?: Buffer) {
     expect((await fs.readFile(item.vaultFile)).equals(blobAfter)).toBe(true);
   const last = h.manager.audit.list(item.id).at(-1)!;
   expect(last.action).toBe('RESTORE_FAILED');
-  // La auditoría nunca guarda la clave.
+  // The audit never stores the key.
   if (record.keyB64.length >= 16)
     expect(JSON.stringify(h.manager.audit.list())).not.toContain(record.keyB64);
 }
 
-describe('blob truncado o alterado', () => {
+describe('truncated or altered blob', () => {
   const cases: Array<[string, (blob: Buffer) => Buffer]> = [
     ['truncado 1 byte', (b) => b.subarray(0, b.length - 1)],
     ['truncado a la mitad', (b) => b.subarray(0, b.length >> 1)],
@@ -85,7 +85,7 @@ describe('blob truncado o alterado', () => {
     ],
   ];
   it.each(cases)(
-    '%s: no se restaura y el blob no se destruye',
+    '%s: not restored and the blob is not destroyed',
     async (_name, mutate) => {
       const mutated = mutate(pristine);
       await fs.writeFile(item.vaultFile, mutated);
@@ -93,7 +93,7 @@ describe('blob truncado o alterado', () => {
     },
   );
 
-  it('blob de OTRO ítem copiado encima (formato válido, otra clave): se rechaza', async () => {
+  it('blob of ANOTHER item copied on top (valid format, other key): rejected', async () => {
     const other = await h.seed('otro.txt', BIG);
     const second = await h.manager.quarantine(other.id);
     const foreign = await fs.readFile(second.vaultFile);
@@ -101,7 +101,7 @@ describe('blob truncado o alterado', () => {
     await expectRefused(foreign);
   });
 
-  it('blob forjado con la misma cabecera e IV pero otra clave (contenido elegido por un atacante): se rechaza', async () => {
+  it('forged blob with the same header and IV but another key (attacker-chosen content): rejected', async () => {
     const header = pristine.subarray(0, HEADER);
     const cipher = createCipheriv(
       'aes-256-gcm',
@@ -119,7 +119,7 @@ describe('blob truncado o alterado', () => {
     await expectRefused(forged);
   });
 
-  it('blob borrado de la bóveda: falla sin crear nada y el ítem no desaparece', async () => {
+  it('blob deleted from the vault: fails creating nothing and the item does not disappear', async () => {
     await fs.unlink(item.vaultFile);
     await expect(
       h.manager.restore(item.id, { trustHash: false }),
@@ -129,7 +129,7 @@ describe('blob truncado o alterado', () => {
     expect(await h.restoreTemps()).toEqual([]);
   });
 
-  it('blob sustituido por una carpeta: falla sin crear nada', async () => {
+  it('blob replaced by a folder: fails creating nothing', async () => {
     await fs.unlink(item.vaultFile);
     await fs.mkdir(item.vaultFile);
     await expect(
@@ -139,7 +139,7 @@ describe('blob truncado o alterado', () => {
     expect(await exists(input.path)).toBe(false);
   });
 
-  it('bóveda reemplazada por una junction: se rechaza sin leer ni escribir a través de ella', async () => {
+  it('vault replaced by a junction: rejected without reading or writing through it', async () => {
     const moved = `${h.vault.root}-movida`;
     await fs.rename(h.vault.root, moved);
     await fs.symlink(moved, h.vault.root, 'junction');
@@ -151,12 +151,12 @@ describe('blob truncado o alterado', () => {
     await expect(h.manager.delete(item.id)).rejects.toMatchObject({
       code: 'UNSAFE_LINK',
     });
-    expect((await fs.readdir(moved)).length).toBe(1); // el blob sigue en su sitio real
-    await fs.rm(h.vault.root); // quita solo la junction
+    expect((await fs.readdir(moved)).length).toBe(1); // the blob remains in its real place
+    await fs.rm(h.vault.root); // removes only the junction
     await fs.rename(moved, h.vault.root);
   });
 
-  it('blob alterado ENTRE la verificación y el descifrado (carrera): no se publica ni queda texto plano', async () => {
+  it('blob altered BETWEEN verification and decryption (race): not published and no plain text left', async () => {
     const verify = h.vault.verify.bind(h.vault);
     vi.spyOn(h.vault, 'verify').mockImplementationOnce(async (record, temp) => {
       const tag = await verify(record, temp);
@@ -179,7 +179,7 @@ describe('blob truncado o alterado', () => {
     );
   });
 
-  it('el blob intacto, tras todos los fallos anteriores, sigue restaurando el SHA-256 exacto', async () => {
+  it('the intact blob, after all earlier failures, still restores the exact SHA-256', async () => {
     await fs.writeFile(item.vaultFile, flip(pristine, HEADER + 10));
     await expect(
       h.manager.restore(item.id, { trustHash: false }),
@@ -190,7 +190,7 @@ describe('blob truncado o alterado', () => {
   });
 });
 
-describe('clave, IV o metadatos incorrectos en la BD', () => {
+describe('wrong key, IV or metadata in the DB', () => {
   const cases: Array<
     [string, string, (current: string) => string | number | null]
   > = [
@@ -218,21 +218,21 @@ describe('clave, IV o metadatos incorrectos en la BD', () => {
     ['SHA-256 original distinto', 'sha256', () => 'f'.repeat(64)],
     ['tamaño original distinto', 'size_bytes', () => BIG.length - 1],
   ];
-  it.each(cases)('%s: no se restaura nada', async (_name, column, value) => {
-    // Solo el caso del bit cambiado usa la clave actual; los demás la ignoran.
+  it.each(cases)('%s: nothing is restored', async (_name, column, value) => {
+    // Only the flipped-bit case uses the current key; the others ignore it.
     h.tamper(item.id, column, value(h.record(item.id).keyB64));
     await expectRefused(pristine);
   });
 
-  it('tag nulo (como en una recuperación) y clave equivocada: GCM igualmente lo rechaza', async () => {
+  it('null tag (as in a recovery) and wrong key: GCM rejects it anyway', async () => {
     h.tamper(item.id, 'auth_tag_b64', null);
     h.tamper(item.id, 'key_b64', randomBytes(32).toString('base64'));
     await expectRefused(pristine);
   });
 
-  it('SHA-256 cambiado: el texto plano ya descifrado no queda en el temporal', async () => {
-    // GCM autentica bien, así que el descifrado escribe los 3 MB en el temporal y solo
-    // al final falla la comparación del hash: el temporal debe borrarse.
+  it('changed SHA-256: the already decrypted plain text does not stay in the temporary', async () => {
+    // GCM authenticates fine, so decryption writes the 3 MB to the temporary file and only
+    // at the end the hash comparison fails: the temporary file must be deleted.
     const verify = vi.spyOn(h.vault, 'verify').mockResolvedValueOnce('tag');
     h.tamper(item.id, 'sha256', 'f'.repeat(64));
     await expect(
@@ -246,7 +246,7 @@ describe('clave, IV o metadatos incorrectos en la BD', () => {
     expect(h.record(item.id).status).toBe('QUARANTINED');
   });
 
-  it('ruta de bóveda manipulada en la BD: no lee ni borra fuera de la bóveda', async () => {
+  it('tampered vault path in the DB: does not read or delete outside the vault', async () => {
     const decoy = `${h.root}\\señuelo.txt`;
     await fs.writeFile(decoy, 'no borrar');
     h.tamper(item.id, 'vault_file', decoy);
@@ -261,7 +261,7 @@ describe('clave, IV o metadatos incorrectos en la BD', () => {
     expect(await fs.readFile(decoy, 'utf8')).toBe('no borrar');
   });
 
-  it('PENDING con clave equivocada y sin original: la reconciliación no destruye el blob', async () => {
+  it('PENDING with wrong key and no original: reconciliation does not destroy the blob', async () => {
     h.tamper(item.id, 'status', 'PENDING');
     h.tamper(item.id, 'key_b64', randomBytes(32).toString('base64'));
     h.manager = h.makeManager();

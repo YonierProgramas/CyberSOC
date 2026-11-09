@@ -41,8 +41,8 @@ export function boundResult(value: unknown): ToolResult {
     return node;
   }
   result.data = cap(result.data);
-  // Se mide el JSON COMPLETO, incluida la envoltura. Nunca cortar JSON por bytes:
-  // se acortan textos largos o se retiran filas; los números conservados no cambian.
+  // The COMPLETE JSON is measured, envelope included. JSON is never cut by bytes:
+  // long texts are shortened or rows removed; the numbers kept do not change.
   while (JSON.stringify(result).length > MAX_TOOL_CHARS) {
     result.truncated = true;
     let longest = 256;

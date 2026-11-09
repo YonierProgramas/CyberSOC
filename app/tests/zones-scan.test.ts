@@ -15,7 +15,7 @@ import { scanTargetSchema } from '../src/main/ipc/scan-validation';
 import { layerSchema, type DriveInfoResult } from '../src/shared/protocol';
 import { FakeEngineClient, scanned } from './FakeEngineClient';
 
-describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
+describe('T3.6: profiles applied per file and persistence', () => {
   const databases: Database[] = [];
   afterEach(() => {
     for (const db of databases.splice(0)) db.close();
@@ -91,11 +91,11 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
     };
   }
 
-  it('SISTEMA envía el perfil y conserva HEURISTICS/PE/SCRIPTS DISABLED (motor simulado de 7 capas)', async () => {
+  it('SISTEMA sends the profile and keeps HEURISTICS/PE/SCRIPTS DISABLED (simulated 7-layer engine)', async () => {
     const t = setup();
     t.engine.responses.push(async (params) => ({
       ...scanned(params),
-      // Simulador explícito del contrato futuro T3.4; no inventa capas en producción.
+      // Explicit simulator of the future T3.4 contract; it invents no layers in production.
       layers: layerSchema.options.map((layer) =>
         params.options.layers!.includes(layer)
           ? { layer, status: 'RAN' as const, hits: 0, points: 0, ms: 1 }
@@ -141,7 +141,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
     });
     expect(t.close).toHaveBeenCalledOnce();
   });
-  it('TEMP dentro de LOCALAPPDATA incluye ocultos sin heredar el perfil del padre', async () => {
+  it('TEMP inside LOCALAPPDATA includes hidden files without inheriting the parent profile', async () => {
     const t = setup(['C:\\Local\\a.txt', 'C:\\Local\\Temp\\b.txt']);
     t.hidden.mockResolvedValue(true);
     const done = t.done();
@@ -155,7 +155,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
       'TEMPORALES',
     ]);
   });
-  it('EXTRAIBLE usa todas las capas, 512 MB e incluye ocultos', async () => {
+  it('EXTRAIBLE uses all layers, 512 MB and includes hidden files', async () => {
     const t = setup(['E:\\a.txt'], 'REMOVABLE');
     t.hidden.mockResolvedValue(true);
     const done = t.done();
@@ -168,7 +168,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
     });
     expect(t.hidden).not.toHaveBeenCalled();
   });
-  it('perfil personalizado queda congelado y validado antes de crear un trabajo', async () => {
+  it('custom profile stays frozen and validated before creating a job', async () => {
     const t = setup();
     const profile = {
       layers: ['HASH', 'SIGNATURES'] as ('HASH' | 'SIGNATURES')[],
@@ -207,7 +207,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
     ).toThrow();
     expect(t.jobs.listRecent()).toHaveLength(1);
   });
-  it('AUTO conserva sus perfiles aunque settings cambie durante el escaneo', async () => {
+  it('AUTO keeps its profiles even if settings change during the scan', async () => {
     const t = setup();
     const done = t.done();
     const id = t.orchestrator.start({ kind: 'FOLDER', path: 'C:\\Windows' });
@@ -222,7 +222,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
       JSON.parse(t.jobs.get(id)!.profileJson!).profiles.SISTEMA.maxFileSizeMB,
     ).toBe(256);
   });
-  it('cancelar mientras se consultan versiones no deja el trabajo FAILED', async () => {
+  it('cancelling while versions are queried does not leave the job FAILED', async () => {
     const t = setup();
     t.engine.stats = () => new Promise(() => {});
     const done = t.done();
@@ -233,7 +233,7 @@ describe('T3.6: perfiles aplicados por archivo y persistencia', () => {
     expect(t.engine.calls).toHaveLength(0);
     expect(t.close).toHaveBeenCalledOnce();
   });
-  it('error de clasificación conserva el fallo y cierra la sesión', async () => {
+  it('classification error keeps the failure and closes the session', async () => {
     const t = setup(['ruta-relativa']);
     const done = t.done();
     t.orchestrator.start({ kind: 'FOLDER', path: 'C:\\Windows' });

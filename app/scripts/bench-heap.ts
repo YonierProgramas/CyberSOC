@@ -16,9 +16,9 @@ const input: Item[] = Array.from({ length: count }, (_, seq) => {
   return { value: seq, priority: seed % 201, seq };
 });
 
-// El mejor queda al final: mayor prioridad; a igualdad, menor secuencia.
-// Buscar la posición cuesta O(log n), pero splice desplaza O(n) elementos.
-// pop cuesta O(1). Por ello n inserciones pueden costar O(n²).
+// The best ends up last: highest priority; on a tie, lowest sequence.
+// Finding the position costs O(log n), but splice shifts O(n) elements.
+// pop costs O(1). Therefore n inserts can cost O(n²).
 function arrayRound(items: Item[]): number[] {
   const sorted: Item[] = [];
   for (const item of items) {
@@ -47,7 +47,7 @@ function heapRound(items: Item[]): number[] {
   return output;
 }
 
-// Oráculo fuera del tiempo medido; comprueba orden y FIFO, no solo una suma.
+// Oracle outside the measured time; checks order and FIFO, not just a sum.
 const expected = [...input]
   .sort((a, b) => b.priority - a.priority || a.seq - b.seq)
   .map((item) => item.value);
@@ -81,7 +81,7 @@ console.log('Fecha UTC:', new Date().toISOString());
 console.log('Entorno:', process.platform, process.arch, process.version);
 console.log('CPU:', cpus()[0]?.model ?? 'desconocida');
 console.log(
-  'Operaciones por repetición y algoritmo:',
+  'Operations per repetition and algorithm:',
   count,
   'inserciones +',
   count,
@@ -92,19 +92,19 @@ console.log(
   'Corpus determinista; prioridades 0..200, muchos empates; secuencia de llegada.',
 );
 console.log(
-  'Arreglo: inserción binaria + splice, mejor al final + pop; no sort por inserción.',
+  'Array: binary insertion + splice, best at the end + pop; no sort per insertion.',
 );
 console.log(
-  'Medición incluye construcción y vaciado; excluye corpus, oráculo y validación.',
+  'Measurement includes build and drain; excludes corpus, oracle and validation.',
 );
 console.log(
-  'Equivalencia: PASS; 50000 resultados en orden de prioridad y FIFO, en cada repetición.',
+  'Equivalence: PASS; 50000 results in priority and FIFO order, on each repetition.',
 );
 console.log('Heap (ms):', heapTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Arreglo (ms):', arrayTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Mediana heap:', heapMs.toFixed(3), 'ms');
 console.log('Mediana arreglo:', arrayMs.toFixed(3), 'ms');
-console.log('Relación arreglo/heap:', (arrayMs / heapMs).toFixed(2) + 'x');
+console.log('Array/heap ratio:', (arrayMs / heapMs).toFixed(2) + 'x');
 console.log(
-  'Medición sintética; no predice latencia de IA ni ventaja con colas pequeñas.',
+  'Synthetic measurement; does not predict AI latency or an advantage with small queues.',
 );

@@ -9,7 +9,7 @@ import Anthropic, {
   type ClientOptions,
 } from '@anthropic-ai/sdk';
 import { z } from 'zod';
-// Solo importaciones de tipos: este archivo también se ejecuta con el type stripping de Node (ai:smoke).
+// Type-only imports: this file also runs with Node type stripping (ai:smoke).
 import type {
   AIError,
   AIProvider,
@@ -26,40 +26,40 @@ export const ANTHROPIC_API_URL = 'https://api.anthropic.com';
 export const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface ClaudeProviderOptions {
-  /** API key explícita. El proveedor nunca la lee del entorno. */
+  /** Explicit API key. The provider never reads it from the environment. */
   apiKey: string;
-  /** Modelo explícito, por ejemplo `claude-haiku-4-5-20251001`. */
+  /** Explicit model, for example `claude-haiku-4-5-20251001`. */
   model: string;
   timeoutMs?: number;
-  /** Por defecto `https://api.anthropic.com`; se ignora `ANTHROPIC_BASE_URL`. */
+  /** Defaults to `https://api.anthropic.com`; `ANTHROPIC_BASE_URL` is ignored. */
   baseURL?: string;
-  /** Cliente HTTP alternativo; lo usan las pruebas para no tocar la red. */
+  /** Alternative HTTP client; used by tests to avoid the network. */
   fetch?: ClientOptions['fetch'];
 }
 
 /**
- * Proveedor de IA sobre la API de Claude (Messages API + salidas estructuradas).
- * Nunca lanza por fallos del proveedor: los devuelve como `AIResult` con `ok: false`.
- * Los reintentos son responsabilidad del llamador (el SDK se configura con `maxRetries: 0`).
+ * AI provider on top of the Claude API (Messages API + structured outputs).
+ * It never throws on provider failures: it returns them as `AIResult` with `ok: false`.
+ * Retries are the caller's responsibility (the SDK is configured with `maxRetries: 0`).
  */
 export class ClaudeProvider implements AIProvider {
   readonly id = 'claude';
   readonly model: string;
   readonly timeoutMs: number;
-  // Campo privado real para que la clave no aparezca al serializar o inspeccionar el proveedor.
+  // True private field so the key does not appear when serializing or inspecting the provider.
   readonly #client: Anthropic;
 
   constructor(options: ClaudeProviderOptions) {
     if (typeof options.apiKey !== 'string' || options.apiKey.trim() === '') {
-      throw new TypeError('ClaudeProvider: se requiere una apiKey explícita.');
+      throw new TypeError('ClaudeProvider: an explicit apiKey is required.');
     }
     if (typeof options.model !== 'string' || options.model.trim() === '') {
-      throw new TypeError('ClaudeProvider: se requiere un modelo explícito.');
+      throw new TypeError('ClaudeProvider: an explicit model is required.');
     }
     this.model = options.model;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-    // Todo explícito: con valores `undefined` el SDK leería ANTHROPIC_API_KEY,
-    // ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL y ANTHROPIC_LOG del entorno.
+    // Everything explicit: with `undefined` values the SDK would read ANTHROPIC_API_KEY,
+    // ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL and ANTHROPIC_LOG from the environment.
     this.#client = new Anthropic({
       apiKey: options.apiKey,
       authToken: null,
@@ -111,8 +111,8 @@ export class ClaudeProvider implements AIProvider {
       return { ok: false, error: this.mapError(error, signals) };
     }
 
-    // El texto y los tokens se conservan también en los fallos: la respuesta se guarda para
-    // auditoría y AIResponseValidator decide su validation_status exacto.
+    // Text and tokens are also kept on failures: the response is stored for
+    // audit and AIResponseValidator decides its exact validation_status.
     const rawText = response.content
       .filter((block): block is Anthropic.TextBlock => block.type === 'text')
       .map((block) => block.text)
@@ -132,7 +132,7 @@ export class ClaudeProvider implements AIProvider {
       },
     });
 
-    // "max_tokens" se comprueba antes de parsear: una respuesta cortada es INCOMPLETE, no JSON roto.
+    // "max_tokens" is checked before parsing: a cut-off response is INCOMPLETE, not broken JSON.
     const stopError = mapStopReason(response.stop_reason);
     if (stopError) return withResponse(stopError);
 
@@ -161,23 +161,23 @@ export class ClaudeProvider implements AIProvider {
   }
 
   /**
-   * Un paso del Copilot. Sin `tools` ni `output` es el turno de texto de S4. Con `tools`
-   * (siempre `strict: true`) y `output` (`output_config.format`) es el paso de S5: según la
-   * documentación de salidas estructuradas, ambos se combinan en la misma petición; el modelo
-   * llama herramientas (stop_reason `tool_use`) o entrega el JSON final (`end_turn`).
-   * Los errores se mapean igual que en `generateStructured`.
+   * One Copilot step. Without `tools` or `output` it is the S4 text turn. With `tools`
+   * (always `strict: true`) and `output` (`output_config.format`) it is the S5 step: according to
+   * the structured outputs documentation, both are combined in the same request; the model
+   * calls tools (stop_reason `tool_use`) or delivers the final JSON (`end_turn`).
+   * Errors are mapped the same way as in `generateStructured`.
    */
   async runAssistantTurn<T = string>(
     req: AssistantTurnRequest<T>,
   ): Promise<AIResult<AssistantStep<T>>> {
     if (req.messages.length === 0 || req.messages.at(-1)!.role !== 'user') {
       throw new TypeError(
-        'ClaudeProvider: la conversación debe terminar con un mensaje del usuario.',
+        'ClaudeProvider: the conversation must end with a user message.',
       );
     }
-    // Con tool_choice 'none' las herramientas no pueden llamarse: se declaran sin strict
-    // para no sumar su gramática a la de output_config (la API rechaza la combinación de
-    // las 14 herramientas estrictas con el esquema de salida: "compiled grammar is too large").
+    // With tool_choice 'none' the tools cannot be called: they are declared without strict
+    // so their grammar is not added to the output_config one (the API rejects combining
+    // the 14 strict tools with the output schema: "compiled grammar is too large").
     const declareOnly = req.toolChoice === 'none';
     const tools = req.tools?.map((spec) => toClaudeTool(spec, !declareOnly));
     const started = performance.now();
@@ -189,7 +189,7 @@ export class ClaudeProvider implements AIProvider {
           model: req.model ?? this.model,
           max_tokens: req.maxTokens,
           system: req.system,
-          // Copia campo a campo: ningún dato extra del llamador llega a la API.
+          // Field-by-field copy: no extra caller data reaches the API.
           messages: req.messages.map(toClaudeMessage),
           ...(tools?.length ? { tools } : {}),
           ...(tools?.length && declareOnly
@@ -298,7 +298,7 @@ export class ClaudeProvider implements AIProvider {
   }
 
   private mapError(error: unknown, signals: Signals): AIError {
-    // El orden importa: APIUserAbortError y APIConnectionError heredan de APIError.
+    // Order matters: APIUserAbortError and APIConnectionError inherit from APIError.
     if (error instanceof APIUserAbortError || signals.signal.aborted) {
       if (signals.external?.aborted && !signals.timeout.aborted) {
         return {
@@ -346,7 +346,7 @@ export class ClaudeProvider implements AIProvider {
           message: `La API de Claude no está disponible (HTTP ${error.status}).`,
         };
       }
-      // 400, 404, 413…: la petición no es válida; reintentarla igual no sirve.
+      // 400, 404, 413…: the request is invalid; retrying it as is does not help.
       const detail = apiErrorDetail(error);
       return {
         kind: 'PROVIDER_DOWN',
@@ -402,7 +402,7 @@ function mapStopReason(
 
 const MAX_DETAIL_LENGTH = 300;
 
-/** Mensaje de error del cuerpo de la respuesta (`error.message`), recortado. No contiene la clave. */
+/** Error message from the response body (`error.message`), trimmed. It does not contain the key. */
 function apiErrorDetail(error: APIError): string | undefined {
   const body = error.error as { error?: { message?: unknown } } | undefined;
   const message = body?.error?.message;
@@ -446,8 +446,8 @@ export function parseRetryAfterMs(
   return Number.isNaN(date) ? undefined : Math.max(0, date - now);
 }
 
-// Palabras clave que las salidas estructuradas no admiten. Se quitan del esquema enviado;
-// la respuesta igual se valida después con el esquema zod completo.
+// Keywords structured outputs do not support. They are removed from the sent schema;
+// the response is still validated afterwards with the complete zod schema.
 const UNSUPPORTED_KEYWORDS = new Set([
   '$schema',
   '$id',
@@ -483,8 +483,8 @@ const SCHEMA_LIST_KEYWORDS = new Set(['anyOf', 'allOf', 'prefixItems']);
 const SCHEMA_MAP_KEYWORDS = new Set(['properties', '$defs', 'definitions']);
 
 /**
- * Convierte un esquema zod en el JSON Schema de `output_config.format`.
- * Conserva `enum`, `const`, `anyOf`, `$ref` y `required`; fuerza `additionalProperties: false`.
+ * Converts a zod schema into the JSON Schema for `output_config.format`.
+ * Keeps `enum`, `const`, `anyOf`, `$ref` and `required`; forces `additionalProperties: false`.
  */
 export function toClaudeJsonSchema(schema: z.ZodType): Record<string, unknown> {
   const json = z.toJSONSchema(schema, {
@@ -495,10 +495,10 @@ export function toClaudeJsonSchema(schema: z.ZodType): Record<string, unknown> {
 }
 
 /**
- * Esquema de una herramienta estricta: quita lo que el modo estricto no admite (longitudes,
- * patrones, maxItems…; el Core los vuelve a validar con zod al ejecutar) y aplana uniones
- * anidadas como `anyOf[anyOf[T, null], null]` en `anyOf[T, null]`. La API limita a 16 los
- * parámetros con unión por petición, sumando todas las herramientas y el esquema de salida.
+ * Schema of a strict tool: removes what strict mode does not support (lengths,
+ * patterns, maxItems…; the Core validates them again with zod on execution) and flattens nested
+ * unions such as `anyOf[anyOf[T, null], null]` into `anyOf[T, null]`. The API limits union
+ * parameters to 16 per request, counting all tools and the output schema.
  */
 export function toClaudeToolSchema(
   schema: Record<string, unknown>,
@@ -517,7 +517,7 @@ function flattenUnions(node: unknown): unknown {
     const seen = new Set<string>();
     const add = (option: unknown) => {
       const record = option as Record<string, unknown>;
-      // Una opción que solo es otra unión se despliega en la de afuera.
+      // An option that is only another union is expanded into the outer one.
       if (Object.keys(record).length === 1 && Array.isArray(record.anyOf)) {
         record.anyOf.forEach(add);
         return;
@@ -607,7 +607,7 @@ function cleanSchema(node: unknown): Record<string, unknown> {
   }
   if (out.type === 'object' || 'properties' in out)
     out.additionalProperties = false;
-  // `type: ['string', 'null']` (nullable en zod) no está documentado: se expresa con `anyOf`.
+  // `type: ['string', 'null']` (zod nullable) is not documented: it is expressed with `anyOf`.
   if (Array.isArray(out.type)) {
     const { type: types, description, ...rest } = out;
     return {

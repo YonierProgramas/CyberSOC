@@ -16,7 +16,7 @@ vi.mock('electron', async () => ({
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
 import { copilotDeps } from './fixtures/copilot';
 
-// CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.
+// CI never calls Claude, even if it receives a key by mistake. Locally it requires opt-in.
 const skip =
   Boolean(process.env.CI) ||
   !process.env.CYBERSOC_ANTHROPIC_API_KEY?.trim() ||
@@ -32,19 +32,19 @@ const QUESTIONS = [
   '¿Qué debería hacer?',
 ] as const;
 
-describe.skipIf(skip)('live — SOC Copilot v1 sobre la API de Claude', () => {
+describe.skipIf(skip)('live — SOC Copilot v1 over the Claude API', () => {
   let harness: AIFlowHarness | undefined;
   afterEach(async () => {
     await harness?.close();
   });
 
-  it('responde tres preguntas reales sobre un fixture detectado sin cambiar su veredicto', async () => {
+  it('answers three real questions about a detected fixture without changing its verdict', async () => {
     const config = appConfigSchema.parse({});
     const claude = new ClaudeProvider({
       apiKey: process.env.CYBERSOC_ANTHROPIC_API_KEY!,
       model: config.ai.assistantModel,
     });
-    // Registra uso y latencia de cada turno; no guarda la petición ni la clave.
+    // Records usage and latency of each turn; it stores neither the request nor the key.
     const usage: Array<Pick<AIResult<string>, 'ok'> & Record<string, unknown>> =
       [];
     const recording: AIProvider = {
@@ -68,7 +68,7 @@ describe.skipIf(skip)('live — SOC Copilot v1 sobre la API de Claude', () => {
       },
     };
 
-    // El escaneo usa un proveedor falso: el análisis automático no gasta llamadas.
+    // The scan uses a fake provider: automatic analysis spends no calls.
     harness = new AIFlowHarness(() => new FakeAIProvider());
     await harness.prepare();
     const { results } = await harness.scan(harness.signature);

@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FileDiscovery } from '../src/core/scan/FileDiscovery';
 
-// AUD-10: las omisiones esperables se cuentan por motivo. Los errores se simulan por
-// nombre de fixture para no alterar permisos reales del sistema; todo lo demás usa
-// el sistema de archivos real en una carpeta temporal.
+// AUD-10: expected skips are counted by reason. Errors are simulated by
+// fixture name so as not to alter real system permissions; everything else uses
+// the real file system in a temporary folder.
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
   const fail = (code: string) =>
@@ -51,7 +51,7 @@ afterEach(async () => {
 });
 
 describe('FileDiscovery: omisiones registradas', () => {
-  it('cuenta cada entrada no leída por motivo y sigue con el resto', async () => {
+  it('counts each unread entry by reason and continues with the rest', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'carpeta-eperm'));
     await mkdir(join(root, 'sub'));
@@ -75,7 +75,7 @@ describe('FileDiscovery: omisiones registradas', () => {
     });
   });
 
-  it('reinicia los conteos en cada recorrido', async () => {
+  it('resets the counts on each traversal', async () => {
     const first = await tempDir();
     await writeFile(join(first, 'bloqueado-eacces.txt'), 'x');
     const clean = await tempDir();
@@ -89,7 +89,7 @@ describe('FileDiscovery: omisiones registradas', () => {
     expect(discovery.skippedByReason).toEqual({});
   });
 
-  it('un error inesperado no se convierte en omisión silenciosa', async () => {
+  it('an unexpected error does not become a silent skip', async () => {
     const root = await tempDir();
     await writeFile(join(root, 'roto-eio.txt'), 'x');
     const discovery = new FileDiscovery();

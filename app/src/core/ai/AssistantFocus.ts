@@ -21,10 +21,10 @@ import {
 
 export const ASSISTANT_FOCUS_SCHEMA_ID = 'cybersoc.assistant-focus/v1';
 
-/** El último análisis VALID, sin el identificador de esquema (no aporta nada al chat). */
+/** The latest VALID analysis, without the schema identifier (it adds nothing to the chat). */
 const lastAnalysisSchema = aiAssessmentSchema.omit({ schema: true });
 
-/** Decisión de RiskPolicy guardada en `risk_assessments`: el veredicto que ve el usuario. */
+/** RiskPolicy decision stored in `risk_assessments`: the verdict the user sees. */
 const decisionSchema = z.strictObject({
   finalVerdict: z.enum(['CLEAN', 'SUSPICIOUS', 'DETECTED']),
   finalLevel: riskLevelSchema,
@@ -34,8 +34,8 @@ const decisionSchema = z.strictObject({
 });
 
 /**
- * `assistant-focus/v1`: lo único que el Copilot envía a la IA sobre CyberSOC en cada turno.
- * Reutiliza los contextos ya acotados y anonimizados de S2/S3; nunca contenido de archivos.
+ * `assistant-focus/v1`: the only thing the Copilot sends to the AI about CyberSOC on each turn.
+ * Reuses the already bounded and anonymized S2/S3 contexts; never file content.
  */
 export const assistantFocusSchema = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -67,13 +67,13 @@ export interface FocusRef {
 
 export interface BuiltAssistantFocus {
   focus: AssistantFocus;
-  /** JSON exacto que va entre <contexto> y </contexto>. */
+  /** Exact JSON placed between <contexto> and </contexto>. */
   json: string;
-  /** Para la UI ("Hablando de: …"). Es local: no se envía a la IA. */
+  /** For the UI ("Hablando de: …"). Local only: it is not sent to the AI. */
   label: string | null;
 }
 
-// Lo que ScanOrchestrator guarda en scan_jobs.profile_json (T3.5).
+// What ScanOrchestrator stores in scan_jobs.profile_json (T3.5).
 const storedProfileSchema = z.union([
   z.object({
     mode: z.literal('AUTO'),
@@ -88,7 +88,7 @@ const storedProfileSchema = z.union([
   }),
 ]);
 
-/** Perfil de capas que se aplicó al archivo, o null si el escaneo no guardó perfil. */
+/** Layer profile applied to the file, or null if the scan stored no profile. */
 export function profileFor(
   profileJson: string | null,
   zone: string | null,
@@ -110,7 +110,7 @@ export function profileFor(
     : null;
 }
 
-/** Construye el foco del Copilot leyendo SQLite. No escribe nada. */
+/** Builds the Copilot focus by reading SQLite. It writes nothing. */
 export class AssistantFocusBuilder {
   constructor(
     private readonly db: Database,
@@ -129,7 +129,7 @@ export class AssistantFocusBuilder {
   }
 
   private forResult(resultId: string): BuiltAssistantFocus {
-    // Lanza si el resultado no existe. Mismos hechos que el análisis por archivo (S2/S3).
+    // Throws if the result does not exist. Same facts as the per-file analysis (S2/S3).
     const { result, analysis } = new AIAnalysisStore(this.db).load(resultId);
     const job = new ScanJobRepository(this.db).get(result.jobId);
     const zone = zoneSchema.safeParse(result.zone);
@@ -164,7 +164,7 @@ export class AssistantFocusBuilder {
 
   private forJob(jobId: string): BuiltAssistantFocus {
     const store = new JobSummaryStore(this.db);
-    const facts = store.facts(jobId); // Lanza si el escaneo no existe.
+    const facts = store.facts(jobId); // Throws if the scan does not exist.
     const { sendFileNames } = this.readConfig().ai;
     return this.finish(
       {
@@ -177,7 +177,7 @@ export class AssistantFocusBuilder {
     );
   }
 
-  /** Último análisis VALID del resultado; null si no hay o si ya no cumple el esquema. */
+  /** Latest VALID analysis of the result; null if there is none or it no longer matches the schema. */
   private lastAnalysis(resultId: string) {
     const saved = new AIAnalysisRepository(this.db).latestValidByResult(
       resultId,
@@ -188,7 +188,7 @@ export class AssistantFocusBuilder {
         JSON.parse(saved.responseJson),
       );
       if (!parsed.success) return null;
-      // strip() descarta la clave `schema`, que lastAnalysisSchema no tiene.
+      // strip() discards the `schema` key, which lastAnalysisSchema does not have.
       return lastAnalysisSchema.strip().parse(parsed.data);
     } catch {
       return null;
@@ -199,7 +199,7 @@ export class AssistantFocusBuilder {
     draft: AssistantFocus,
     label: string | null,
   ): BuiltAssistantFocus {
-    // Lanza si algo no cumple el esquema: es preferible a enviar un foco inválido.
+    // Throws if anything fails the schema: preferable to sending an invalid focus.
     const focus = assistantFocusSchema.parse(draft);
     return { focus, json: toPromptSafeJson(focus), label };
   }

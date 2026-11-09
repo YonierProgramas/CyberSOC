@@ -60,7 +60,7 @@ beforeEach(() => {
   stop = registerSettingsIpc(() => window, url, service);
 });
 
-it('expone cuatro canales validados; set/clear no devuelven nada y getStatus solo metadatos', async () => {
+it('exposes four validated channels; set/clear return nothing and getStatus only metadata', async () => {
   expect(electron.handle).toHaveBeenCalledTimes(4);
   await expect(
     call(SETTINGS_AI_SET_API_KEY, event, key),
@@ -81,7 +81,7 @@ it.each([
   SETTINGS_AI_GET_STATUS,
   SETTINGS_AI_TEST_CONNECTION,
 ])(
-  'rechaza otra ventana, subframe, navegación y ausencia de ventana en %s',
+  'rejects another window, subframe, navigation and absence of a window in %s',
   async (channel) => {
     for (const sender of [
       { sender: {}, senderFrame: frame },
@@ -118,7 +118,7 @@ it.each([
   [SETTINGS_AI_GET_STATUS, [key]],
   [SETTINGS_AI_TEST_CONNECTION, [key]],
 ] as const)(
-  'rechaza argumentos de %s sin incluirlos en el error',
+  'rejects arguments of %s without including them in the error',
   async (channel, args) => {
     let failure: unknown;
     try {
@@ -135,7 +135,7 @@ it.each([
   },
 );
 
-it('rechaza salidas con campos secretos extra sin propagar ZodError', async () => {
+it('rejects outputs with extra secret fields without propagating ZodError', async () => {
   vi.mocked(service.getStatus).mockReturnValue({
     ...status,
     apiKey: key,
@@ -147,7 +147,7 @@ it('rechaza salidas con campos secretos extra sin propagar ZodError', async () =
   expect(JSON.stringify(error)).not.toContain(key);
 });
 
-it('sustituye excepciones de servicio que contienen secretos', async () => {
+it('replaces service exceptions containing secrets', async () => {
   vi.mocked(service.setApiKey).mockImplementation(() => {
     throw new Error(key);
   });
@@ -159,7 +159,7 @@ it('sustituye excepciones de servicio que contienen secretos', async () => {
 });
 
 it.each(['navigate', 'close'])(
-  'no entrega una respuesta pendiente después de %s',
+  'delivers no pending response after %s',
   async (action) => {
     let finish!: () => void;
     vi.mocked(service.testConnection).mockImplementation(
@@ -184,7 +184,7 @@ it.each(['navigate', 'close'])(
   },
 );
 
-it('retira los handlers e invalida referencias conservadas al cerrar', async () => {
+it('removes the handlers and invalidates kept references on close', async () => {
   stop();
   expect(electron.removeHandler).toHaveBeenCalledTimes(4);
   await expect(call(SETTINGS_AI_GET_STATUS)).rejects.toThrow('configuración');

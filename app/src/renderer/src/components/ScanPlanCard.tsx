@@ -4,6 +4,7 @@ import { useShell } from '../navigation/shell';
 import { zoneLabel } from '../scan/format';
 import { ModalDialog } from './ModalDialog';
 import { PlainText } from './PlainText';
+import { ipcErrorText } from '../ipc/errors';
 
 export function ScanPlanCard({
   plan,
@@ -33,7 +34,7 @@ export function ScanPlanCard({
     setBusy(true);
     setMessage(null);
     try {
-      // El plan solo se propone. scan.start corre aquí, después de confirmar.
+      // The plan is only proposed. scan.start runs here, after confirming.
       const started = await window.cybersoc.scan.start({
         kind: 'FOLDER',
         path: first.path,
@@ -42,11 +43,7 @@ export function ScanPlanCard({
       onClose();
       watchScan(started.jobId);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo iniciar el escaneo.',
-      );
+      setMessage(ipcErrorText(error, 'No se pudo iniciar el escaneo.'));
     } finally {
       setBusy(false);
     }

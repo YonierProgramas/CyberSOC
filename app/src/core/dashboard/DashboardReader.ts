@@ -30,14 +30,14 @@ const activeStates: ScanJobStatus[] = [
   'SCANNING',
   'CANCELLING',
 ];
-/** Diccionario: exactamente una clave por estado, incluso en cero.
- * Construir O(k), consultar/actualizar O(1) promedio; k es la cantidad de estados.
+/** Dictionary: exactly one key per status, even at zero.
+ * Build O(k), lookup/update O(1) average; k is the number of statuses.
  */
 function zeros<T extends string>(keys: readonly T[]): Record<T, number> {
   return Object.fromEntries(keys.map((key) => [key, 0])) as Record<T, number>;
 }
 
-/** Solo SELECT: los totales son agregados SQL de la historia, nunca páginas recientes. */
+/** SELECT only: totals are SQL aggregates of the history, never recent pages. */
 export class DashboardReader {
   constructor(
     private readonly db: Database,
@@ -111,8 +111,8 @@ export class DashboardReader {
           }
         : null;
       const daily: DashboardOverviewDTO['activity']['daily'] = [];
-      // Map: una celda por día civil del rango. get/set O(1) promedio;
-      // construir/recorrer O(d), memoria O(d), d ≤ 366. No guarda resultados individuales.
+      // Map: one cell per calendar day in the range. get/set O(1) average;
+      // build/walk O(d), O(d) memory, d ≤ 366. It stores no individual results.
       const dayMap = new Map<
         string,
         DashboardOverviewDTO['activity']['daily'][number]
@@ -224,9 +224,9 @@ export class DashboardReader {
     const byStatus = zeros(resultStatusSchema.options);
     const byAiStatus = zeros(aiStatusSchema.options);
     let total = 0;
-    // El perfil midió que agrupar por zona elegía recorrer TODOS los resultados
-    // por idx_results_zone incluso en un rango pequeño. Primero filtrar trabajos
-    // y usar el índice job existente evita ese recorrido, sin índice/DDL nuevo.
+    // Profiling showed that grouping by zone chose to walk ALL results
+    // via idx_results_zone even on a small range. Filtering jobs first
+    // and using the existing job index avoids that walk, with no new index/DDL.
     const grouped = this.db
       .prepare(
         `SELECT r.verdict, r.status, r.ai_status, COUNT(*) total

@@ -65,9 +65,9 @@ function boundary(value: string, end: boolean): string {
 }
 
 export class ReportBuilder {
-  // Invariante del Map: UUID único -> snapshot privado, con caducidad y capacidad.
-  // Buscar/insertar/eliminar: O(1) promedio. La copia defensiva cuesta O(tamaño del
-  // reporte); purgar entradas al construir cuesta O(c), c <= maxDrafts.
+  // Map invariant: unique UUID -> private snapshot, with expiry and capacity.
+  // Find/insert/delete: O(1) average. The defensive copy costs O(size of the
+  // report); purging entries while building costs O(c), c <= maxDrafts.
   private readonly cache = new Map<
     string,
     { draft: ReportDraft; expires: number }
@@ -86,7 +86,7 @@ export class ReportBuilder {
       !Number.isSafeInteger(options.ttlMs ?? 900000) ||
       (options.ttlMs ?? 900000) < 1
     )
-      throw new RangeError('Límites de caché inválidos.');
+      throw new RangeError('Invalid cache limits.');
   }
   get(id: string): ReportDraft {
     const entry = this.cache.get(id);
@@ -96,7 +96,7 @@ export class ReportBuilder {
     }
     return structuredClone(entry.draft);
   }
-  /** Solo se admite redacción de IA; nunca cifras, resultados ni veredictos. */
+  /** Only AI wording is accepted; never figures, results or verdicts. */
   attachNarrative(id: string, input: unknown): void {
     const narrative = narrativeSchema.parse(input);
     const draft = this.get(id);
@@ -142,8 +142,8 @@ export class ReportBuilder {
     const cte = `WITH selected AS (SELECT r.* FROM scan_results r WHERE ${clauses.join(' AND ')})`;
     const rows = (sql: string) =>
       this.db.prepare(`${cte} ${sql}`).all(...params) as ReportRow[];
-    // SAVEPOINT inicia una instantánea de lectura diferida y permite uso anidado.
-    // Solo ejecutamos SELECT; no se escriben registros ni se mantiene abierta al exportar.
+    // SAVEPOINT starts a deferred read snapshot and allows nested use.
+    // Only SELECTs run; no records are written and it is not held open while exporting.
     const savepoint = `report_${randomUUID().replaceAll('-', '')}`;
     this.db.exec(`SAVEPOINT ${savepoint}`);
     let draft: ReportDraft;

@@ -3,17 +3,17 @@ import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { QuarantineError } from './paths';
 
-// Código constante: la ruta y el hash viajan en variables de entorno, nunca interpolados.
-// Windows abre con READ + DELETE, sin compartir escritura/borrado. Recalcula el hash
-// con ese handle y lo marca para borrar: cambiar un nombre no cambia el objeto abierto.
+// Constant code: the path and hash travel in environment variables, never interpolated.
+// Windows opens with READ + DELETE, without sharing write/delete. It recomputes the hash
+// with that handle and marks it for deletion: changing a name does not change the open object.
 // SetFileInformationByHandle(FileDispositionInfo):
 // https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-setfileinformationbyhandle
 const DELETE_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
 try {
-  # Cargar el módulo incorporado por ruta evita buscar por todos los módulos instalados.
-  # Con el entorno mínimo, ese descubrimiento añade decenas de segundos en Windows CI.
-  # PSHOME lo fija PowerShell; no heredamos PSModulePath ni credenciales del proceso main.
+  # Loading the built-in module by path avoids searching all installed modules.
+  # With the minimal environment, that discovery adds tens of seconds on Windows CI.
+  # PSHOME is set by PowerShell; we inherit neither PSModulePath nor main-process credentials.
   Import-Module "$PSHOME\Modules\Microsoft.PowerShell.Utility\Microsoft.PowerShell.Utility.psd1" -ErrorAction Stop
   Add-Type -TypeDefinition @'
 using System;
@@ -66,7 +66,7 @@ export async function deleteVerifiedOriginal(
   sha256: string,
 ): Promise<void> {
   if (process.platform !== 'win32') {
-    // Soporte de las pruebas portables. El endurecimiento por handle es específico de Windows.
+    // Support for the portable tests. Handle hardening is Windows-specific.
     await unlink(path);
     return;
   }
@@ -91,7 +91,7 @@ export async function deleteVerifiedOriginal(
         windowsHide: true,
         timeout: 120_000,
         maxBuffer: 4096,
-        // No hereda API keys, tokens GitHub ni otras credenciales del proceso main.
+        // It does not inherit API keys, GitHub tokens or other credentials from the main process.
         env: {
           SystemRoot: systemRoot,
           TEMP: process.env.TEMP,

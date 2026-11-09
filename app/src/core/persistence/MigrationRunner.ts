@@ -36,7 +36,7 @@ export class MigrationRunner {
         !migration.name.trim()
       ) {
         throw new Error(
-          'Las migraciones deben tener nombre y versiones positivas crecientes.',
+          'Migrations must have a name and increasing positive versions.',
         );
       }
       previousVersion = migration.version;

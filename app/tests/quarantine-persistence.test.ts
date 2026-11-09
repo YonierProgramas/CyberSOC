@@ -18,7 +18,7 @@ function setup() {
   databases.push(db);
   return db;
 }
-it('005 migra desde 004 sin alterar datos y conserva restricciones del plan', () => {
+it('005 migrates from 004 without altering data and keeps the plan constraints', () => {
   const db = setup();
   new MigrationRunner(db, [
     initialMigration,
@@ -82,7 +82,7 @@ it('005 migra desde 004 sin alterar datos y conserva restricciones del plan', ()
     key_b64,iv_b64,reason,verdict_snapshot,status) VALUES ('bad','x','x',1,'x','x','x','x','DETECTED','UNKNOWN')`),
   ).toThrow();
 });
-it('allowlist valida y normaliza SHA-256; auditoría forma parte de la transacción', () => {
+it('allowlist validates and normalizes SHA-256; audit is part of the transaction', () => {
   const db = setup();
   new MigrationRunner(db).run();
   const list = new AllowlistRepository(db),
@@ -106,7 +106,7 @@ it('allowlist valida y normaliza SHA-256; auditoría forma parte de la transacci
   expect(list.has('invalid')).toBe(false);
 });
 it.each(['CLEAN', 'SUSPICIOUS', 'DETECTED'] as const)(
-  'allowlist precede al motor %s y a la IA',
+  'allowlist precedes engine %s and the AI',
   (verdict) => {
     const decision = decideRisk(
       { verdict, score: 100, userAllowlisted: true },
@@ -128,7 +128,7 @@ it.each(['CLEAN', 'SUSPICIOUS', 'DETECTED'] as const)(
     });
   },
 );
-it('sin confianza explícita no baja un DETECTED', () => {
+it('without explicit trust does not lower a DETECTED', () => {
   expect(
     decideRisk({ verdict: 'DETECTED', score: 100, userAllowlisted: false })
       .finalVerdict,

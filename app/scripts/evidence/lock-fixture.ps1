@@ -4,7 +4,7 @@ $stream = [System.IO.File]::Open($FixturePath, 'Open', 'ReadWrite', 'None')
 try {
     [Console]::WriteLine('LOCK_READY')
     [Console]::Out.Flush()
-    # El capturador libera el bloqueo cerrando stdin o enviando una línea.
+    # The capturer releases the lock by closing stdin or sending a line.
     [Console]::ReadLine() | Out-Null
 } finally {
     $stream.Dispose()

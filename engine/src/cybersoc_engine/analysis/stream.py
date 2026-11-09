@@ -1,4 +1,4 @@
-"""Un recorrido secuencial; los consumidores nunca abren ni rebobinan el archivo."""
+"""One sequential traversal; consumers never open or rewind the file."""
 
 import hashlib
 import math
@@ -18,7 +18,7 @@ class HashConsumer:
         self._hash = hashlib.sha256()
 
     def consume(self, chunk: bytes) -> None:
-        """O(len(chunk)); SHA-256 conserva un estado de tamaño constante."""
+        """O(len(chunk)); SHA-256 keeps a constant-size state."""
         self._hash.update(chunk)
 
     def hexdigest(self) -> str:
@@ -30,8 +30,8 @@ class HeaderConsumer:
         self._header = bytearray()
 
     def consume(self, chunk: bytes) -> None:
-        # Invariante: solo los primeros 64 KiB; no crece con el tamaño del archivo.
-        # Copiar cuesta O(min(len(chunk), espacio restante)); después cuesta O(1).
+        # Invariant: only the first 64 KiB; it does not grow with the file size.
+        # Copying costs O(min(len(chunk), remaining space)); afterwards it costs O(1).
         remaining = HEADER_BYTES - len(self._header)
         if remaining:
             self._header.extend(chunk[:remaining])
@@ -43,22 +43,22 @@ class HeaderConsumer:
 
 class ByteHistogram:
     def __init__(self) -> None:
-        # Arreglo de 256 contadores: un byte solo tiene valores 0..255. El índice
-        # es el byte; no hacen falta búsquedas ni claves de un diccionario.
-        # Invariante: counts[b] cuenta b y sum(counts) == total tras cada bloque.
+        # Array of 256 counters: a byte only has values 0..255. The index
+        # is the byte; no lookups or dictionary keys are needed.
+        # Invariant: counts[b] counts b and sum(counts) == total after each block.
         self.counts = [0] * 256
         self.total = 0
 
     def consume(self, chunk: bytes) -> None:
-        # O(1) por byte, O(n) por bloque; memoria O(256), independiente del archivo.
+        # O(1) per byte, O(n) per block; O(256) memory, independent of the file.
         for byte in chunk:
             self.counts[byte] += 1
         self.total += len(chunk)
 
     def entropy(self) -> float:
         # Shannon H = -sum(p * log2(p)), p = frecuencia/total; omitir p=0.
-        # Rango 0..8 bits/byte: un solo valor -> 0, 256 equiprobables -> 8.
-        # O(256) tiempo y O(1) espacio adicional. Para entrada vacía definimos 0.
+        # Range 0..8 bits/byte: a single value -> 0, 256 equiprobable -> 8.
+        # O(256) time and O(1) extra space. For empty input we define 0.
         if not self.total:
             return 0.0
         return -sum(
@@ -72,13 +72,13 @@ class BoundedSample:
         self.data = bytearray()
 
     def consume(self, chunk: bytes) -> None:
-        # Invariante: len(data) <= límite fijo. O(bytes retenidos) tiempo y
-        # O(límite) memoria; nunca crece con un archivo grande ni relee el disco.
+        # Invariant: len(data) <= fixed limit. O(retained bytes) time and
+        # O(limit) memory; it never grows with a large file nor rereads the disk.
         self.data.extend(chunk[: max(0, self.limit - len(self.data))])
 
 
 class FileChangedError(OSError):
-    """La lectura ya no corresponde al archivo estable admitido al comenzar."""
+    """The read no longer matches the stable file admitted at the start."""
 
 
 def consume_stream(
@@ -88,11 +88,11 @@ def consume_stream(
     max_bytes: int | None = None,
     check_unchanged: Callable[[], None] | None = None,
 ) -> int:
-    """Un recorrido acotado; nunca solicita ni entrega más de max_bytes a las capas."""
+    """One bounded traversal; it never requests or delivers more than max_bytes to the layers."""
     total = 0
-    # Invariante: 0 <= total <= max_bytes, si hay límite. Cada bloque cuesta O(b)
-    # más los consumidores; memoria O(CHUNK_BYTES). No leemos un byte centinela
-    # fuera del límite: el inspector comprueba EOF/tamaño por el descriptor.
+    # Invariant: 0 <= total <= max_bytes, if there is a limit. Each block costs O(b)
+    # plus the consumers; O(CHUNK_BYTES) memory. We do not read a sentinel byte
+    # beyond the limit: the inspector checks EOF/size through the descriptor.
     while True:
         if check_unchanged is not None:
             check_unchanged()
@@ -105,7 +105,7 @@ def consume_stream(
         if not chunk:
             break
         if len(chunk) > remaining:
-            raise FileChangedError("Lectura superior al límite solicitado")
+            raise FileChangedError("Read above the requested limit")
         for consumer in consumers:
             consumer.consume(chunk)
         total += len(chunk)

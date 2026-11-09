@@ -24,12 +24,12 @@ import {
   createEngine,
 } from '../src/main/composition-root';
 
-// Credenciales ficticias, solo para pruebas con fetch y cifrado simulados.
+// Fake credentials, only for tests with mocked fetch and encryption.
 const KEY = 'unit-test-secret-only-1234';
 const NEXT = 'unit-test-replacement-5678';
 const MODEL = 'claude-haiku-4-5-20251001';
 
-describe('SecretStore y composición de Claude', () => {
+describe('SecretStore and Claude composition', () => {
   let directory: string;
   let db: Database;
   let store: SecretStore;
@@ -60,7 +60,7 @@ describe('SecretStore y composición de Claude', () => {
     });
   });
 
-  it('guarda solo ciphertext, sobrevive a reapertura y no altera AppConfig', () => {
+  it('stores only ciphertext, survives reopening and does not alter AppConfig', () => {
     const config = new AppConfigStore(db);
     config.save({ ai: { autoAnalyzeLimitPerScan: 7 } });
     store.setApiKey(KEY);
@@ -86,7 +86,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(readFileSync(db.path).includes(Buffer.from(KEY))).toBe(false);
   });
 
-  it('estado solo revela cuatro caracteres, clear es idempotente y no necesita descifrar', () => {
+  it('status reveals only four characters, clear is idempotent and needs no decryption', () => {
     expect(store.getStatus()).toEqual({ configured: false, last4: null });
     store.setApiKey(KEY);
     expect(store.getStatus()).toEqual({ configured: true, last4: '1234' });
@@ -106,20 +106,20 @@ describe('SecretStore y composición de Claude', () => {
     ' leading-key',
     'key-with\nnewline',
     'x'.repeat(1025),
-  ])('rechaza claves inválidas sin SQL ni cifrado: caso %#', (key) => {
+  ])('rejects invalid keys without SQL or encryption: case %#', (key) => {
     expect(() => store.setApiKey(key)).toThrow('formato');
     expect(native.encryptString).not.toHaveBeenCalled();
     expect(store.getStatus().configured).toBe(false);
   });
 
-  it('no guarda si safeStorage no está disponible ni degrada a texto plano', () => {
+  it('does not store if safeStorage is unavailable and does not degrade to plain text', () => {
     native.isEncryptionAvailable.mockReturnValue(false);
     expect(() => store.setApiKey(KEY)).toThrow('forma segura');
     expect(native.encryptString).not.toHaveBeenCalled();
     expect(db.prepare('SELECT * FROM settings').all()).toEqual([]);
   });
 
-  it.each(['basic_text', 'unknown'])('rechaza backend Linux %s', (backend) => {
+  it.each(['basic_text', 'unknown'])('rejects Linux backend %s', (backend) => {
     native.getSelectedStorageBackend.mockReturnValue(backend);
     expect(() =>
       new SecretStore(db, { platform: 'linux' }).setApiKey(KEY),
@@ -127,7 +127,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(native.encryptString).not.toHaveBeenCalled();
   });
 
-  it('mantiene la clave anterior si falla el reemplazo y elimina detalles de error', () => {
+  it('keeps the previous key if the replacement fails and removes error details', () => {
     store.setApiKey(KEY);
     const original = db.prepare('SELECT * FROM settings').all();
     native.encryptString.mockImplementation(() => {
@@ -152,7 +152,7 @@ describe('SecretStore y composición de Claude', () => {
     '{"version":2,"ciphertext":"AAEC"}',
     '{"version":1,"ciphertext":"%%%"}',
   ])(
-    'rechaza registro corrupto sin usar la alternativa de desarrollo: %#',
+    'rejects a corrupt record without using the development alternative: %#',
     (value) => {
       db.prepare('INSERT INTO settings VALUES (?, ?, ?)').run(
         API_KEY_SETTING,
@@ -166,7 +166,7 @@ describe('SecretStore y composición de Claude', () => {
     },
   );
 
-  it('acepta variable propia solo en desarrollo, prioriza BD y no persiste el entorno', () => {
+  it('accepts own variable only in development, prioritizes DB and does not persist the environment', () => {
     vi.stubEnv('CYBERSOC_ANTHROPIC_API_KEY', NEXT);
     const configured = createSecretStore(db);
     expect(configured.getApiKey()).toBe(NEXT);
@@ -179,7 +179,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(createSecretStore(db).getApiKey()).toBeNull();
   });
 
-  it('crea Claude con la clave vigente y el modelo de AppConfig; no filtra HTTP en estado ni logs', async () => {
+  it('creates Claude with the current key and AppConfig model; leaks no HTTP in status or logs', async () => {
     const fetch = vi.fn(async (_input: unknown, init: RequestInit) => {
       expect(new Headers(init.headers).get('x-api-key')).toBe(KEY);
       return new Response(
@@ -225,7 +225,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(JSON.stringify(failed)).not.toContain(KEY);
     const logger = createLogger(join(directory, 'logs'));
     expect(readFileSync(logger.filePath(), 'utf8')).not.toContain(KEY);
-    // La redacción general existente también protege campos estructurados.
+    // The existing general wording also protects structured fields.
     logger.info(
       { component: 'test', apiKey: KEY, nested: { authorization: KEY } },
       'apiKey=' + KEY,
@@ -236,7 +236,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(logs).not.toContain(KEY);
   });
 
-  it('no reutiliza una credencial tras cambiarla o borrarla', async () => {
+  it('does not reuse a credential after changing or deleting it', async () => {
     const received: (string | null)[] = [];
     vi.stubGlobal(
       'fetch',
@@ -271,7 +271,7 @@ describe('SecretStore y composición de Claude', () => {
     expect(createAIProvider(db, store)).toBeNull();
   });
 
-  it('excluye la variable de desarrollo del entorno del proceso motor', async () => {
+  it('excludes the development variable from the engine process environment', async () => {
     vi.stubEnv('CYBERSOC_ANTHROPIC_API_KEY', KEY);
     const script = `require('node:readline').createInterface({input:process.stdin}).on('line', line => {
       const req = JSON.parse(line);

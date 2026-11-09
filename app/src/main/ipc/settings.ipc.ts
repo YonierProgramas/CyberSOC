@@ -91,11 +91,11 @@ export function registerSettingsIpc(
         if (channel === SETTINGS_AI_GET_STATUS)
           return statusSchema.parse(service.getStatus());
         const result = await service.testConnection();
-        validate(event); // La ventana puede haberse cerrado o navegado durante la petición.
+        validate(event); // The window may have closed or navigated during the request.
         return healthSchema.parse(result);
       } catch {
-        // Electron puede registrar errores de handlers: nunca propagar el error original,
-        // los argumentos, un ZodError o un cuerpo HTTP que pueda incluir la clave.
+        // Electron may log handler errors: never propagate the original error,
+        // the arguments, a ZodError or an HTTP body that may include the key.
         throw new Error(
           'No se pudo completar la operación de configuración de IA.',
         );

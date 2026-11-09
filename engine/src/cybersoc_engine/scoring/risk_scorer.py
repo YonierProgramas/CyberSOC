@@ -3,7 +3,7 @@ from typing import Literal
 
 from cybersoc_engine.models import EngineResult, ScoreBreakdown, ScoreGroup
 
-# Invariante: una severidad tiene un peso fijo. Consultar el dict cuesta O(1)
+# Invariant: a severity has a fixed weight. Looking up the dict costs O(1)
 # promedio; evaluar e evidencias cuesta O(e) tiempo y O(1) espacio auxiliar.
 SEVERITY_POINTS = {"INFO": 0, "LOW": 5, "MEDIUM": 15, "HIGH": 25, "CRITICAL": 40}
 type RiskLevel = Literal["BAJO", "MEDIO", "ALTO", "CRÍTICO"]
@@ -21,9 +21,9 @@ class RiskAssessment:
 class RiskScorer:
     @staticmethod
     def classify(score: int, *, decisive: bool = False) -> RiskAssessment:
-        """Umbrales puros para comprobar también las fronteras 29/30 y 84/85."""
+        """Pure thresholds to also check the 29/30 and 84/85 boundaries."""
         if type(score) is not int or score < 0:
-            raise ValueError("La puntuación debe ser un entero no negativo")
+            raise ValueError("The score must be a non-negative integer")
         score = min(score, 100)
         if decisive:
             score = max(score, 85)
@@ -36,7 +36,7 @@ class RiskScorer:
         return RiskAssessment(verdict, score, level)
 
     def evaluate(self, result: EngineResult) -> RiskAssessment:
-        # Una firma concluyente se conserva incluso si falla otra capa después.
+        # A conclusive signature is kept even if another layer fails afterwards.
         decisive = any(
             item.decisive and item.source in ("SIGNATURES", "RULES") for item in result.evidence
         )
@@ -45,12 +45,12 @@ class RiskScorer:
                 return RiskAssessment("NOT_ANALYZED", None, None)
             if result.status == "ERROR" or any(layer.status == "ERROR" for layer in result.layers):
                 return RiskAssessment("ERROR", None, None)
-        # Invariante: tres acumuladores, uno por grupo, conservan la suma bruta.
-        # Dict: O(1) promedio por consulta; recorrido O(e), memoria auxiliar O(1).
+        # Invariant: three accumulators, one per group, keep the raw sum.
+        # Dict: O(1) average per lookup; O(e) traversal, O(1) auxiliary memory.
         raw = {"heuristics": 0, "rules": 0, "signatures": 0}
         for item in result.evidence:
             if item.source == "ENGINE":
-                continue  # Un fallo técnico nunca agrega riesgo de malware.
+                continue  # A technical failure never adds malware risk.
             group = (
                 "rules"
                 if item.source == "RULES"

@@ -37,7 +37,7 @@ beforeEach(() => {
 afterEach(() => {
   for (const db of databases) db.close();
   for (const path of roots) {
-    // Solo temporales creados por esta prueba: nunca una ruta recibida del usuario.
+    // Only temporary folders created by this test: never a path received from the user.
     expect(realpathSync(dirname(path))).toBe(realpathSync(tmpdir()));
     expect(basename(path)).toMatch(/^cybersoc-(evidence|mode-test)-/);
     rmSync(path, { recursive: true, force: true });
@@ -45,9 +45,9 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('aislamiento del modo evidencia', () => {
+describe('evidence mode isolation', () => {
   it.each([undefined, '0', 'true'])(
-    'sin opt-in exacto (%s) conserva BD y proveedor normales',
+    'without exact opt-in (%s) keeps the normal DB and provider',
     async (mode) => {
       vi.stubEnv('CYBERSOC_EVIDENCE_MODE', mode);
       vi.stubEnv('CYBERSOC_EVIDENCE_ROOT', 'ruta-invalida-ignorada');
@@ -62,7 +62,7 @@ describe('aislamiento del modo evidencia', () => {
     },
   );
 
-  it('aísla SQLite, reemplaza el diálogo y entrega un Fake válido sin credenciales', async () => {
+  it('isolates SQLite, replaces the dialog and delivers a valid Fake without credentials', async () => {
     const normal = temporary('cybersoc-mode-test-');
     const evidence = temporary('cybersoc-evidence-');
     vi.stubEnv('CYBERSOC_EVIDENCE_MODE', '1');
@@ -97,7 +97,7 @@ describe('aislamiento del modo evidencia', () => {
     }
   });
 
-  it('live elige Claude sin llamar a la red durante la construcción', async () => {
+  it('live picks Claude without calling the network during construction', async () => {
     const evidence = temporary('cybersoc-evidence-');
     vi.stubEnv('CYBERSOC_EVIDENCE_MODE', '1');
     vi.stubEnv('CYBERSOC_EVIDENCE_ROOT', evidence);
@@ -112,7 +112,7 @@ describe('aislamiento del modo evidencia', () => {
     expect(createAIProvider(db, secrets(null))).toBeNull();
   });
 
-  it('rechaza un directorio que no sea un temporal de evidencia', async () => {
+  it('rejects a directory that is not an evidence temporary folder', async () => {
     const normal = temporary('cybersoc-mode-test-');
     vi.stubEnv('CYBERSOC_EVIDENCE_MODE', '1');
     vi.stubEnv('CYBERSOC_EVIDENCE_ROOT', normal);

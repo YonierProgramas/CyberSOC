@@ -1,4 +1,5 @@
 import type { QuarantineItemDTO, QuarantineStatus } from './types';
+import { ipcErrorText } from '../ipc/errors';
 
 export function fileNameOf(path: string): string {
   const parts = path.split(/[\\/]/);
@@ -31,7 +32,5 @@ export function quarantineReason(verdict: string): string {
 }
 
 export function errorText(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : 'No se pudo completar la acción.';
+  return ipcErrorText(error, 'No se pudo completar la acción.');
 }

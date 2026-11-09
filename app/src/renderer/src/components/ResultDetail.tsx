@@ -16,6 +16,7 @@ import {
 } from '../scan/format';
 import { PlainText } from './PlainText';
 import { QuarantineButton } from './QuarantineButton';
+import { ipcErrorText } from '../ipc/errors';
 
 export function ResultDetail({
   resultId,
@@ -60,11 +61,7 @@ export function ResultDetail({
     try {
       await window.cybersoc.scan.analyzeNow(resultId);
     } catch (error) {
-      setAskError(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo solicitar el análisis.',
-      );
+      setAskError(ipcErrorText(error, 'No se pudo solicitar el análisis.'));
     } finally {
       setAsking(false);
     }

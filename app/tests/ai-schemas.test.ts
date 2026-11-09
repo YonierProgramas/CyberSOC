@@ -9,7 +9,7 @@ import {
   type AIContext,
 } from '../src/core/ai/schemas';
 
-it('admite IDs de reglas con guion sin relajar el resto del formato', () => {
+it('accepts rule IDs with hyphens without relaxing the rest of the format', () => {
   const context = structuredClone(fullContext);
   context.evidence[0]!.source = 'RULES';
   context.evidence[0]!.code = 'R-TEST-DOWNLOADER';
@@ -22,7 +22,7 @@ it('admite IDs de reglas con guion sin relajar el resto del formato', () => {
   }
 });
 
-// Ejemplo de ai-context/v1 del plan de S2, con los campos de S2 y S3 incluidos.
+// Example of the S2 plan ai-context/v1, with S2 and S3 fields included.
 const fullContext: AIContext = {
   schema: 'cybersoc.ai-context/v1',
   task: 'ANALYZE_FILE_RESULT',
@@ -106,11 +106,11 @@ function evidence(n: number): AIContext['evidence'][number] {
 }
 
 describe('aiContextSchema', () => {
-  it('acepta el contexto completo con los campos de S2 y S3', () => {
+  it('accepts the full context with the S2 and S3 fields', () => {
     expect(aiContextSchema.parse(fullContext)).toEqual(fullContext);
   });
 
-  it('acepta el contexto sin los campos opcionales (layers, zone, profile, history)', () => {
+  it('accepts the context without optional fields (layers, zone, profile, history)', () => {
     const { layers, profile, history, ...rest } = fullContext;
     const { zone, ...file } = fullContext.file;
     void [layers, profile, history, zone];
@@ -214,13 +214,13 @@ describe('aiContextSchema', () => {
       'puntuación mayor que 100',
       { ...fullContext, engine: { ...fullContext.engine, score: 101 } },
     ],
-  ])('rechaza: %s', (_label, input) => {
+  ])('rejects: %s', (_label, input) => {
     expect(aiContextSchema.safeParse(input).success).toBe(false);
   });
 });
 
 describe('aiAssessmentSchema', () => {
-  it('acepta la respuesta del ejemplo del plan', () => {
+  it('accepts the plan example response', () => {
     expect(aiAssessmentSchema.parse(assessment)).toEqual(assessment);
   });
 
@@ -254,7 +254,7 @@ describe('aiAssessmentSchema', () => {
     ['ID citado mal formado', { citedEvidenceIds: ['ev1', 'r_91'] }],
     ['esquema de otra versión', { schema: 'cybersoc.ai-assessment/v2' }],
     ['campo desconocido', { verdict: 'DETECTED' }],
-  ])('rechaza: %s', (_label, patch) => {
+  ])('rejects: %s', (_label, patch) => {
     expect(
       aiAssessmentSchema.safeParse({ ...assessment, ...patch }).success,
     ).toBe(false);
@@ -264,14 +264,14 @@ describe('aiAssessmentSchema', () => {
 describe('aiAssessmentJsonSchema', () => {
   const json = aiAssessmentJsonSchema();
 
-  it('exige todas las claves y prohíbe claves adicionales', () => {
+  it('requires all keys and forbids additional keys', () => {
     expect(json).toMatchObject({ type: 'object', additionalProperties: false });
     expect(new Set(json.required as string[])).toEqual(
       new Set(Object.keys(aiAssessmentSchema.shape)),
     );
   });
 
-  it('conserva los enums y la constante del esquema', () => {
+  it('keeps the schema enums and constant', () => {
     const properties = json.properties as Record<
       string,
       Record<string, unknown>
@@ -287,7 +287,7 @@ describe('aiAssessmentJsonSchema', () => {
     );
   });
 
-  it('quita lo que las salidas estructuradas no admiten y deja los límites en la descripción', () => {
+  it('removes what structured outputs do not support and leaves the limits in the description', () => {
     const serialized = JSON.stringify(json);
     for (const keyword of [
       'maxLength',
@@ -314,7 +314,7 @@ describe('aiAssessmentJsonSchema', () => {
     expect(correlation.additionalProperties).toBe(false);
   });
 
-  it('es determinista', () => {
+  it('is deterministic', () => {
     expect(aiAssessmentJsonSchema()).toEqual(json);
   });
 });

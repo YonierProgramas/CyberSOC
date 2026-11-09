@@ -4,7 +4,7 @@ import type { ZoneRoot } from '../../zones/ZoneClassifier';
 import type { ToolCatalogRepository } from '../../persistence/ToolCatalogRepository';
 import type { ToolReadRepository } from '../../persistence/ToolReadRepository';
 
-/** main aporta rutas resueltas y unidades conectadas; la IA nunca proporciona rutas. */
+/** main supplies resolved paths and connected drives; the AI never provides paths. */
 export interface ToolContext {
   reads: ToolReadRepository;
   catalog: ToolCatalogRepository;
@@ -20,7 +20,7 @@ export const limitSchema = z.number().int().min(1).max(20).nullish();
 export const optionalJob = idSchema.nullish();
 
 export function topResults(context: ToolContext, jobId: string, k: number) {
-  // TopK usa min-heap: O(n log k), memoria O(k), empate por seq del iterador SQL.
+  // TopK uses a min-heap: O(n log k), O(k) memory, ties by SQL iterator seq.
   return topK(
     context.reads.riskCandidates(jobId),
     k,

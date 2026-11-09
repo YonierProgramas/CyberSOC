@@ -25,7 +25,7 @@ const counters: ScanJobCounters = {
   bytesProcessed: 300,
 };
 
-describe('Migración 002 y repositorios sobre SQLite temporal', () => {
+describe('Migration 002 and repositories on temporary SQLite', () => {
   let directory: string;
   let database: Database;
   let jobs: ScanJobRepository;
@@ -76,7 +76,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     };
   }
 
-  it('actualiza una BD v1, conserva sus datos y no reaplica 002 al reabrir', () => {
+  it('updates a v1 DB, keeps its data and does not reapply 002 on reopen', () => {
     const historyV1 = database.prepare('SELECT * FROM schema_migrations').all();
     database
       .prepare('INSERT INTO settings VALUES (?, ?, ?)')
@@ -113,7 +113,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     ]);
   });
 
-  it('revierte el DDL parcial de 002 y mantiene v1 si hay un conflicto de tablas', () => {
+  it('reverts the partial 002 DDL and keeps v1 on a table conflict', () => {
     database.exec('CREATE TABLE scan_results (legacy TEXT)');
     expect(() => new MigrationRunner(database).run()).toThrow('already exists');
     expect(
@@ -129,7 +129,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     ).toMatchObject([{ name: 'legacy' }]);
   });
 
-  it('crea un trabajo con valores iniciales y conserva rutas Unicode y texto SQL literalmente', () => {
+  it('creates a job with initial values and keeps Unicode paths and SQL text literally', () => {
     migrate();
     const job = createJob();
     expect(job).toEqual({
@@ -173,7 +173,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(jobs.listRecent()).toHaveLength(2);
   });
 
-  it('actualiza estado y fechas sin borrar campos omitidos y permite limpiar el error', () => {
+  it('updates status and dates without deleting omitted fields and allows clearing the error', () => {
     migrate();
     createJob();
     jobs.updateStatus('job-1', 'DISCOVERING', { startedAt: createdAt });
@@ -218,7 +218,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(jobs.get('job-1')?.status).toBe(status);
   });
 
-  it('reemplaza contadores sin duplicarlos y conserva las métricas si se omiten', () => {
+  it('replaces counters without duplicating them and keeps metrics if omitted', () => {
     migrate();
     createJob();
     const metricsJson = '{"peakStackSize":3,"peakQueueSize":2}';
@@ -233,7 +233,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
   });
 
   it.each([-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
-    'rechaza cantidades y paginación inválidas: %s',
+    'rejects invalid amounts and paging: %s',
     (invalid) => {
       migrate();
       createJob();
@@ -250,7 +250,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     },
   );
 
-  it('lista trabajos recientes con límite y desempate estable por id', () => {
+  it('lists recent jobs with a limit and stable tiebreak by id', () => {
     migrate();
     createJob('old', '2026-09-29T00:00:00.000Z');
     createJob('a');
@@ -260,7 +260,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(jobs.listRecent(0)).toEqual([]);
   });
 
-  it('pagina por secuencia, aísla trabajos y conserva resultados al reabrir', () => {
+  it('pages by sequence, isolates jobs and keeps results on reopen', () => {
     migrate();
     createJob();
     createJob('other');
@@ -298,7 +298,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
   it.each([
     ['ERROR', 'ACCESS_DENIED'],
     ['SKIPPED', 'CLOUD_PLACEHOLDER'],
-  ] as const)('guarda %s sin hash ni veredicto de IA', (status, errorCode) => {
+  ] as const)('stores %s without hash or AI verdict', (status, errorCode) => {
     migrate();
     createJob();
     const row = results.insertResult({
@@ -325,7 +325,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(new Date(row.scannedAt).toISOString()).toBe(row.scannedAt);
   });
 
-  it('los CHECK rechazan estados, tipo de destino, hash y veredicto inválidos', () => {
+  it('CHECK rejects invalid statuses, target type, hash and verdict', () => {
     migrate();
     createJob();
     expect(() =>
@@ -355,7 +355,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(results.listByJob('job-1', 0, 10)).toHaveLength(1);
   });
 
-  it('rechaza referencias inexistentes y duplicados sin perder filas válidas', () => {
+  it('rejects nonexistent references and duplicates without losing valid rows', () => {
     migrate();
     createJob();
     expect(() => results.insertResult(resultInput(0, 'missing'))).toThrow(
@@ -372,7 +372,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(results.insertResult(resultInput(1)).seq).toBe(1);
   });
 
-  it('revierte una inserción ya ejecutada cuando falla un trigger posterior', () => {
+  it('reverts an already executed insert when a later trigger fails', () => {
     migrate();
     createJob();
     // RAISE(FAIL) alone retains prior changes; the repository must roll them back.
@@ -385,7 +385,7 @@ describe('Migración 002 y repositorios sobre SQLite temporal', () => {
     expect(results.insertResult(resultInput(0)).id).toBe('job-1-0');
   });
 
-  it('borra en cascada solo los resultados del trabajo eliminado', () => {
+  it('cascades deletion only for results of the removed job', () => {
     migrate();
     createJob();
     createJob('other');

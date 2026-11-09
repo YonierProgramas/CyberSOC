@@ -1,4 +1,4 @@
-// Solo pruebas de packaging: perfiles sintéticos descartables, nunca perfiles reales.
+// Packaging tests only: disposable synthetic profiles, never real profiles.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { Database } from '../../src/core/persistence/Database';

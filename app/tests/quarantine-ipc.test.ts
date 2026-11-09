@@ -125,7 +125,7 @@ afterEach(() => {
   db.close();
 });
 
-it('registra cuatro métodos, valida salidas y nunca entrega claves ni la ruta de la bóveda', async () => {
+it('registers four methods, validates outputs and never delivers keys or the vault path', async () => {
   expect(electron.handle.mock.calls.map(([channel]) => channel)).toEqual([
     'quarantine:list',
     'quarantine:quarantine',
@@ -191,7 +191,7 @@ it.each([
   ['delete', [{}]],
   ['delete', ['q1', true]],
 ] as [string, unknown[]][])(
-  'rechaza argumentos inválidos: %s %j',
+  'rejects invalid arguments: %s %j',
   async (channel, args) => {
     await expect(call(channel, args)).rejects.toThrow('QUARANTINE_FAILED');
     for (const method of Object.values(service))
@@ -201,7 +201,7 @@ it.each([
 );
 
 it.each(['quarantine', 'restore', 'delete'])(
-  'comprueba existencia antes de %s',
+  'checks existence before %s',
   async (channel) => {
     await expect(
       call(
@@ -216,7 +216,7 @@ it.each(['quarantine', 'restore', 'delete'])(
 );
 
 it.each(['list', 'quarantine', 'restore', 'delete'])(
-  'rechaza ventanas ajenas y subframes en %s',
+  'rejects foreign windows and subframes in %s',
   async (channel) => {
     const args =
       channel === 'list'
@@ -241,7 +241,7 @@ it.each(['list', 'quarantine', 'restore', 'delete'])(
   },
 );
 
-it('limita confirmación al tipo de operación autorizado y la revoca al terminar', async () => {
+it('limits confirmation to the authorized operation type and revokes it on finish', async () => {
   const request = {
     action: 'QUARANTINE',
     path: record.originalPath,
@@ -266,7 +266,7 @@ it('limita confirmación al tipo de operación autorizado y la revoca al termina
   expect(await gate.confirm(request)).toBe(false);
 });
 
-it('aísla contextos concurrentes y revoca callbacks tardíos incluso tras un error', async () => {
+it('isolates concurrent contexts and revokes late callbacks even after an error', async () => {
   let late!: () => Promise<boolean>;
   const request = { action: 'DELETE', path: 'x', verdict: 'DETECTED' } as const;
   const pending = gate.run('DELETE', async () => {
@@ -283,7 +283,7 @@ it('aísla contextos concurrentes y revoca callbacks tardíos incluso tras un er
   expect(await late()).toBe(false);
 });
 
-it('enmascara errores internos y avisa que se debe recargar la lista tras un fallo', async () => {
+it('masks internal errors and warns that the list must be reloaded after a failure', async () => {
   service.quarantine.mockRejectedValueOnce(
     new Error('private-key / internal trace'),
   );
@@ -301,7 +301,7 @@ it('enmascara errores internos y avisa que se debe recargar la lista tras un fal
 });
 
 it.each(['navigate', 'close', 'dispose'])(
-  'no entrega respuesta ni evento después de %s',
+  'delivers no response or event after %s',
   async (action) => {
     let finish!: (item: QuarantineRecord) => void;
     service.quarantine.mockReturnValueOnce(
@@ -319,7 +319,7 @@ it.each(['navigate', 'close', 'dispose'])(
   },
 );
 
-it('retira handlers una sola vez y rechaza una referencia antigua', async () => {
+it('removes handlers only once and rejects an old reference', async () => {
   stop();
   stop();
   expect(electron.removeHandler).toHaveBeenCalledTimes(4);
@@ -327,14 +327,14 @@ it('retira handlers una sola vez y rechaza una referencia antigua', async () => 
   expect(service.list).not.toHaveBeenCalled();
 });
 
-it('rechaza respuestas que incumplen el contrato sin filtrar el error de Zod', async () => {
+it('rejects responses breaking the contract without leaking the Zod error', async () => {
   service.list.mockReturnValueOnce([
     { ...record, sha256: 'private-malformed' },
   ]);
   await expect(call('list')).rejects.toThrow('QUARANTINE_FAILED');
 });
 
-it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimina solo el blob', async () => {
+it('IPC → real manager → SQLite: isolates, restores with identical hash and deletes only the blob', async () => {
   const temp = await realpath(tmpdir());
   const root = await mkdtemp(join(temp, 'cybersoc-ipc-'));
   const path = join(root, 'inofensivo.txt');
@@ -360,7 +360,7 @@ it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimin
       sizeBytes: bytes.length,
       verdict: 'DETECTED',
     });
-    // La instancia usada por IPC no permite aislar archivos fuera de una petición confirmada.
+    // The instance used by IPC does not allow isolating files outside a confirmed request.
     await expect(manager.quarantine('real')).rejects.toMatchObject({
       code: 'CANCELLED',
     });
@@ -373,7 +373,7 @@ it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimin
     await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' });
     expect(manager.repository.get(item.id)?.keyB64).toBeTruthy();
     expect(JSON.stringify(item)).not.toContain('keyB64');
-    // El gestor conserva la defensa contra traversal aun después de validar el tipo en IPC.
+    // The manager keeps the traversal defense even after validating the type in IPC.
     await expect(
       call('restore', [
         item.id,
@@ -403,7 +403,7 @@ it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimin
     ]);
   } finally {
     await manager.close();
-    // Solo se borra el directorio temporal creado en esta prueba.
+    // Only the temporary directory created in this test is deleted.
     expect(dirname(root)).toBe(temp);
     expect(basename(root)).toMatch(/^cybersoc-ipc-/);
     await rm(root, { recursive: true, force: true });
@@ -411,7 +411,7 @@ it('IPC → gestor real → SQLite: aísla, restaura con hash idéntico y elimin
 }, 20_000);
 
 it.each(['QUARANTINE', 'RESTORE', 'DELETE'] as const)(
-  'H1: un contexto IPC válido no sustituye el permiso nativo para %s',
+  'H1: a valid IPC context does not replace the native permission for %s',
   async (action) => {
     electron.showMessageBox.mockResolvedValue({ response: 0 });
     expect(
@@ -459,7 +459,7 @@ it('H1: restaurar DETECTED requiere dos decisiones nativas independientes', asyn
   });
 });
 
-it('H1: fallo del diálogo nunca autoriza la operación', async () => {
+it('H1: a dialog failure never authorizes the operation', async () => {
   electron.showMessageBox.mockRejectedValueOnce(
     new Error('native dialog unavailable'),
   );
@@ -475,7 +475,7 @@ it('H1: fallo del diálogo nunca autoriza la operación', async () => {
 });
 
 it.each(['navigate', 'close', 'dispose'] as const)(
-  'H1: revoca la petición durante el diálogo nativo al ocurrir %s',
+  'H1: revokes the request during the native dialog when %s happens',
   async (reason) => {
     let answer!: (response: { response: number }) => void;
     electron.showMessageBox.mockImplementationOnce(
@@ -496,7 +496,7 @@ it.each(['navigate', 'close', 'dispose'] as const)(
       return record;
     });
     const pending = call('quarantine', ['r1']);
-    // Instalar el observador antes de rechazar para evitar promesas sin manejar.
+    // Install the observer before rejecting to avoid unhandled promises.
     const outcome = pending.then(
       () => false,
       () => true,
@@ -514,7 +514,7 @@ it.each(['navigate', 'close', 'dispose'] as const)(
 );
 
 it.each(['quarantine', 'restore', 'restore-detected', 'delete'] as const)(
-  'H1: cancelar %s desde IPC conserva archivos, blob, veredictos y allowlist',
+  'H1: cancelling %s from IPC keeps files, blob, verdicts and allowlist',
   async (operation) => {
     const temp = await realpath(tmpdir());
     const root = await mkdtemp(join(temp, 'cybersoc-ipc-h1-'));

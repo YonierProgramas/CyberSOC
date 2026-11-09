@@ -28,7 +28,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-it('I-02/I-05/I-19: 250 trabajos/30000 resultados/400 días; tres ámbitos completos y oráculo SQL', () => {
+it('I-02/I-05/I-19: 250 jobs/30000 results/400 days; three complete scopes and SQL oracle', () => {
   const manifest = seedHistory(db);
   expect(manifest[1]!.results).toBe(30);
   const result = reader.getOverview({ from: '2026-10-29', to: '2026-11-04' });
@@ -89,7 +89,7 @@ it('I-02/I-05/I-19: 250 trabajos/30000 resultados/400 días; tres ámbitos compl
   expect(range.results.total).toBe(rangeOracle);
 });
 
-it('I-03: ceros y claves completas, 366 días válidos, 367/inversión/fecha imposible rechazados', () => {
+it('I-03: zeros and complete keys, 366 valid days, 367/inversion/impossible date rejected', () => {
   const repo = new ScanJobRepository(db);
   repo.create({
     id: 'old',
@@ -128,7 +128,7 @@ it('I-03: ceros y claves completas, 366 días válidos, 367/inversión/fecha imp
   expect(() => reader.getOverview({ extra: 1 } as never)).toThrow();
 });
 
-it('I-05: fallido con 30 resultados excluido y nunca convertido en limpio; último global separado', () => {
+it('I-05: failed job with 30 results excluded and never turned into clean; latest global separate', () => {
   const repo = new ScanJobRepository(db);
   for (const [id, status, date] of [
     ['complete', 'COMPLETED', '2025-01-01'],
@@ -170,7 +170,7 @@ it('I-05: fallido con 30 resultados excluido y nunca convertido en limpio; últi
   });
 });
 
-it('I-06: páginas 20/20/5, total45 y filtros sobre toda la historia; límites estrictos', () => {
+it('I-06: pages 20/20/5, total 45 and filters over the whole history; strict limits', () => {
   seedHistory(db, 45, 90);
   const repo = new ScanJobRepository(db);
   const pages = [0, 20, 40].map((offset) =>
@@ -211,7 +211,7 @@ it('I-06: páginas 20/20/5, total45 y filtros sobre toda la historia; límites e
   ).toBeGreaterThan(0);
 });
 
-it('lectura coherente WAL permite escritor y prohíbe escrituras, restaurando query_only al fallar', () => {
+it('coherent WAL read allows a writer and forbids writes, restoring query_only on failure', () => {
   const writer = new DatabaseSync(db.path);
   try {
     db.exec("INSERT INTO settings VALUES ('before','{}','before')");
@@ -222,9 +222,7 @@ it('lectura coherente WAL permite escritor y prohíbe escrituras, restaurando qu
       expect(() =>
         db.exec("INSERT INTO settings VALUES ('bad','{}','bad')"),
       ).toThrow();
-      expect(() => db.transaction(() => undefined)).toThrow(
-        'No se puede escribir',
-      );
+      expect(() => db.transaction(() => undefined)).toThrow('Cannot write');
     });
     expect(db.prepare('SELECT COUNT(*) n FROM settings').get()!.n).toBe(2);
     expect(() =>
@@ -233,7 +231,7 @@ it('lectura coherente WAL permite escritor y prohíbe escrituras, restaurando qu
       }),
     ).toThrow('fallo');
     expect(() => db.readTransaction(() => Promise.resolve())).toThrow(
-      'síncrona',
+      'synchronous',
     );
     db.exec("INSERT INTO settings VALUES ('after','{}','after')");
   } finally {
@@ -241,7 +239,7 @@ it('lectura coherente WAL permite escritor y prohíbe escrituras, restaurando qu
   }
 });
 
-it('I-04: medianoche, trabajo que cruza día y DST en procesos independientes Bogotá/New York', () => {
+it('I-04: midnight, a job crossing days and DST in independent Bogota/New York processes', () => {
   const appRoot = resolve(import.meta.dirname, '..');
   for (const timezone of ['America/Bogota', 'America/New_York']) {
     const output = execFileSync(
@@ -276,7 +274,7 @@ it('I-04: medianoche, trabajo que cruza día y DST en procesos independientes Bo
   }
 });
 
-it('dashboard no mezcla sus agregados cuando otra conexión confirma un resultado entre SELECTs', () => {
+it('dashboard does not mix its aggregates when another connection commits a result between SELECTs', () => {
   seedHistory(db, 3, 6);
   const writer = new DatabaseSync(db.path);
   const prepare = db.prepare.bind(db);

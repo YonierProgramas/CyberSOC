@@ -2,7 +2,7 @@ import { win32 } from 'node:path';
 
 interface TrieNode<T> {
   children: Map<string, TrieNode<T>>;
-  // El contenedor distingue "sin valor" de un T cuyo valor sea undefined.
+  // The wrapper distinguishes "no value" from a T whose value is undefined.
   entry: { value: T } | undefined;
 }
 
@@ -12,8 +12,8 @@ function createNode<T>(): TrieNode<T> {
 
 function segments(path: string): string[] {
   const windowsPath = path.replaceAll('/', '\\');
-  // No se resuelven rutas relativas contra el directorio actual del proceso.
-  // Los espacios de nombres de dispositivos no son rutas de zonas ordinarias.
+  // Relative paths are not resolved against the current process directory.
+  // Device namespaces are not ordinary zone paths.
   if (
     windowsPath.includes('\0') ||
     windowsPath.startsWith('\\\\?\\') ||
@@ -24,31 +24,31 @@ function segments(path: string): string[] {
       'Se requiere una ruta Windows absoluta de unidad o UNC.',
     );
   }
-  // O(L) en tiempo y espacio, con L caracteres. win32 funciona también en Linux.
+  // O(L) in time and space, L being characters. win32 also works on Linux.
   const normalized = win32.normalize(windowsPath).toLowerCase();
   const root = win32.parse(normalized).root;
   return [root, ...normalized.slice(root.length).split('\\').filter(Boolean)];
 }
 
 /**
- * Invariante: cada arista representa un segmento completo normalizado; la raíz
- * de unidad o recurso UNC es el primer segmento. Solo los prefijos insertados
- * tienen entry. Así, C:\Win nunca coincide parcialmente con C:\Windows.
- * Los hijos usan Map: acceso O(1) promedio, sin recorrer los prefijos hermanos.
+ * Invariant: each edge represents a complete normalized segment; the drive
+ * or UNC share root is the first segment. Only inserted prefixes
+ * have an entry. Thus C:\Win never partially matches C:\Windows.
+ * Children use a Map: O(1) average access, without walking sibling prefixes.
  */
 export class PathTrie<T> {
   private readonly root = createNode<T>();
   private count = 0;
 
-  /** O(1): número de prefijos distintos, no número de nodos intermedios. */
+  /** O(1): number of distinct prefixes, not of intermediate nodes. */
   get size(): number {
     return this.count;
   }
 
   /**
-   * O(d) pasos promedio para d segmentos, más O(L) de normalización/hashing.
-   * Crea como máximo d nodos; la memoria total depende de segmentos compartidos.
-   * Insertar un prefijo equivalente sustituye su valor, sin incrementar size.
+   * O(d) average steps for d segments, plus O(L) for normalization/hashing.
+   * Creates at most d nodes; total memory depends on shared segments.
+   * Inserting an equivalent prefix replaces its value without incrementing size.
    */
   insert(prefix: string, value: T): void {
     let node = this.root;
@@ -65,10 +65,10 @@ export class PathTrie<T> {
   }
 
   /**
-   * O(d) pasos promedio más O(L) para normalizar y procesar las cadenas.
-   * Conserva la última entrada encontrada: si una rama termina, gana el
-   * ancestro más específico, no necesariamente el último nodo visitado.
-   * Es una comparación léxica: no consulta disco, enlaces ni permisos.
+   * O(d) average steps plus O(L) to normalize and process the strings.
+   * Keeps the last entry found: if a branch ends, the most specific
+   * ancestor wins, not necessarily the last visited node.
+   * It is a lexical comparison: it does not consult the disk, links or permissions.
    */
   longestPrefixMatch(path: string): T | undefined {
     let node = this.root;

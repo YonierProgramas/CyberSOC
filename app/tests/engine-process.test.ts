@@ -102,7 +102,7 @@ function fixture(
 afterEach(() => vi.useRealTimers());
 
 describe('EngineProcess', () => {
-  it('expone scanFile validado cuando está conectado', async () => {
+  it('exposes validated scanFile when connected', async () => {
     const { engine } = fixture();
     const params = {
       jobId: 'j1',
@@ -119,7 +119,7 @@ describe('EngineProcess', () => {
     await engine.close();
   });
 
-  it('reconnect mata el proceso atascado tras timeout y crea uno nuevo', async () => {
+  it('reconnect kills the stuck process after timeout and creates a new one', async () => {
     vi.useFakeTimers();
     const { engine, child, spawnProcess } = fixture({
       hangScan: true,
@@ -150,7 +150,7 @@ describe('EngineProcess', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('conecta, reenvia stderr y cierra limpiamente', async () => {
+  it('connects, forwards stderr and closes cleanly', async () => {
     const { engine, child, spawnProcess, logger } = fixture();
     expect(await engine.reconnect()).toEqual({
       status: 'connected',
@@ -170,7 +170,7 @@ describe('EngineProcess', () => {
     expect(child.kill).not.toHaveBeenCalled();
     expect(engine.getState().status).toBe('disconnected');
   });
-  it('conserva los campos JSON de stderr con component engine', async () => {
+  it('keeps stderr JSON fields with component engine', async () => {
     const { engine, child, logger } = fixture();
     await engine.reconnect();
     child.stderr.write(
@@ -209,14 +209,14 @@ describe('EngineProcess', () => {
     );
     await engine.close();
   });
-  it('refleja la muerte del proceso de inmediato', async () => {
+  it('reflects the process death immediately', async () => {
     const { engine, child } = fixture();
     await engine.reconnect();
     child.emit('exit', 1, null);
     expect(engine.getState().status).toBe('disconnected');
     await engine.close();
   });
-  it('distingue incompatibilidad y detiene ese proceso', async () => {
+  it('distinguishes incompatibility and stops that process', async () => {
     const { engine } = fixture({ protocol: '2' });
     expect(await engine.reconnect()).toEqual({
       status: 'incompatible',
@@ -225,13 +225,13 @@ describe('EngineProcess', () => {
     });
     await engine.close();
   });
-  it('maneja ejecutable inexistente sin quedar esperando', async () => {
+  it('handles a nonexistent executable without hanging', async () => {
     const { engine } = fixture({ failSpawn: true });
     expect((await engine.reconnect()).status).toBe('disconnected');
     await engine.close();
   });
   it.each([false, true])(
-    'mata a los 2 segundos si el proceso sigue vivo (shutdown respondio: %s)',
+    'kills after 2 seconds if the process is still alive (shutdown answered: %s)',
     async (acknowledge) => {
       vi.useFakeTimers();
       const { engine, child } = fixture({
@@ -249,7 +249,7 @@ describe('EngineProcess', () => {
       expect(child.kill).toHaveBeenCalledWith('SIGKILL');
     },
   );
-  it('agota el handshake a los 5 segundos', async () => {
+  it('exhausts the handshake after 5 seconds', async () => {
     vi.useFakeTimers();
     const { engine } = fixture({ hangHello: true });
     const ready = engine.reconnect();
@@ -257,7 +257,7 @@ describe('EngineProcess', () => {
     expect((await ready).status).toBe('disconnected');
     await engine.close();
   });
-  it('coalesce reconexiones y cierra durante un handshake pendiente', async () => {
+  it('coalesces reconnects and closes during a pending handshake', async () => {
     const { engine, spawnProcess } = fixture({ hangHello: true });
     const ready = engine.reconnect();
     expect(engine.reconnect()).toBe(ready);
@@ -270,7 +270,7 @@ describe('EngineProcess', () => {
 });
 
 describe('CYBERSOC_ENGINE_CMD', () => {
-  it('conserva rutas Windows con espacios y no expande operadores', () => {
+  it('keeps Windows paths with spaces and does not expand operators', () => {
     expect(
       parseEngineCommand('"C:\\Motor Python\\python.exe" -m cybersoc_engine'),
     ).toEqual({
@@ -286,7 +286,7 @@ describe('CYBERSOC_ENGINE_CMD', () => {
     });
   });
   it.each(['', '"unfinished', '[]'])(
-    'rechaza comando invalido %s',
+    'rejects invalid command %s',
     (command) => {
       expect(() => parseEngineCommand(command)).toThrow();
     },

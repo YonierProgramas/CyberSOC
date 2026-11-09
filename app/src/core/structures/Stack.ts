@@ -1,23 +1,23 @@
-// Pila LIFO sobre un arreglo.
+// LIFO stack on an array.
 // Invariantes:
-// - Los elementos vivos ocupan slots[0..count-1]; el tope es slots[count-1].
-// - Las posiciones desde count en adelante valen undefined, para no retener
-//   referencias a elementos ya sacados (el arreglo no se encoge).
-// - peak es el mayor count observado desde que se creó la pila.
-// Todas las operaciones son O(1): solo se toca el extremo final del arreglo.
+// - Live elements occupy slots[0..count-1]; the top is slots[count-1].
+// - Positions from count onwards are undefined, so as not to retain
+//   references to already popped elements (the array does not shrink).
+// - peak is the largest count observed since the stack was created.
+// All operations are O(1): only the end of the array is touched.
 export class Stack<T> {
   private slots: Array<T | undefined> = [];
   private count = 0;
   private peak = 0;
 
-  // O(1) amortizado: el arreglo de JavaScript crece por sí mismo al escribir en count.
+  // Amortized O(1): the JavaScript array grows by itself when writing at count.
   push(value: T): void {
     this.slots[this.count] = value;
     this.count += 1;
     if (this.count > this.peak) this.peak = this.count;
   }
 
-  // O(1): saca el último que entró, o undefined si la pila está vacía.
+  // O(1): removes the last one in, or undefined if the stack is empty.
   pop(): T | undefined {
     if (this.count === 0) return undefined;
     this.count -= 1;
@@ -26,7 +26,7 @@ export class Stack<T> {
     return value;
   }
 
-  // O(1): consulta el tope sin sacarlo.
+  // O(1): reads the top without removing it.
   peek(): T | undefined {
     if (this.count === 0) return undefined;
     return this.slots[this.count - 1];
@@ -42,7 +42,7 @@ export class Stack<T> {
     return this.count === 0;
   }
 
-  // O(1): tamaño máximo alcanzado.
+  // O(1): maximum size reached.
   get peakSize(): number {
     return this.peak;
   }

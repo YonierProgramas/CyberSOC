@@ -79,7 +79,7 @@ def test_eicar_is_tested_only_by_published_hash():
     assert record.id == "EICAR-STANDARD"
     assert record.sourceUrl.startswith("https://knowledge.broadcom.com/")
     assert SignatureEngine(catalog).analyze(context(EICAR_HASH))[0].decisive is True
-    # Solo el hash se usa en memoria; no se crea ni se descarga el archivo EICAR.
+    # Only the hash is used in memory; the EICAR file is neither created nor downloaded.
 
 
 def test_no_match_and_changed_fixture(tmp_path):

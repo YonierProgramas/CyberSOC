@@ -141,7 +141,7 @@ export class AISecurityService {
             validationStatus: 'VALID',
             opinion: checked.assessment.opinion,
             confidence: checked.assessment.confidence,
-            // RiskPolicy v2 vuelve a comprobar que las citas existen antes de escalar.
+            // RiskPolicy v2 checks again that citations exist before escalating.
             citedEvidenceIds: checked.assessment.citedEvidenceIds,
           },
         );
@@ -162,6 +162,6 @@ export class AISecurityService {
       if (checked.status === 'INCOMPLETE')
         maxTokens = ANALYSIS_RETRY_MAX_TOKENS;
     }
-    throw new Error('Estado de validación inesperado.');
+    throw new Error('Unexpected validation status.');
   }
 }

@@ -15,15 +15,15 @@ beforeEach(async () => {
 });
 afterEach(() => h.close());
 
-/** Reinicia la app: un gestor nuevo sobre la misma BD y bóveda, y reconciliación al iniciar. */
+/** Restarts the app: a new manager on the same DB and vault, and reconciliation at startup. */
 async function restartAndReconcile(): Promise<void> {
   h.manager = h.makeManager();
   await h.manager.reconcile();
 }
 
 /**
- * Invariante de CA-4.5 para una cuarentena interrumpida: sin PENDING, el contenido queda
- * exactamente en UN sitio (original intacto o blob verificable) y sin temporales.
+ * CA-4.5 invariant for an interrupted quarantine: without PENDING, the content stays
+ * in exactly ONE place (intact original or verifiable blob) and without temporaries.
  */
 async function expectExactlyOneCopy(id: string, input: Seeded): Promise<void> {
   const record = h.record(id);
@@ -40,7 +40,7 @@ async function expectExactlyOneCopy(id: string, input: Seeded): Promise<void> {
   expect({ originalOk, blobOk }).not.toEqual({
     originalOk: false,
     blobOk: false,
-  }); // pérdida
+  }); // loss
   expect({ originalOk, blobOk }).not.toEqual({
     originalOk: true,
     blobOk: true,
@@ -50,7 +50,7 @@ async function expectExactlyOneCopy(id: string, input: Seeded): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Cuarentena: estado persistido en cada frontera de los 7 pasos del plan
+// Quarantine: state persisted at each boundary of the 7 plan steps
 // ---------------------------------------------------------------------------
 
 type QuarantineStep =
@@ -62,7 +62,7 @@ type QuarantineStep =
   | '5e-tag-guardado'
   | '6-original-borrado';
 
-/** Reproduce lo que QuarantineManager.isolate deja en disco y en la BD si la app muere en `step`. */
+/** Reproduces what QuarantineManager.isolate leaves on disk and in the DB if the app dies at `step`. */
 async function crashQuarantineAt(step: QuarantineStep) {
   const input = await h.seed(
     `muestra-${step}.txt`,
@@ -94,7 +94,7 @@ async function crashQuarantineAt(step: QuarantineStep) {
     h.manager.audit.append('QUARANTINE_PENDING', id, { resultId: input.id });
   });
   if (step === '4-pending-sin-blob') return { input, id };
-  // Paso 5: cifrado real con la bóveda (deja el blob publicado).
+  // Step 5: real encryption with the vault (leaves the blob published).
   const source = await fs.open(input.path, 'r');
   const tag = await h.vault
     .encrypt(source, record)
@@ -116,7 +116,7 @@ async function crashQuarantineAt(step: QuarantineStep) {
   return { input, id };
 }
 
-describe('cierre simulado durante la cuarentena → reconciliación al iniciar', () => {
+describe('simulated shutdown during quarantine → reconciliation at startup', () => {
   it.each<QuarantineStep>([
     '4-pending-sin-blob',
     '5a-temporal-a-medias',
@@ -135,11 +135,11 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
         errorMessage: 'RECOVERED_ORIGINAL_KEPT',
       });
       expect(await h.vaultFiles()).toEqual([]);
-      expect(h.confirm).not.toHaveBeenCalled(); // recuperar nunca pide ni inicia acciones
+      expect(h.confirm).not.toHaveBeenCalled(); // recovery never asks for or starts actions
     },
   );
 
-  it('cierre en 6-original-borrado: completa QUARANTINED con el blob verificado', async () => {
+  it('shutdown at 6-original-deleted: completes QUARANTINED with the verified blob', async () => {
     const { input, id } = await crashQuarantineAt('6-original-borrado');
     await restartAndReconcile();
     await expectExactlyOneCopy(id, input);
@@ -148,7 +148,7 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
     expect(sha(await fs.readFile(restored.restoredTo!))).toBe(input.hash);
   });
 
-  it('la reconciliación es idempotente: un segundo reinicio no cambia nada', async () => {
+  it('reconciliation is idempotent: a second restart changes nothing', async () => {
     const steps: QuarantineStep[] = [
       '5c-publicado-y-temporal',
       '6-original-borrado',
@@ -166,7 +166,7 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
     expect(h.manager.audit.list().length).toBe(audit);
   });
 
-  it('el usuario cambia el original después del cierre (5e): no se toca su archivo nuevo ni se pierde la copia', async () => {
+  it('the user changes the original after the shutdown (5e): the new file is not touched and the copy is not lost', async () => {
     const { input, id } = await crashQuarantineAt('5e-tag-guardado');
     await fs.writeFile(
       input.path,
@@ -181,7 +181,7 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
     await expect(h.vault.verify(record)).resolves.toBeTypeOf('string');
   });
 
-  it('el usuario borra el original después de un cierre en 4: no queda PENDING', async () => {
+  it('the user deletes the original after a shutdown at 4: no PENDING remains', async () => {
     const { input, id } = await crashQuarantineAt('4-pending-sin-blob');
     await fs.unlink(input.path);
     await restartAndReconcile();
@@ -189,13 +189,13 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
     expect(h.record(id).status).toBe('FAILED');
   });
 
-  it('cierre "real": el proceso se cuelga tras cifrar y otro arranque reconcilia', async () => {
+  it('"real" shutdown: the process hangs after encrypting and another start reconciles', async () => {
     const input = await h.seed('colgado.txt');
     let hang!: (reason: Error) => void;
     const encrypt = h.vault.encrypt.bind(h.vault);
     vi.spyOn(h.vault, 'encrypt').mockImplementationOnce(async (file, item) => {
       await encrypt(file, item);
-      // La app "muere" aquí: nunca guarda el tag ni borra el original.
+      // The app "dies" here: it never stores the tag or deletes the original.
       return new Promise<string>((_resolve, reject) => {
         hang = reject;
       });
@@ -206,11 +206,11 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
     await vi.waitFor(() => expect(hang).toBeTypeOf('function'));
     const dead = h.manager;
     const [row] = dead.list('PENDING');
-    // Segundo arranque mientras el primero sigue colgado (otro proceso, misma BD).
+    // Second start while the first is still hung (another process, same DB).
     h.manager = h.makeManager();
     await h.manager.reconcile();
     await expectExactlyOneCopy(row!.id, input);
-    // Liberar el proceso colgado solo para cerrar sus descriptores al final de la prueba.
+    // Release the hung process only to close its descriptors at the end of the test.
     hang(new Error('proceso terminado'));
     await frozen;
     await dead.close();
@@ -218,7 +218,7 @@ describe('cierre simulado durante la cuarentena → reconciliación al iniciar',
 });
 
 // ---------------------------------------------------------------------------
-// Restauración y eliminación interrumpidas
+// Interrupted restoration and deletion
 // ---------------------------------------------------------------------------
 
 type RestoreStep =
@@ -228,7 +228,7 @@ type RestoreStep =
   | 'R4-publicado-y-temporal'
   | 'R5-publicado';
 
-/** Ítem real en cuarentena y estado que deja restore() si la app muere en `step`. */
+/** Real quarantined item and state left by restore() if the app dies at `step`. */
 async function crashRestoreAt(step: RestoreStep, trust = false) {
   const input = await h.seed('restaurar.txt');
   const item = await h.manager.quarantine(input.id);
@@ -250,7 +250,7 @@ async function crashRestoreAt(step: RestoreStep, trust = false) {
   return { input, id: record.id, temp };
 }
 
-describe('cierre simulado durante la restauración → reconciliación al iniciar', () => {
+describe('simulated shutdown during restoration → reconciliation at startup', () => {
   it.each<RestoreStep>([
     'R1-pending-sin-temporal',
     'R2-temporal-a-medias',
@@ -288,9 +288,9 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     },
   );
 
-  // Regresión T4.3-B: un archivo ajeno en el destino no debe dejar un temporal
-  // descifrado ni bloquear el ítem recuperable en FAILED.
-  it('[HALLAZGO B] cierre en R3 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED y no queda texto plano', async () => {
+  // T4.3-B regression: a foreign file at the target must not leave a decrypted
+  // temporary nor block the recoverable item in FAILED.
+  it('[FINDING B] shutdown at R3 and another file appears at the target: the item returns to QUARANTINED and no plain text remains', async () => {
     const { input, id, temp } = await crashRestoreAt('R3-temporal-completo');
     await fs.writeFile(input.path, 'Archivo distinto creado por otro programa');
     await restartAndReconcile();
@@ -309,7 +309,7 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     );
   });
 
-  it('[HALLAZGO B] cierre en R1 y otro archivo aparece en el destino: el ítem vuelve a QUARANTINED', async () => {
+  it('[FINDING B] shutdown at R1 and another file appears at the target: the item returns to QUARANTINED', async () => {
     const { input, id } = await crashRestoreAt('R1-pending-sin-temporal');
     await fs.writeFile(input.path, 'Archivo distinto creado por otro programa');
     await restartAndReconcile();
@@ -319,7 +319,7 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     expect(h.record(id).status).toBe('QUARANTINED');
   });
 
-  it('rollback con confianza pendiente no añade allowlist y permite eliminar el blob', async () => {
+  it('rollback with pending trust adds no allowlist and allows deleting the blob', async () => {
     const { input, id, temp } = await crashRestoreAt(
       'R2-temporal-a-medias',
       true,
@@ -336,7 +336,7 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     expect(await fs.readFile(input.path, 'utf8')).toBe('archivo ajeno');
   });
 
-  it('retira el temporal descifrado aunque el blob esté corrupto al reconciliar', async () => {
+  it('removes the decrypted temporary even if the blob is corrupt when reconciling', async () => {
     const { input, id, temp } = await crashRestoreAt('R3-temporal-completo');
     await fs.writeFile(input.path, 'archivo ajeno');
     await fs.writeFile(h.record(id).vaultFile, 'blob corrupto inofensivo');
@@ -347,7 +347,7 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     expect(await exists(h.record(id).vaultFile)).toBe(true);
   });
 
-  it('el núcleo del hallazgo B, sin depender de la expectativa: nunca se sobrescribe el archivo ajeno ni se borra el blob', async () => {
+  it('the core of finding B, independent of the expectation: the foreign file is never overwritten and the blob never deleted', async () => {
     const { input, id } = await crashRestoreAt('R3-temporal-completo');
     await fs.writeFile(input.path, 'Archivo distinto creado por otro programa');
     await restartAndReconcile();
@@ -358,7 +358,7 @@ describe('cierre simulado durante la restauración → reconciliación al inicia
     await expect(h.vault.verify(h.record(id))).resolves.toBeTypeOf('string');
   });
 
-  it('cierre durante la eliminación con el blob aún presente: completa DELETED y borra solo el blob', async () => {
+  it('shutdown during delete with the blob still present: completes DELETED and deletes only the blob', async () => {
     const input = await h.seed('eliminar.txt');
     const item = await h.manager.quarantine(input.id);
     await fs.writeFile(input.path, 'archivo nuevo en la ruta original');

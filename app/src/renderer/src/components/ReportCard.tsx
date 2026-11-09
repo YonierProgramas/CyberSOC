@@ -6,6 +6,7 @@ import type {
 import { verdictLabel } from '../scan/format';
 import { PlainText } from './PlainText';
 import { ReferenceChips } from './ReferenceChips';
+import { ipcErrorText } from '../ipc/errors';
 
 const formats = ['html', 'csv', 'json'] as const;
 
@@ -40,11 +41,7 @@ export function ReportCard({ report }: { report: AssistantReportCardDTO }) {
           : 'Exportación cancelada.',
       );
     } catch (error) {
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo exportar el reporte.',
-      );
+      setNotice(ipcErrorText(error, 'No se pudo exportar el reporte.'));
     } finally {
       setBusy(false);
     }

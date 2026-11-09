@@ -84,7 +84,7 @@ function validArgs(channel: string): unknown[] {
       ? [{ conversationId: chat }]
       : [{ offset: 0, limit: 20 }];
 }
-it('I-01/I-12: registra solo cuatro canales aditivos con respuestas de SQLite real', async () => {
+it('I-01/I-12: registers only four additive channels with real SQLite responses', async () => {
   expect(electron.handle.mock.calls.map(([name]) => name)).toEqual(channels);
   await expect(call(channels[0]!)).resolves.toMatchObject({
     schema: 'cybersoc.dashboard/v1',
@@ -100,7 +100,7 @@ it('I-01/I-12: registra solo cuatro canales aditivos con respuestas de SQLite re
     call(channels[3]!, event, ...validArgs(channels[3]!)),
   ).resolves.toMatchObject({ conversationId: chat, total: 6 });
 });
-it('I-12: otra ventana/subframe/navegación y argumentos extra/tipos inválidos fallan sin leer', async () => {
+it('I-12: another window/subframe/navigation and extra/invalid-type arguments fail without reading', async () => {
   const reads = Object.keys(service).map((name) =>
     vi.spyOn(service, name as keyof HistoryService),
   );
@@ -131,7 +131,7 @@ it('I-12: otra ventana/subframe/navegación y argumentos extra/tipos inválidos 
     await expect(call(channel, event, ...validArgs(channel))).rejects.toThrow();
   for (const read of reads) expect(read).not.toHaveBeenCalled();
 });
-it('I-12: errores y salidas inválidas no filtran datos; INVALID_RANGE estable sin parcial', async () => {
+it('I-12: errors and invalid outputs leak no data; stable INVALID_RANGE without partial', async () => {
   const privateMessage = 'C:\\privado\\secreto.sqlite: pregunta e input';
   vi.spyOn(service, 'listMessages').mockImplementation(() => {
     throw new Error(privateMessage);

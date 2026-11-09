@@ -10,11 +10,11 @@ import {
 } from './schemas';
 
 export interface JobSummaryResponseInput {
-  /** Texto exacto devuelto por el modelo. */
+  /** Exact text returned by the model. */
   rawText: string;
-  /** La respuesta se cortó por `max_tokens`. */
+  /** The response was cut off by `max_tokens`. */
   truncated: boolean;
-  /** Contexto enviado: solo se usan los resultId de topResults. */
+  /** Context sent: only the resultIds of topResults are used. */
   context: Pick<JobSummaryContext, 'topResults'>;
 }
 
@@ -24,8 +24,8 @@ export type JobSummaryValidationResult =
 
 type Failure = Exclude<JobSummaryValidationResult, { status: 'VALID' }>;
 
-// Solo se repiten en la retroalimentación los ids con forma de identificador; cualquier otro
-// texto inventado por el modelo se cuenta, pero no se copia.
+// Only identifier-shaped ids are repeated in the feedback; any other
+// text invented by the model is counted but not copied.
 const SAFE_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 function fail(status: Failure['status'], errors: string[]): Failure {
@@ -33,7 +33,7 @@ function fail(status: Failure['status'], errors: string[]): Failure {
 }
 
 function check(input: JobSummaryResponseInput): JobSummaryValidationResult {
-  // 1. JSON válido.
+  // 1. Valid JSON.
   let json: unknown;
   try {
     json = JSON.parse(input.rawText);
@@ -48,7 +48,7 @@ function check(input: JobSummaryResponseInput): JobSummaryValidationResult {
   }
   const value = parsed.data;
 
-  // 3. Semántica: todos los resultId deben existir en el contexto enviado.
+  // 3. Semantics: every resultId must exist in the context sent.
   const known = new Set(input.context.topResults.map((item) => item.resultId));
   const referenced = new Set([
     ...value.highlights.map((item) => item.resultId),
@@ -62,7 +62,7 @@ function check(input: JobSummaryResponseInput): JobSummaryValidationResult {
     ]);
   }
 
-  // 4. Seguridad: las mismas reglas que el análisis por archivo (sin URLs ni comandos).
+  // 4. Safety: the same rules as the per-file analysis (no URLs or commands).
   const unsafe = unsafeTextErrors([
     { field: 'summary', text: value.summary },
     ...value.highlights.map((item, index) => ({
@@ -80,15 +80,15 @@ function check(input: JobSummaryResponseInput): JobSummaryValidationResult {
 }
 
 /**
- * Valida un `JOB_SUMMARY` con los mismos cinco pasos que el análisis por archivo:
- * JSON → esquema → resultId existentes → seguridad → completitud. Un resultId inventado da
- * UNKNOWN_EVIDENCE, el estado semántico de `ai_analyses.validation_status`.
+ * Validates a `JOB_SUMMARY` with the same five steps as the per-file analysis:
+ * JSON → schema → existing resultIds → safety → completeness. An invented resultId gives
+ * UNKNOWN_EVIDENCE, the semantic status of `ai_analyses.validation_status`.
  */
 export function validateJobSummary(
   input: JobSummaryResponseInput,
 ): JobSummaryValidationResult {
   const result = check(input);
-  // 5. Completitud: una respuesta cortada siempre es INCOMPLETE (remedio: más tokens).
+  // 5. Completeness: a response cut off is always INCOMPLETE (remedy: more tokens).
   if (input.truncated) {
     return fail('INCOMPLETE', [
       'La respuesta se cortó por el límite de tokens.',

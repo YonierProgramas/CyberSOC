@@ -21,7 +21,7 @@ const python = join(
 export interface EvidenceApp {
   app: ElectronApplication;
   page: Page;
-  /** Carpeta temporal del modo evidencia. La BD vive en user-data/. */
+  /** Temporary folder of evidence mode. The DB lives in user-data/. */
   root: string;
 }
 
@@ -48,7 +48,7 @@ function baseEnvironment(root: string): Record<string, string> {
   };
 }
 
-/** Misma preparación que el capturador: fixtures inofensivos y BD aislada. */
+/** Same preparation as the capturer: harmless fixtures and isolated DB. */
 export function prepareEvidenceRoot(): string {
   const root = mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
   const env = baseEnvironment(root);
@@ -74,7 +74,7 @@ export function prepareEvidenceRoot(): string {
   return root;
 }
 
-/** Deja pydantic y el motor en caché. El saludo del motor espera solo 5 s. */
+/** Leaves pydantic and the engine cached. The engine hello waits only 5 s. */
 function warmEngine(root: string): void {
   execFileSync(python, ['-c', 'import cybersoc_engine'], {
     env: baseEnvironment(root),
@@ -140,7 +140,7 @@ async function expectConnected(page: Page): Promise<void> {
   throw new Error(`El motor no se conectó. Último estado: ${last}`);
 }
 
-/** El diálogo nativo no se abre: main lee esta ruta del modo evidencia. */
+/** The native dialog does not open: main reads this path from evidence mode. */
 export async function pointDialog(
   app: ElectronApplication,
   target: string,

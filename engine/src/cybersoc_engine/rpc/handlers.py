@@ -86,8 +86,8 @@ def rules_reload(params: dict[str, JsonValue] | list[JsonValue]) -> dict[str, Js
     try:
         catalog = default_rules.reload()
     except RuleConfigError as error:
-        # Detalle de configuración local por stderr; stdout permanece JSON-RPC.
-        logging.getLogger(__name__).error("Recarga de reglas rechazada: %s", error)
+        # Local configuration detail through stderr; stdout stays JSON-RPC.
+        logging.getLogger(__name__).error("Rule reload rejected: %s", error)
         raise RpcError(-32603) from error
     return RulesReloadResult(
         rulesetVersion=catalog.version, rulesCount=len(catalog.rules)

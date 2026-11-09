@@ -20,7 +20,7 @@ const params = {
   options: { maxBytes: 1024 },
 };
 it.each(zoneSchema.options)(
-  'acepta zona %s sin obligar a enviar capas',
+  'accepts zone %s without requiring layers',
   (zone) => {
     const value = { ...params, options: { maxBytes: 1024, zone } };
     expect(scanFileParamsSchema.parse(value)).toEqual(value);
@@ -31,7 +31,7 @@ it.each([
   { layers: [] },
   { layers: ['FILETYPE'] },
   { layers: ['FILETYPE', 'SIGNATURES', 'HASH'] },
-])('acepta opciones compatibles %j', (options) => {
+])('accepts compatible options %j', (options) => {
   const value = { ...params, options: { maxBytes: 1024, ...options } };
   expect(scanFileParamsSchema.parse(value)).toEqual(value);
 });
@@ -46,7 +46,7 @@ it.each([
   { layers: [1] },
   { layers: ['HASH', 'HASH'] },
   { layers: ['ENGINE'] },
-])('rechaza opciones fuera del contrato: %j', (options) => {
+])('rejects options outside the contract: %j', (options) => {
   expect(
     scanFileParamsSchema.safeParse({
       ...params,
@@ -61,7 +61,7 @@ it.each([
   { reason: ' ' },
   { hits: 1 },
   { points: 1 },
-])('rechaza traza DISABLED inconsistente: %j', (change) => {
+])('rejects inconsistent DISABLED trace: %j', (change) => {
   expect(
     layerTraceSchema.safeParse({
       layer: 'FILETYPE',
@@ -75,7 +75,7 @@ it.each([
   ).toBe(false);
 });
 it.each(['FIXED', 'REMOVABLE', 'NETWORK', 'CDROM', 'UNKNOWN'])(
-  'acepta tipo de unidad %s',
+  'accepts drive type %s',
   (driveType) => {
     expect(
       driveInfoResponseSchema.parse({
@@ -87,7 +87,7 @@ it.each(['FIXED', 'REMOVABLE', 'NETWORK', 'CDROM', 'UNKNOWN'])(
   },
 );
 it.each(['USB', 'RAMDISK', '', 1, null])(
-  'rechaza tipo de unidad %j',
+  'rejects drive type %j',
   (driveType) => {
     expect(
       driveInfoResponseSchema.safeParse({
@@ -106,7 +106,7 @@ it.each([
   { path: '' },
   { path: 'C:\u0000' },
   { path: 'C:\\', extra: true },
-])('rechaza parámetros fs.driveInfo %j', (value) => {
+])('rejects fs.driveInfo parameters %j', (value) => {
   expect(
     driveInfoRequestSchema.safeParse({
       jsonrpc: '2.0',
@@ -124,7 +124,7 @@ const python = resolve(
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
 );
 it.skipIf(!existsSync(python))(
-  'motor real y zod: perfil mínimo, fs.driveInfo, rules.reload y versión de reglas',
+  'real engine and zod: minimal profile, fs.driveInfo, rules.reload and rule version',
   () => {
     const messages = [
       {

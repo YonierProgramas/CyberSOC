@@ -130,7 +130,7 @@ export class JsonRpcEngineClient implements EngineClient {
       timeoutMs <= 0 ||
       timeoutMs > 2_147_483_647
     ) {
-      throw new RangeError('Timeout de archivo inválido.');
+      throw new RangeError('Invalid file timeout.');
     }
     const result = engineResultSchema.parse(
       await this.request(

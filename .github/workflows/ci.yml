@@ -34,7 +34,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # Node 24 conserva transform-types usado por los subprocesos TS.
+          # Node 24 keeps the transform-types mode used by the TS subprocesses.
           node-version-file: CyberSOC/.node-version
           cache: npm
           cache-dependency-path: CyberSOC/app/package-lock.json
@@ -46,11 +46,11 @@ jobs:
           working-directory: CyberSOC/engine
           enable-cache: true
           cache-dependency-glob: uv.lock
-          # Sin esto, setup-uv toma cache-dir de pyproject.toml sin resolverlo contra
-          # working-directory y el guardado de la cach√© falla. El input s√≠ se resuelve.
+          # Without this, setup-uv takes cache-dir from pyproject.toml without resolving it against
+          # working-directory and saving the cache fails. The input is resolved.
           cache-local-path: .uv-cache
-      # --compile-bytecode: con PYTHONDONTWRITEBYTECODE=1 cada arranque del motor
-      # recompilaria pydantic desde fuente y engine.hello superaria su timeout de 5 s.
+      # --compile-bytecode: with PYTHONDONTWRITEBYTECODE=1 every engine start would
+      # recompile pydantic from source and engine.hello would exceed its 5 s timeout.
       - name: Install engine for integration tests
         working-directory: CyberSOC/engine
         run: uv sync --locked --compile-bytecode
@@ -61,11 +61,11 @@ jobs:
       - name: Lint
         run: npm run lint
       - name: Tests (including TypeScript contracts; no live AI smoke)
-        # Limita procesos nativos simult·neos y reproduce la verificaciÛn local.
+        # Limits simultaneous native processes and reproduces the local verification.
         run: npm test
       - name: End-to-end (Electron, evidence mode)
-        # Tres corridas locales seguidas en verde el 2026-10-03. Playwright usa
-        # el Electron ya instalado; no descarga un navegador.
+        # Three consecutive green local runs on 2026-10-03. Playwright uses
+        # the already installed Electron; it does not download a browser.
         run: npm run test:e2e
 
   engine:

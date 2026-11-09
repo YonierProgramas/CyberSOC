@@ -41,7 +41,7 @@ afterEach(async () => {
 });
 
 describe('FileDiscovery', () => {
-  it('encuentra archivos anidados y cuenta una carpeta vacia', async () => {
+  it('finds nested files and counts an empty folder', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'a', 'sub'), { recursive: true });
     await mkdir(join(root, 'a', 'vacia'));
@@ -58,7 +58,7 @@ describe('FileDiscovery', () => {
     expect(discovery.peakStackSize).toBeGreaterThan(0);
   });
 
-  it('conserva ñ, tildes y emoji en las rutas', async () => {
+  it('keeps ñ, accents and emoji in paths', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'cañón'));
     await writeFile(join(root, 'cañón', 'José.txt'), 'j');
@@ -71,7 +71,7 @@ describe('FileDiscovery', () => {
     expect(paths.some((file) => file.endsWith('nota-😀.txt'))).toBe(true);
   });
 
-  it('recorre mas de 50 niveles sin recursion', async () => {
+  it('walks more than 50 levels without recursion', async () => {
     const root = await tempDir();
     const parts = Array.from({ length: 55 }, (_, index) => `n${index}`);
     const deep = join(root, ...parts);
@@ -84,7 +84,7 @@ describe('FileDiscovery', () => {
     expect(discovery.dirsVisited).toBe(56);
   });
 
-  it('no sigue una junction que apunta a su carpeta padre', async () => {
+  it('does not follow a junction pointing to its parent folder', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'a'));
     await writeFile(join(root, 'visible.txt'), 'v');
@@ -97,7 +97,7 @@ describe('FileDiscovery', () => {
     expect(discovery.dirsVisited).toBe(2);
   });
 
-  it('no entra en un nombre excluido', async () => {
+  it('does not enter an excluded name', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'secretos'));
     await writeFile(join(root, 'ok.txt'), 'ok');
@@ -108,7 +108,7 @@ describe('FileDiscovery', () => {
     expect(discovery.dirsVisited).toBe(1);
   });
 
-  it('cancela antes de empezar y entre archivos', async () => {
+  it('cancels before starting and between files', async () => {
     const root = await tempDir();
     await writeFile(join(root, 'a.txt'), 'a');
     await writeFile(join(root, 'b.txt'), 'b');
@@ -130,7 +130,7 @@ describe('FileDiscovery', () => {
     expect(found).toHaveLength(1);
   });
 
-  it('bfs encuentra los mismos archivos usando la Queue', async () => {
+  it('bfs finds the same files using the Queue', async () => {
     const root = await tempDir();
     await mkdir(join(root, 'a'));
     await mkdir(join(root, 'b'));

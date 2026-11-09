@@ -19,7 +19,7 @@ import { ReportBuilder } from '../src/core/reports/ReportBuilder';
 import { resolveZoneRoots } from '../src/main/zone-paths';
 import type { AssistantReplyDTO } from '../src/shared/ipc';
 
-// Carpetas "del usuario" de prueba: Descargas recibe los fixtures. Nunca rutas reales.
+// Test "user" folders: Downloads receives the fixtures. Never real paths.
 const live = await vi.hoisted(async () => {
   const { tmpdir } = await import('node:os');
   const { join: joinPath } = await import('node:path');
@@ -43,7 +43,7 @@ import { AIFlowHarness } from './fixtures/AIFlowHarness';
 import { createScanOrchestrator } from '../src/main/composition-root';
 import { ENGINE_DATA } from './fixtures/copilot';
 
-// CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.
+// CI never calls Claude, even if it receives a key by mistake. Locally it requires opt-in.
 const skip =
   Boolean(process.env.CI) ||
   !process.env.CYBERSOC_ANTHROPIC_API_KEY?.trim() ||
@@ -64,12 +64,12 @@ interface Question {
   n: string;
   text: string;
   focus: () => { resultId?: string; jobId?: string } | undefined;
-  /** Las preguntas del profesor empiezan una conversación nueva. */
+  /** The professor's questions start a new conversation. */
   newConversation?: boolean;
 }
 
 describe.skipIf(skip)(
-  'live — Copilot v2 con herramientas sobre la API de Claude',
+  'live — Copilot v2 with tools over the Claude API',
   () => {
     let harness: AIFlowHarness | undefined;
     afterAll(async () => {
@@ -77,11 +77,11 @@ describe.skipIf(skip)(
       rmSync(live.base, { recursive: true, force: true });
     });
 
-    it('responde las 10 preguntas del documento 7.2 y las 4 del profesor con datos reales', async () => {
+    it('answers the 10 questions of document 7.2 and the 4 from the professor with real data', async () => {
       const outDir = process.env.CYBERSOC_T55_EVIDENCE_DIR;
       for (const dir of Object.values(live.dirs))
         mkdirSync(dir, { recursive: true });
-      // Fixtures oficiales inofensivos del motor (nunca EICAR ni malware).
+      // Official harmless engine fixtures (never EICAR or malware).
       execFileSync(
         python,
         [
@@ -117,7 +117,7 @@ describe.skipIf(skip)(
         'Notas limpias de una reunión.\n',
       );
 
-      // Motor real + SQLite temporal. El análisis automático de IA no se inicia (no gasta llamadas).
+      // Real engine + temporary SQLite. Automatic AI analysis is not started (spends no calls).
       harness = new AIFlowHarness(() => new FakeAIProvider());
       await harness.prepare();
       const db = harness.db;
@@ -152,7 +152,7 @@ describe.skipIf(skip)(
           catalog: loadToolCatalog(ENGINE_DATA),
           zoneRoots: () =>
             resolveZoneRoots((name) => live.dirs[name], process.env),
-          // No hay USB física en el equipo de pruebas: se simula una unidad E: conectada.
+          // There is no physical USB on the test machine: a connected E: drive is simulated.
           removableDrives: async () => [{ driveId: 'E:', path: 'E:\\' }],
         },
         reports,
@@ -375,7 +375,7 @@ describe.skipIf(skip)(
       );
       expect(jobsAfter).toBe(1);
 
-      // CA-5.1: cifras de "Resume el último escaneo" frente a SQL directo.
+      // CA-5.1: figures from "Resume el último escaneo" versus direct SQL.
       const sqlJob = db
         .prepare(
           `SELECT id, status, files_discovered AS discovered, files_processed AS processed,
@@ -404,13 +404,13 @@ describe.skipIf(skip)(
         ...sqlVerdicts.map((row) => String(row.n)),
         ...sqlTop.map((row) => String(row.score)),
         String(results.length),
-        // Bytes expresados en KB con un decimal, como suele escribirlos el modelo.
+        // Bytes expressed in KB with one decimal, as the model usually writes them.
         (Number(sqlJob.bytes) / 1024).toFixed(1),
-        // Diferencia de una unidad por redondeo de milisegundos.
+        // One-unit difference from millisecond rounding.
         String(Number(sqlJob.durationMs) - 1),
         String(Number(sqlJob.durationMs) + 1),
       ]);
-      // Fechas, horas y números dentro de nombres (CSD-TEST-001) no son cifras del escaneo.
+      // Dates, times and numbers inside names (CSD-TEST-001) are not scan figures.
       const comparable = summary.text
         .replace(/\b\d{1,2}\/\d{1,2}\/\d{4}\b/g, ' ')
         .replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ')

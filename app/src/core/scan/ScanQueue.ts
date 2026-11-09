@@ -3,7 +3,7 @@ import { Queue } from '../structures/Queue';
 
 export class ScanQueueClosedError extends Error {
   constructor() {
-    super('La cola de escaneo está cerrada.');
+    super('The scan queue is closed.');
   }
 }
 
@@ -22,7 +22,7 @@ export class ScanQueue<T> {
   ) {
     this.capacity = config.scan.queueCapacity;
     if (!Number.isSafeInteger(this.capacity) || this.capacity <= 0) {
-      throw new RangeError('La capacidad debe ser un entero positivo seguro.');
+      throw new RangeError('Capacity must be a positive safe integer.');
     }
   }
 
@@ -45,7 +45,7 @@ export class ScanQueue<T> {
 
   async put(value: T, signal?: AbortSignal): Promise<void> {
     if (value === undefined)
-      throw new TypeError('undefined está reservado para el fin de la cola.');
+      throw new TypeError('undefined is reserved for the end of the queue.');
     let token: symbol | undefined;
     try {
       while (true) {

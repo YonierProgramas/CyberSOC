@@ -5,7 +5,7 @@ import { AISecurityService } from './AISecurityService';
 import type { JobSummaryService } from './JobSummaryService';
 
 interface Pending {
-  /** FILE_RESULT: id es un resultId. JOB_SUMMARY: id es un jobId. */
+  /** FILE_RESULT: id is a resultId. JOB_SUMMARY: id is a jobId. */
   kind: 'FILE_RESULT' | 'JOB_SUMMARY';
   id: string;
   retries: number;
@@ -23,24 +23,24 @@ export interface AIJobSummaryUpdated {
 }
 
 /**
- * Prioridad del resumen de escaneo: por debajo de cualquier archivo (las prioridades de
- * archivo van de 0 a 200), así se analizan primero los resultados de mayor riesgo.
+ * Scan summary priority: below any file (file priorities range
+ * from 0 to 200), so the highest-risk results are analyzed first.
  */
 const JOB_SUMMARY_PRIORITY = -1;
 
-/** Clave del Set de programados: los jobId llevan prefijo para no chocar con los resultId. */
+/** Key of the scheduled Set: jobIds carry a prefix so they cannot collide with resultIds. */
 function key(item: Pick<Pending, 'kind' | 'id'>): string {
   return item.kind === 'JOB_SUMMARY' ? `job:${item.id}` : item.id;
 }
 
 export class AIAnalysisWorker extends EventEmitter {
-  // El heap elige mayor riesgo; su seq interno desempata por llegada (FIFO).
-  // push/pop O(log n), peek O(1), memoria O(n). El trabajo en curso queda fuera:
-  // nuevas prioridades no lo sustituyen ni se saltan su backoff/Retry-After.
+  // The heap picks the highest risk; its internal seq breaks ties by arrival (FIFO).
+  // push/pop O(log n), peek O(1), O(n) memory. The job in progress stays outside:
+  // new priorities neither replace it nor skip its backoff/Retry-After.
   private readonly queue = new PriorityQueue<Pending>();
   private current: Pending | undefined;
-  // El Set contiene exactamente los IDs del heap y del trabajo current.
-  // has/add/delete O(1) promedio: evita doble envío automático/manual del mismo ID.
+  // The Set holds exactly the IDs in the heap plus the current job.
+  // has/add/delete O(1) average: prevents sending the same ID twice (automatic and manual).
   private readonly scheduled = new Set<string>();
   private active = false;
   private paused = false;
@@ -69,8 +69,8 @@ export class AIAnalysisWorker extends EventEmitter {
   }
 
   /**
-   * Encola el resumen de IA de un escaneo terminado (JOB_SUMMARY). Solo para escaneos
-   * COMPLETED sin resumen final; devuelve si quedó encolado.
+   * Enqueues the AI summary of a finished scan (JOB_SUMMARY). Only for COMPLETED
+   * scans without a final summary; returns whether it was enqueued.
    */
   enqueueJobSummary(jobId: string): boolean {
     if (!this.jobSummaries) return false;
@@ -94,7 +94,7 @@ export class AIAnalysisWorker extends EventEmitter {
   }
 
   analyzeNow(resultId: string): void {
-    this.service.store.load(resultId); // Rechazar IDs inexistentes antes de encolar.
+    this.service.store.load(resultId); // Reject nonexistent IDs before enqueuing.
     if (this.scheduled.has(resultId)) return;
     this.service.store.setStatus(resultId, 'PENDING');
     this.schedule(resultId);
@@ -121,7 +121,7 @@ export class AIAnalysisWorker extends EventEmitter {
         this.scheduleJob(jobId);
       }
     }
-    // Una credencial corregida también recupera resultados pausados antes de reiniciar.
+    // A corrected credential also recovers results paused before the restart.
     for (const id of this.service.store.pausedResults()) {
       if (!this.scheduled.has(id)) {
         this.status(id, 'PENDING');
@@ -159,7 +159,7 @@ export class AIAnalysisWorker extends EventEmitter {
   private schedule(id: string): void {
     if (this.scheduled.has(id)) return;
     const { result, analysis } = this.service.store.load(id);
-    // Se usa el score y el veredicto del motor, no la opinión de la IA.
+    // Uses the engine score and verdict, not the AI opinion.
     const priority =
       (analysis.score ?? 0) + (result.verdict === 'DETECTED' ? 100 : 0);
     this.queue.push({ kind: 'FILE_RESULT', id, retries: 0, due: 0 }, priority);
@@ -179,7 +179,7 @@ export class AIAnalysisWorker extends EventEmitter {
   private jobUpdated(jobId: string, aiStatus: AIStatus): void {
     this.publish('ai:jobSummaryUpdated', { jobId, aiStatus });
   }
-  /** Estado de un elemento de la cola, sea un archivo o un resumen de escaneo. */
+  /** Status of a queue element, whether a file or a scan summary. */
   private itemStatus(
     item: Pick<Pending, 'kind' | 'id'>,
     status: AIStatus,
@@ -200,7 +200,7 @@ export class AIAnalysisWorker extends EventEmitter {
       try {
         Reflect.apply(listener, this, [value]);
       } catch {
-        // Un fallo del consumidor (p. ej. una ventana cerrada) no interrumpe la cola.
+        // A consumer failure (e.g. a closed window) does not interrupt the queue.
       }
     }
   }
@@ -231,7 +231,7 @@ export class AIAnalysisWorker extends EventEmitter {
       );
       return;
     }
-    // Asignar running antes de publicar RUNNING evita reentrada desde eventos.
+    // Assigning running before publishing RUNNING prevents reentrancy from events.
     this.running = Promise.resolve()
       .then(() => this.process())
       .catch(() => {
@@ -242,13 +242,13 @@ export class AIAnalysisWorker extends EventEmitter {
       })
       .finally(() => {
         this.running = undefined;
-        // Una sola continuación O(1), fuera del heap/Set: no extrae ni duplica
-        // pendientes. Ceder a la fase check permite atender IPC, cierre y UI
-        // aunque el proveedor resuelva inmediatamente; no añade una espera
+        // A single O(1) continuation, outside the heap/Set: it neither extracts nor duplicates
+        // pending. Yielding to the check phase lets IPC, shutdown and UI be served
+        // even if the provider resolves immediately; it adds no wait
         // temporal ni cambia prioridades FIFO, backoff o Retry-After.
         if (!this.active || this.paused) return;
-        // Un backoff futuro ya cede mediante su timer: armarlo ahora evita
-        // posponer innecesariamente el registro de su plazo absoluto.
+        // A future backoff already yields through its timer: arming it now avoids
+        // needlessly postponing the registration of its absolute deadline.
         if (Math.max(this.current?.due ?? 0, this.openUntil) > Date.now()) {
           this.kick();
           return;

@@ -64,18 +64,18 @@ function worker() {
 }
 
 function fastService() {
-  // Doble de servicio para aislar planificación: SQLite y heap son reales;
-  // no se verifica respuesta de IA ni RiskPolicy con este doble.
+  // Service double to isolate scheduling: SQLite and heap are real;
+  // neither the AI response nor RiskPolicy are verified with this double.
   return vi.spyOn(service, 'analyze').mockImplementation(async (id) => {
     store.setStatus(id, 'COMPLETED');
     return { status: 'COMPLETED' };
   });
 }
 
-it('cede al check del event loop antes de agotar respuestas inmediatas; conserva prioridad/FIFO e IDs únicos', async () => {
+it('yields to the event-loop check before exhausting immediate responses; keeps priority/FIFO and unique IDs', async () => {
   const analyze = fastService();
-  // Array ordenado del oráculo: O(n log n); Set contiene una vez cada ID,
-  // construcción O(n) esperada/memoria O(n), consulta O(1) esperada.
+  // Oracle sorted array: O(n log n); Set holds each ID once,
+  // expected O(n) build/O(n) memory, expected O(1) lookup.
   const expected = Array.from({ length: count }, (_, seq) => ({
     id: `r-${seq}`,
     seq,
@@ -93,7 +93,7 @@ it('cede al check del event loop antes de agotar respuestas inmediatas; conserva
   expect(new Set(analyze.mock.calls.map(([id]) => id)).size).toBe(count);
 });
 
-it('stop cancela la continuación; los pendientes persistidos se recuperan una vez al reiniciar', async () => {
+it('stop cancels the continuation; persisted pending items are recovered once on restart', async () => {
   const analyze = fastService();
   const first = worker();
   first.start();
@@ -107,7 +107,7 @@ it('stop cancela la continuación; los pendientes persistidos se recuperan una v
     .prepare("SELECT COUNT(*) n FROM scan_results WHERE ai_status='PENDING'")
     .get()!.n;
   expect(pending).toBe(count - finished);
-  // Reabrir realmente SQLite; la nueva instancia no depende del heap viejo.
+  // Actually reopen SQLite; the new instance does not depend on the old heap.
   db.close();
   db = new Database(join(root, 'test.sqlite'));
   store = new AIAnalysisStore(db);
@@ -135,7 +135,7 @@ it('stop cancela la continuación; los pendientes persistidos se recuperan una v
   ).toBe(count);
 });
 
-it('stop aborta la tarea en curso, restaura PENDING y no inicia otra continuación', async () => {
+it('stop aborts the task in progress, restores PENDING and starts no other continuation', async () => {
   let started!: (id: string) => void;
   const inFlight = new Promise<string>((resolve) => {
     started = resolve;
@@ -169,7 +169,7 @@ it('stop aborta la tarea en curso, restaura PENDING y no inicia otra continuaci�
   ).toBe(count);
 });
 
-it('una alta de mayor riesgo entre tareas conserva prioridad y no se duplica por reentrada', async () => {
+it('a higher-risk addition between tasks keeps priority and is not duplicated by reentry', async () => {
   const analyze = fastService();
   const value = worker();
   value.start();

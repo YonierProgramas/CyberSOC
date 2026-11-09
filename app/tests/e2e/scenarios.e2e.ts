@@ -37,7 +37,7 @@ test.afterAll(async () => {
   await session?.app.close();
 });
 
-test('1. escanear fixtures muestra los veredictos esperados', async () => {
+test('1. scanning fixtures shows the expected verdicts', async () => {
   const folder = join(session.root, 'fixtures');
   await scanFolder(session.app, session.page, folder);
   await expect(session.page.getByTestId('job-status')).toContainText(
@@ -66,7 +66,7 @@ test('1. escanear fixtures muestra los veredictos esperados', async () => {
   expect(stored[0]?.verdict).toBe('DETECTED');
 });
 
-test('2. cancelar a mitad deja el trabajo CANCELLED', async () => {
+test('2. cancelling midway leaves the job CANCELLED', async () => {
   const folder = join(session.root, 'mitad');
   await scanFolder(session.app, session.page, folder, 300);
   await expect
@@ -99,7 +99,7 @@ test('2. cancelar a mitad deja el trabajo CANCELLED', async () => {
   expect(Number(row?.processed)).toBeLessThan(Number(row?.discovered));
 });
 
-test('3. abrir una detección muestra evidencia, traza y análisis simulado', async () => {
+test('3. opening a detection shows evidence, trace and simulated analysis', async () => {
   await session.page.getByTestId('nav-history').click();
   await session.page
     .getByTestId('history-job')
@@ -137,7 +137,7 @@ test('3. abrir una detección muestra evidencia, traza y análisis simulado', as
   }
 });
 
-test('4. cuarentena y restauración conservan el hash', async () => {
+test('4. quarantine and restore keep the hash', async () => {
   const original = join(session.root, 'fixtures', 'CSD-TEST-001.txt');
   const before = sha256File(original);
   const stored = query(
@@ -145,8 +145,8 @@ test('4. cuarentena y restauración conservan el hash', async () => {
     `SELECT sha256 FROM scan_results WHERE file_name = 'CSD-TEST-001.txt'`,
   );
   expect(stored[0]?.sha256).toBe(before);
-  // Solo el proceso Electron de esta prueba simula las respuestas del diálogo.
-  // No se añade un bypass al producto: H1 debe pedir permiso incluso en modo evidencia.
+  // Only the Electron process of this test simulates the dialog answers.
+  // No bypass is added to the product: H1 must ask for permission even in evidence mode.
   await session.app.evaluate(({ dialog }) => {
     const originalDialog = dialog.showMessageBox;
     const state = {
@@ -172,7 +172,7 @@ test('4. cuarentena y restauración conservan el hash', async () => {
     }) as typeof dialog.showMessageBox;
   });
   try {
-    // Rechazar en main conserva el original y no crea un ítem en la bóveda.
+    // Rejecting in main keeps the original and creates no vault item.
     await session.page.getByTestId('quarantine-file').click();
     await session.page.getByTestId('quarantine-confirm').click();
     await expect(session.page.getByTestId('quarantine-dialog')).toHaveCount(0);
@@ -225,7 +225,7 @@ test('4. cuarentena y restauración conservan el hash', async () => {
   }
 });
 
-test('5. el Copilot simulado muestra chips de referencia', async () => {
+test('5. the simulated Copilot shows reference chips', async () => {
   await session.page.getByTestId('assistant-open').click();
   await session.page.getByTestId('nav-history').click();
   await session.page
@@ -243,7 +243,7 @@ test('5. el Copilot simulado muestra chips de referencia', async () => {
   );
 });
 
-test('6. reiniciar la app conserva el historial', async () => {
+test('6. restarting the app keeps the history', async () => {
   const before = query(
     session.root,
     'SELECT id FROM scan_jobs ORDER BY rowid',

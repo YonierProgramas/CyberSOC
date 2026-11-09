@@ -44,17 +44,17 @@ import {
   FINAL_ANSWER_REQUEST,
 } from './prompts/assistant.v2';
 
-/** Tamaño de la ventana deslizante: los últimos 10 turnos (plan S4). */
+/** Size of the sliding window: the last 10 turns (S4 plan). */
 export const ASSISTANT_HISTORY_TURNS = 10;
-/** Límites del orquestador (plan S5): por pregunta. */
+/** Orchestrator limits (S5 plan): per question. */
 export const MAX_TOOL_ROUNDS = 6;
 export const TOTAL_TIMEOUT_MS = 60_000;
-/** Una sola corrección cuando la respuesta final cita datos inexistentes. */
+/** A single correction when the final response cites nonexistent data. */
 const MAX_CORRECTIONS = 1;
-/** Tope de la respuesta que se guarda y se muestra. */
+/** Cap on the response that is stored and displayed. */
 const MAX_ANSWER_CHARS = 8_000;
 
-/** Un turno = una pregunta del usuario y la respuesta del asistente. */
+/** One turn = one user question and the assistant response. */
 export interface AssistantTurn {
   question: string;
   answer: string;
@@ -62,15 +62,15 @@ export interface AssistantTurn {
 
 export interface AssistantOrchestratorOptions {
   db: Database;
-  /** Se lee en cada pregunta: si el usuario cambia la API key, el siguiente turno ya la usa. */
+  /** Read on every question: if the user changes the API key, the next turn already uses it. */
   provider: () => AIProvider | null;
   readConfig: () => Pick<AppConfig, 'ai'>;
-  /** Herramientas de SOLO lectura (T5.3). No existe ninguna que escriba. */
+  /** READ-ONLY tools (T5.3). None of them writes. */
   tools: Pick<ToolRegistry, 'definitions' | 'execute'>;
-  /** Borradores de `build_report` (T5.4): validar `reportDraftId` y adjuntar la redacción. */
+  /** `build_report` drafts (T5.4): validate `reportDraftId` and attach the wording. */
   reports: Pick<ReportBuilder, 'get' | 'attachNarrative'>;
   limits?: { maxToolRounds?: number; totalTimeoutMs?: number };
-  /** Reloj inyectable para "hoy" en las pruebas. */
+  /** Injectable clock for "today" in tests. */
   now?: () => Date;
 }
 
@@ -79,7 +79,7 @@ type UnavailableKind = NonNullable<AssistantReplyDTO['errorKind']>;
 const AI_STILL_WORKS =
   ' El escaneo, los veredictos y la cuarentena siguen funcionando sin IA.';
 
-/** Mensajes fijos para el usuario. Nunca se muestra el texto de error del proveedor. */
+/** Fixed messages for the user. The provider error text is never displayed. */
 const UNAVAILABLE_MESSAGES: Record<UnavailableKind, string> = {
   NOT_CONFIGURED:
     'La IA no está configurada. Agrega tu API key de Claude en Configuración para usar el SOC Copilot.' +
@@ -107,45 +107,45 @@ interface Outcome {
   errorKind: AssistantReplyDTO['errorKind'];
   final?: AssistantFinal;
   rejected?: string[];
-  /** Modelo de la última respuesta y tokens sumados de todas las rondas de la pregunta. */
+  /** Model of the last response and tokens summed over all rounds of the question. */
   model?: string;
   usage?: { inputTokens: number; outputTokens: number };
 }
 
 /**
- * SOC Copilot v2 (S5): responde con datos reales consultando herramientas de solo lectura.
- * Lee SQLite (foco, herramientas y validaciones) y guarda la conversación. No ejecuta
- * acciones ni inicia escaneos: los planes y acciones solo se devuelven a la UI, donde el
- * usuario los confirma. Una respuesta nunca puede cambiar un veredicto.
+ * SOC Copilot v2 (S5): answers with real data by querying read-only tools.
+ * Reads SQLite (focus, tools and validations) and stores the conversation. It performs no
+ * actions and starts no scans: plans and actions are only returned to the UI, where the
+ * user confirms them. A response can never change a verdict.
  */
 export class AssistantOrchestrator {
   // ---------------------------------------------------------------------------
-  // VENTANA DESLIZANTE del historial con la Queue del proyecto (FIFO).
+  // SLIDING WINDOW of the history using the project Queue (FIFO).
   //
-  // Invariante: la cola guarda como máximo ASSISTANT_HISTORY_TURNS (10) turnos, del más
-  // antiguo (frente, `peek`) al más reciente (final). Al entrar el turno 11 se saca el
-  // del frente: siempre se olvida primero lo más viejo, como en una fila.
+  // Invariant: the queue holds at most ASSISTANT_HISTORY_TURNS (10) turns, from oldest
+  // (front, `peek`) to newest (back). When turn 11 arrives the front one is
+  // removed: the oldest is always forgotten first, as in a line of people.
   //
   // Complejidad (n = turnos guardados, n ≤ 10):
-  // - guardar un turno: enqueue O(1) amortizado + a lo sumo un dequeue O(1);
-  // - armar los mensajes para la IA: O(n), se recorre la cola una vez (ver `turns()`);
+  // - storing a turn: amortized O(1) enqueue + at most one O(1) dequeue;
+  // - building the messages for the AI: O(n), the queue is traversed once (see `turns()`);
   // - reset: clear O(1).
-  // Memoria: O(n) turnos, acotada a 10 aunque la conversación sea muy larga. Así el costo
-  // en tokens de cada pregunta no crece sin límite. Las consultas a herramientas de una
-  // pregunta NO entran en la ventana: solo el par pregunta/respuesta final.
+  // Memory: O(n) turns, bounded to 10 even for very long conversations. This keeps the token
+  // cost of each question from growing without limit. Tool queries of a
+  // question do NOT enter the window: only the question/final-answer pair does.
   // ---------------------------------------------------------------------------
   private readonly history = new Queue<AssistantTurn>();
 
-  // Las preguntas se atienden de una en una (en orden de llegada): así dos preguntas
-  // rápidas no leen el mismo historial ni guardan sus turnos desordenados.
+  // Questions are served one at a time (in arrival order): so two quick
+  // questions neither read the same history nor store their turns out of order.
   private chain: Promise<unknown> = Promise.resolve();
-  // Cambia en cada reset: una respuesta que llega después de "Nueva conversación" se descarta.
+  // Changes on every reset: a response arriving after "Nueva conversación" is discarded.
   private generation = 0;
   private controller: AbortController | undefined;
   private readonly focusBuilder: AssistantFocusBuilder;
   private readonly conversations: ConversationRepository;
   private conversationId: string | undefined;
-  // Último resultado en foco con respuesta: ancla "estas dos detecciones" en la pregunta siguiente.
+  // Latest focused result with a response: anchors "estas dos detecciones" in the next question.
   private previousResultId: string | undefined;
   private readonly maxToolRounds: number;
   private readonly totalTimeoutMs: number;
@@ -160,15 +160,15 @@ export class AssistantOrchestrator {
     this.totalTimeoutMs = options.limits?.totalTimeoutMs ?? TOTAL_TIMEOUT_MS;
   }
 
-  /** Turnos guardados ahora mismo en la ventana (0 a 10). */
+  /** Turns currently stored in the window (0 to 10). */
   get historyTurns(): number {
     return this.history.size;
   }
 
   /**
-   * Copia de los turnos, del más antiguo al más reciente, sin modificar la ventana.
-   * La Queue no se puede recorrer, así que se "rota": cada turno sale por el frente y
-   * vuelve a entrar por el final. Tras n vueltas la cola queda exactamente igual. O(n).
+   * Copy of the turns, from oldest to newest, without modifying the window.
+   * The Queue cannot be iterated, so it is "rotated": each turn leaves through the front and
+   * re-enters through the back. After n rotations the queue is exactly the same. O(n).
    */
   turns(): AssistantTurn[] {
     const copy: AssistantTurn[] = [];
@@ -181,7 +181,7 @@ export class AssistantOrchestrator {
     return copy;
   }
 
-  /** Atiende una pregunta. Los fallos de la IA no lanzan: vuelven como `UNAVAILABLE`. */
+  /** Serves one question. AI failures do not throw: they come back as `UNAVAILABLE`. */
   ask(query: AssistantAskQuery): Promise<AssistantReplyDTO> {
     const generation = this.generation;
     const run = this.chain.then(() =>
@@ -201,7 +201,7 @@ export class AssistantOrchestrator {
     return run;
   }
 
-  /** "Nueva conversación": vacía la ventana y cancela la pregunta en curso. */
+  /** "Nueva conversación": empties the window and cancels the question in progress. */
   reset(): void {
     this.generation += 1;
     this.controller?.abort();
@@ -223,11 +223,11 @@ export class AssistantOrchestrator {
       ASSISTANT_HISTORY_TURNS,
     );
     const turns = this.conversations.recentCompletedTurns(id);
-    // Leer primero: un ID inexistente no borra la conversación activa.
+    // Read first: a nonexistent ID does not delete the active conversation.
     this.reset();
     this.conversationId = id;
-    // Rehidratar la Queue en orden mantiene su invariante FIFO. O(t), t ≤ 10,
-    // después de la consulta: herramientas e intentos sin respuesta no son pares completos.
+    // Rehydrating the Queue in order keeps its FIFO invariant. O(t), t ≤ 10,
+    // after the query: tools and attempts without a response are not complete pairs.
     for (const turn of turns) this.remember(turn);
     return { conversation, messages, historyTurns: this.historyTurns };
   }
@@ -239,7 +239,7 @@ export class AssistantOrchestrator {
         `La pregunta debe tener entre 1 y ${ASSISTANT_MESSAGE_MAX_CHARS} caracteres.`,
       );
 
-    // Lanza si el resultado o el escaneo no existen: es un error del llamador, no de la IA.
+    // Throws if the result or scan does not exist: a caller error, not an AI error.
     const ref: FocusRef = query.focus ?? {};
     const built = this.focusBuilder.build(ref);
     const focus: AssistantFocusDTO = {
@@ -248,8 +248,8 @@ export class AssistantOrchestrator {
       label: built.label,
     };
 
-    // Historial (sin contexto ni herramientas, para ahorrar tokens) + la pregunta nueva
-    // con el foco actual y la fecha de hoy.
+    // History (without context or tools, to save tokens) + the new question
+    // with the current focus and today's date.
     const messages: AssistantMessage[] = [];
     for (const turn of this.turns()) {
       messages.push({ role: 'user', content: turn.question });
@@ -268,7 +268,7 @@ export class AssistantOrchestrator {
     });
 
     const generation = this.generation;
-    // Confirmar la pregunta antes de llamar a la red: sobrevive a un cierre o fallo.
+    // Commit the question before calling the network: it survives a shutdown or failure.
     const conversationId = this.options.db.transaction(() => {
       const id =
         this.conversationId ??
@@ -321,8 +321,8 @@ export class AssistantOrchestrator {
   }
 
   /**
-   * Bucle de herramientas: como mucho `maxToolRounds` rondas y `totalTimeoutMs` en total.
-   * Cada ronda ejecuta las herramientas pedidas y devuelve sus resultados como datos.
+   * Tool loop: at most `maxToolRounds` rounds and `totalTimeoutMs` overall.
+   * Each round runs the requested tools and returns their results as data.
    */
   private async loop(
     initial: AssistantMessage[],
@@ -341,7 +341,7 @@ export class AssistantOrchestrator {
     const usage = { inputTokens: 0, outputTokens: 0 };
     let usedModel: string | undefined;
 
-    // Una llamada al proveedor: errores controlados y tokens sumados de toda la pregunta.
+    // One provider call: controlled errors and tokens summed across the whole question.
     const call = async <T>(
       request: Omit<
         AssistantTurnRequest<T>,
@@ -382,10 +382,10 @@ export class AssistantOrchestrator {
       if (generation !== this.generation) return cancelled();
       if (deadline.aborted) return unavailable('TIMEOUT');
 
-      // FASE 1 (consulta): las 14 herramientas en modo estricto, sin output_config.
-      // La API rechaza combinarlas con el esquema de salida ("compiled grammar is too large").
+      // PHASE 1 (query): the 14 tools in strict mode, without output_config.
+      // The API rejects combining them with the output schema ("compiled grammar is too large").
       const response = await call<string>({
-        // Copia: la petición enviada no cambia cuando el bucle agrega mensajes.
+        // Copy: the sent request does not change when the loop appends messages.
         messages: [...conversation],
         tools: this.options.tools.definitions(),
       });
@@ -399,14 +399,14 @@ export class AssistantOrchestrator {
       const step = response.value;
 
       if (step.kind === 'TOOL_CALLS') {
-        // Ronda maxToolRounds + 1: se corta sin ejecutar nada más.
+        // Round maxToolRounds + 1: stops without running anything else.
         if (rounds >= this.maxToolRounds) return unavailable('TOOL_LIMIT');
         rounds += 1;
         conversation.push({ role: 'assistant', content: step.content });
         const results: AssistantBlock[] = [];
         const logged: unknown[] = [];
         for (const toolCall of step.calls) {
-          // El registro valida los argumentos con zod; nombre desconocido → error controlado.
+          // The registry validates the arguments with zod; unknown name → controlled error.
           const result = await this.options.tools.execute(
             toolCall.name,
             toolCall.input,
@@ -422,9 +422,9 @@ export class AssistantOrchestrator {
             ok: result.ok,
             ...(result.ok ? {} : { code: result.error.code }),
           });
-          // Los resultados son DATOS no confiables (nombres de archivo hostiles, etc.):
-          // viajan como JSON escapado, nunca como instrucciones, y con las rutas del
-          // perfil anonimizadas (%USERPROFILE%): el nombre de la persona no sale (AUD-04).
+          // Results are untrusted DATA (hostile file names, etc.):
+          // they travel as escaped JSON, never as instructions, and with profile
+          // paths anonymized (%USERPROFILE%): the person's name never leaves (AUD-04).
           results.push({
             type: 'tool_result',
             tool_use_id: toolCall.id,
@@ -443,9 +443,9 @@ export class AssistantOrchestrator {
         continue;
       }
 
-      // El modelo terminó de consultar. Si ya escribió el JSON del esquema, se usa tal cual
-      // (zod lo valida igual); si escribió prosa, FASE 2: se pide la respuesta final con
-      // output_config.format y tool_choice 'none' (las herramientas solo se declaran).
+      // The model finished querying. If it already wrote the schema JSON, it is used as is
+      // (zod validates it anyway); if it wrote prose, PHASE 2: the final response is requested with
+      // output_config.format and tool_choice 'none' (tools are only declared).
       conversation.push({ role: 'assistant', content: step.text });
       let wire = parseWire(step.text);
       let wireText = step.text;
@@ -464,7 +464,7 @@ export class AssistantOrchestrator {
           return unavailable(
             deadline.aborted ? 'TIMEOUT' : structured.error.kind,
             structured.error.kind === 'INVALID_OUTPUT'
-              ? // Mensaje fijo del proveedor ("no cumple el esquema"), nunca texto de la IA.
+              ? // Fixed provider message ("no cumple el esquema"), never AI text.
                 [...rejected, `Respuesta final: ${structured.error.message}`]
               : rejected,
           );
@@ -483,7 +483,7 @@ export class AssistantOrchestrator {
         };
         if (final.answer === '') return unavailable('INVALID_OUTPUT');
         if (final.report)
-          // Redacción de IA adjunta al borrador: el exportador la marca "Generado por IA".
+          // AI wording attached to the draft: the exporter labels it "Generado por IA".
           this.options.reports.attachNarrative(final.report.reportDraftId, {
             executiveSummary: final.report.executiveSummary,
             conclusions: final.report.conclusions,
@@ -502,7 +502,7 @@ export class AssistantOrchestrator {
       if (corrections >= MAX_CORRECTIONS)
         return unavailable('INVALID_OUTPUT', rejected);
       corrections += 1;
-      // La corrección vuelve a la fase 1: el modelo puede consultar para hallar IDs reales.
+      // The correction returns to phase 1: the model may query to find real IDs.
       conversation.push({
         role: 'user',
         content: buildCorrectionMessage(rejected),
@@ -518,7 +518,7 @@ export class AssistantOrchestrator {
     }
   }
 
-  /** Comprobaciones de solo lectura para validar la respuesta final. */
+  /** Read-only checks to validate the final response. */
   private checks(): ReplyChecks {
     const db = this.options.db;
     const tools = this.options.tools;
@@ -544,7 +544,7 @@ export class AssistantOrchestrator {
         }
       },
       zones: async () => {
-        // El Core consulta list_zones por su cuenta: no confía en lo que la IA diga que vio.
+        // The Core queries list_zones on its own: it does not trust what the AI says it saw.
         const result = await tools.execute('list_zones', {});
         return result.ok ? zoneOptionsFrom(result.data) : [];
       },
@@ -557,10 +557,10 @@ export class AssistantOrchestrator {
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   }
 
-  /** Guarda el turno en la ventana deslizante. */
+  /** Stores the turn in the sliding window. */
   private remember(turn: AssistantTurn): void {
-    this.history.enqueue(turn); // entra por el final: O(1) amortizado
-    // Si ahora hay 11, el más antiguo sale por el frente: O(1).
+    this.history.enqueue(turn); // enters at the back: amortized O(1)
+    // If there are now 11, the oldest leaves through the front: O(1).
     if (this.history.size > ASSISTANT_HISTORY_TURNS) this.history.dequeue();
   }
 
@@ -604,7 +604,7 @@ export class AssistantOrchestrator {
   }
 }
 
-/** JSON de la fase 1, si el modelo ya lo entregó y cumple el esquema; si no, null. */
+/** Phase 1 JSON, if the model already delivered it and it matches the schema; otherwise null. */
 function parseWire(text: string): AssistantReplyWire | null {
   try {
     const parsed = assistantReplyWireSchema.safeParse(JSON.parse(text));
@@ -627,9 +627,9 @@ function unavailable(
 }
 
 /**
- * Quita caracteres de control (salvo saltos de línea y tabuladores) y acota la longitud.
- * La UI muestra texto plano: también quita negritas y títulos de Markdown que el modelo
- * escriba a pesar de las reglas (el texto queda igual, sin asteriscos ni almohadillas).
+ * Removes control characters (except line breaks and tabs) and bounds the length.
+ * The UI shows plain text: it also strips Markdown bold and headings that the model
+ * writes despite the rules (the text stays the same, without asterisks or hash signs).
  */
 function cleanAnswer(text: string): string {
   const clean = text

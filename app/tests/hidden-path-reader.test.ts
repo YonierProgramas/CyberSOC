@@ -11,20 +11,20 @@ import {
   hiddenPathScript,
 } from '../src/main/HiddenPathReader';
 
-describe('script de atributos', () => {
-  it('no usa cmdlets: no depende de la autocarga de módulos de PowerShell', () => {
-    // Un cmdlet tiene forma Verbo-Nombre (ConvertFrom-Json, Get-Item…). Sin caché de
-    // módulos, su primera llamada podía tardar más que el plazo de la consulta.
+describe('attributes script', () => {
+  it('uses no cmdlets: does not depend on PowerShell module autoloading', () => {
+    // A cmdlet has Verb-Noun form (ConvertFrom-Json, Get-Item…). Without a module
+    // cache, its first call could take longer than the query deadline.
     expect(hiddenPathScript).not.toMatch(/\b[A-Z][a-z]+-[A-Z][A-Za-z]+\b/);
     expect(hiddenPathScript).toContain('FromBase64String');
   });
 });
 
 describe.skipIf(process.platform !== 'win32')(
-  'atributos Hidden reales de Windows (solo fixtures temporales)',
+  'real Windows Hidden attributes (temporary fixtures only)',
   () => {
-    it('consulta nombres Unicode, ocultos y padres ocultos sin ejecutar texto de rutas', async () => {
-      // AppData (tmpdir habitual) ya es oculto: usar un fixture temporal bajo app.
+    it('queries Unicode names, hidden files and hidden parents without executing path text', async () => {
+      // AppData (usual tmpdir) is already hidden: use a temporary fixture under app.
       const root = await mkdtemp(join(process.cwd(), '.cybersoc-hidden-'));
       const directory = join(root, 'carpeta-ñ');
       const plain = join(root, "niño '$() archivo.txt");
@@ -37,8 +37,8 @@ describe.skipIf(process.platform !== 'win32')(
       let stderrBytes = 0;
       let stdoutBytes = 0;
       const record = (event: string, code?: string | number) => {
-        // Lista acotada de eventos: O(1) por inserción y memoria máxima constante.
-        // Solo metadatos; nunca volcar rutas, stderr o variables del proceso.
+        // Bounded list of events: O(1) per insert and constant maximum memory.
+        // Metadata only; never dump paths, stderr or process variables.
         if (events.length < 12)
           events.push({
             event,
@@ -60,8 +60,8 @@ describe.skipIf(process.platform !== 'win32')(
           windowsHide: true,
         });
         const firstQuery = reader.isHidden(plain);
-        // Observación de la instancia real, sin reemplazar spawn ni sus streams.
-        // isHidden crea el proceso antes de devolver la promesa de respuesta.
+        // Observation of the real instance, without replacing spawn or its streams.
+        // isHidden creates the process before returning the response promise.
         const processChild = Reflect.get(reader, 'child') as
           ChildProcessWithoutNullStreams | undefined;
         processChild?.once('spawn', () => record('spawn'));

@@ -14,10 +14,10 @@ import {
 import type { JobSummary } from './schemas';
 
 /**
- * Resumen de escaneo por IA (`kind = JOB_SUMMARY`). Mismo ciclo que el análisis por archivo:
- * contexto → proveedor → validación → guardar el intento. Hasta dos intentos; el segundo lleva
- * la retroalimentación del validador o más tokens si el primero se cortó. Nunca cambia
- * veredictos: el resumen solo se guarda para mostrarlo.
+ * AI scan summary (`kind = JOB_SUMMARY`). Same cycle as the per-file analysis:
+ * context → provider → validation → store the attempt. Up to two attempts; the second carries
+ * the validator feedback or more tokens if the first was cut off. It never changes
+ * verdicts: the summary is only stored to be displayed.
  */
 export class JobSummaryService {
   constructor(
@@ -101,7 +101,7 @@ export class JobSummaryService {
         errorKind: response.ok ? null : response.error.kind,
       };
 
-      // Sin respuesta utilizable del modelo: lo decide el worker (reintento, pausa o circuito).
+      // No usable response from the model: the worker decides (retry, pause or circuit).
       if (
         !response.ok &&
         !['INVALID_OUTPUT', 'INCOMPLETE', 'UNSAFE'].includes(
@@ -159,6 +159,6 @@ export class JobSummaryService {
       if (checked.status === 'INCOMPLETE')
         maxTokens = JOB_SUMMARY_RETRY_MAX_TOKENS;
     }
-    throw new Error('Estado de validación inesperado.');
+    throw new Error('Unexpected validation status.');
   }
 }

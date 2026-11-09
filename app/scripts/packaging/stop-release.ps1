@@ -9,7 +9,7 @@ if ($main.Count -eq 0) {
     Write-Output 'Proceso de prueba ya cerrado'; exit 0
 }
 if ($main.Count -ne 1) { throw 'Identidad de proceso no inequívoca.' }
-# Solo árbol descendiente de ese proceso comprobado. Terminación de prueba, no cierre UI.
+# Only the descendant tree of that checked process. Test termination, not a UI close.
 $owned = @([int]$session.pid)
 do {
     $next = @($all | Where-Object { $_.ParentProcessId -in $owned -and $_.ProcessId -notin $owned })

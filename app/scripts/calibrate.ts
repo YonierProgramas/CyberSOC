@@ -1,9 +1,9 @@
-// Calibración con corpus benigno (plan S3, T3.11).
-// Uso: npm run calibrate -- [ruta ...]
-//   Por defecto: C:\Windows\System32 y C:\Program Files, un escaneo por ruta.
-// Escanea en SOLO LECTURA con el orquestador real de main, el perfil AUTO y la IA real
-// (tope de 50 análisis automáticos por escaneo). Requiere CYBERSOC_ANTHROPIC_API_KEY.
-// La base SQLite es temporal y se borra al terminar; el motor nunca escribe archivos.
+// Calibration with a benign corpus (S3 plan, T3.11).
+// Usage: npm run calibrate -- [path ...]
+//   Default: C:\Windows\System32 and C:\Program Files, one scan per path.
+// Scans READ-ONLY with the real main orchestrator, the AUTO profile and the real AI
+// (cap of 50 automatic analyses per scan). Requires CYBERSOC_ANTHROPIC_API_KEY.
+// The SQLite database is temporary and deleted at the end; the engine never writes files.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
@@ -12,9 +12,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// composition-root importa electron (app.getPath para las zonas, dialog, safeStorage). Fuera
-// de Electron se sustituye por un módulo mínimo, igual que hacen las pruebas con vi.mock:
-// getPath devuelve las carpetas del usuario actual; nada más se usa en este script.
+// composition-root imports electron (app.getPath for zones, dialog, safeStorage). Outside
+// Electron it is replaced by a minimal module, as the tests do with vi.mock:
+// getPath returns the current user folders; nothing else is used in this script.
 const electronStub = `
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,7 +56,7 @@ const { EngineProcess } = await import('../src/core/engine/EngineProcess');
 const { ClaudeProvider } =
   await import('../src/core/ai/providers/ClaudeProvider');
 
-/** Precio de Haiku 4.5 por millón de tokens (USD), para estimar el coste. */
+/** Haiku 4.5 price per million tokens (USD), to estimate the cost. */
 const PRICE = { input: 1, output: 5 };
 const DEFAULT_PATHS = ['C:\\Windows\\System32', 'C:\\Program Files'];
 const AI_DRAIN_TIMEOUT_MS = 30 * 60_000;
@@ -101,7 +101,7 @@ const engine = new EngineProcess({
     args: string[],
     options: Parameters<typeof spawn>[2],
   ) => {
-    // El proceso Python no recibe la clave y usa el código de este repositorio.
+    // The Python process does not receive the key and uses the code from this repository.
     const env: NodeJS.ProcessEnv = {
       ...(options?.env ?? process.env),
       PYTHONPATH: join(engineRoot, 'src'),
@@ -377,7 +377,7 @@ try {
   await worker.stop();
   await engine.close();
   db.close();
-  // Solo se borra la carpeta temporal creada por este script.
+  // Only the temporary folder created by this script is deleted.
   assert.ok(
     owned.startsWith(resolve(tmpdir()) + sep) &&
       owned.includes('cybersoc-calibracion-'),

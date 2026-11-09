@@ -171,7 +171,7 @@ function environment(): Record<string, string> {
   if (!live) delete env.CYBERSOC_ANTHROPIC_API_KEY;
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.ELECTRON_RENDERER_URL;
-  // No heredar un motor de prueba de otra tarea ni su configuración de usuario.
+  // Do not inherit a test engine from another task or its user configuration.
   delete env.CYBERSOC_ENGINE_CMD;
   return {
     ...env,
@@ -476,7 +476,7 @@ async function cancellation(file: string): Promise<void> {
     180_000,
   );
   await configurePath('cancelacion', 4000);
-  await delay(200); // Permite entrar en la próxima lectura ralentizada del motor real.
+  await delay(200); // Allows entering the next slowed-down read of the real engine.
   await capture('01a-progreso.png');
   await page.getByTestId('cancel-scan').click();
   await until(
@@ -510,7 +510,7 @@ async function cancellation(file: string): Promise<void> {
     delete env.CYBERSOC_ANTHROPIC_API_KEY;
     try {
       if (process.platform === 'win32') {
-        // Media Foundation ya viene con Windows: no se añade un paquete conversor.
+        // Media Foundation ships with Windows: no converter package is added.
         execFileSync(
           'powershell.exe',
           [
@@ -539,7 +539,7 @@ async function cancellation(file: string): Promise<void> {
         'recordVideo de Playwright convertido a MP4 real, contenedor ftyp verificado.',
       );
     } catch {
-      // Nunca se cambia la extensión WebM a MP4: sería una evidencia inválida.
+      // The WebM extension is never changed to MP4: that would be invalid evidence.
       await recording.saveAs(
         join(destination, '01-video-escaneo-cancelacion.webm'),
       );
@@ -649,8 +649,8 @@ async function crash(file: string): Promise<void> {
   );
   assert.notEqual(pidRecord.pid, process.pid);
   if (process.platform === 'win32') {
-    // El launcher de un venv puede tener su propio hijo Python. Solo este árbol,
-    // cuyo padre Electron acabamos de verificar, pertenece a la demostración.
+    // A venv launcher may have its own Python child. Only this tree,
+    // whose Electron parent we just verified, belongs to the demonstration.
     execFileSync('taskkill.exe', ['/PID', String(pidRecord.pid), '/T', '/F'], {
       windowsHide: true,
       timeout: 10_000,
@@ -764,7 +764,7 @@ async function select(text: string): Promise<void> {
 async function settings(file: string): Promise<void> {
   await page.getByTestId('nav-settings').click();
   if (!live) {
-    // Credencial ficticia; sirve para demostrar safeStorage sin exponer una real.
+    // Fake credential; used to demonstrate safeStorage without exposing a real one.
     await page.getByTestId('api-key-input').fill('evidence-fixture-1234');
     await page.getByTestId('save-api-key').click();
   }
@@ -1704,7 +1704,7 @@ try {
   lock?.stdin?.end('\n');
   lock?.kill();
   if (electron) await electron.close();
-  // El temporal se conserva para auditoría; nunca se borra un directorio de usuario.
+  // The temporary folder is kept for audit; a user directory is never deleted.
   const manifest = {
     sprint,
     date: new Date().toISOString(),

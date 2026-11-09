@@ -6,11 +6,11 @@ import {
 } from '../schemas';
 import { buildDelimitedPrompt } from './delimited';
 
-/** Se guarda en `ai_analyses.prompt_version` de las filas `JOB_SUMMARY`. */
+/** Stored in `ai_analyses.prompt_version` of the `JOB_SUMMARY` rows. */
 export const PROMPT_VERSION = 'job-summary.v1';
 
 export const JOB_SUMMARY_MAX_TOKENS = 1_500;
-/** Único reintento tras una respuesta INCOMPLETE. */
+/** Single retry after an INCOMPLETE response. */
 export const JOB_SUMMARY_RETRY_MAX_TOKENS = 3_000;
 
 export const JOB_SUMMARY_SYSTEM_PROMPT = `Eres el analista de seguridad de CyberSOC Defender, un antivirus académico para Windows. Resumes para el usuario un escaneo que ya terminó.
@@ -45,7 +45,7 @@ export interface JobSummaryRequestOptions {
   signal?: AbortSignal;
 }
 
-/** Petición del resumen. `contextJson` viene de `buildJobSummaryContext` (toPromptSafeJson). */
+/** Summary request. `contextJson` comes from `buildJobSummaryContext` (toPromptSafeJson). */
 export function buildJobSummaryRequest(
   contextJson: string,
   options: JobSummaryRequestOptions = {},

@@ -7,7 +7,7 @@ import { QuarantineHarness } from './harness';
 
 vi.setConfig({ testTimeout: 20_000 });
 
-describe('ProtectedPaths: variaciones de formato de las rutas del sistema', () => {
+describe('ProtectedPaths: format variations of system paths', () => {
   const paths = new ProtectedPaths([]);
   it.each([
     'C:\\Windows\\System32\\drivers\\etc\\hosts',
@@ -38,15 +38,12 @@ describe('ProtectedPaths: variaciones de formato de las rutas del sistema', () =
     'C:\\ProgramData\\Microsoft2\\x',
     'C:\\ProgramData\\Otra\\x',
     'D:\\Windows\\x.txt',
-  ])(
-    'no confunde un prefijo de nombre con una carpeta protegida: %s',
-    (path) => {
-      expect(() => paths.assertAllowed(path)).not.toThrow();
-    },
-  );
+  ])('does not confuse a name prefix with a protected folder: %s', (path) => {
+    expect(() => paths.assertAllowed(path)).not.toThrow();
+  });
 });
 
-describe('gestor: archivos reales en rutas protegidas escritas de otras formas', () => {
+describe('manager: real files in protected paths written in other ways', () => {
   let h: QuarantineHarness;
   beforeEach(async () => {
     h = new QuarantineHarness();
@@ -54,7 +51,7 @@ describe('gestor: archivos reales en rutas protegidas escritas de otras formas',
   });
   afterEach(() => h.close());
 
-  /** Archivo real dentro de `protected/`, pero el resultado guarda la ruta en otro formato. */
+  /** Real file inside `protected/`, but the result stores the path in another format. */
   async function attempt(spelling: (path: string) => string) {
     const input = await h.seed('protected/muestra.txt');
     h.db
@@ -96,12 +93,12 @@ describe('gestor: archivos reales en rutas protegidas escritas de otras formas',
       'UNC por recurso administrativo',
       (p: string) => `\\\\localhost\\${p[0]}$${p.slice(2)}`,
     ],
-  ])('se rechaza escrita en %s', async (_name, spelling) => {
+  ])('rejected when written as %s', async (_name, spelling) => {
     await attempt(spelling);
   });
 
-  it('se rechaza a través de un alias corto 8.3 de la carpeta', async (context) => {
-    // %TEMP% suele ser C:\Users\NOMBRE~1\...: la misma carpeta con otro nombre.
+  it('rejected through an 8.3 short alias of the folder', async (context) => {
+    // %TEMP% is usually C:\Users\NAME~1\...: the same folder under another name.
     const shortTemp = tmpdir();
     if ((await fs.realpath(shortTemp)) === shortTemp) {
       context.skip('Este equipo no expone %TEMP% con nombre corto 8.3.');
@@ -111,7 +108,7 @@ describe('gestor: archivos reales en rutas protegidas escritas de otras formas',
     );
   });
 
-  it('restaurar hacia una carpeta protegida escrita en MAYÚSCULAS, con / o con alias 8.3 se rechaza', async () => {
+  it('restoring into a protected folder written in UPPERCASE, with / or with an 8.3 alias is rejected', async () => {
     const input = await h.seed('normal.txt');
     const item = await h.manager.quarantine(input.id);
     await fs.mkdir(join(h.root, 'protected'));
@@ -135,7 +132,7 @@ describe('gestor: archivos reales en rutas protegidas escritas de otras formas',
     expect(await exists(item.vaultFile)).toBe(true);
   });
 
-  it('restaurar a C:\\PROGRA~1 (alias corto de Program Files) se rechaza antes de escribir', async () => {
+  it('restoring to C:\\PROGRA~1 (short alias of Program Files) is rejected before writing', async () => {
     const input = await h.seed('normal.txt');
     const item = await h.manager.quarantine(input.id);
     await expect(
@@ -144,7 +141,7 @@ describe('gestor: archivos reales en rutas protegidas escritas de otras formas',
         targetPath: 'C:\\PROGRA~1\\cybersoc-prueba-adversarial.txt',
       }),
     ).rejects.toMatchObject({ code: 'PROTECTED_PATH' });
-    expect(h.confirm).toHaveBeenCalledTimes(1); // solo la de la cuarentena
+    expect(h.confirm).toHaveBeenCalledTimes(1); // only the quarantine one
     expect(h.record(item.id).status).toBe('QUARANTINED');
   });
 });

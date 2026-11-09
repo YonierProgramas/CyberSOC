@@ -8,7 +8,7 @@ vi.mock('electron', async () => ({
 }));
 import { AIFlowHarness } from './fixtures/AIFlowHarness';
 
-// CI nunca llama a Claude, incluso si recibe una clave por error. Localmente requiere opt-in.
+// CI never calls Claude, even if it receives a key by mistake. Locally it requires opt-in.
 const skip =
   Boolean(process.env.CI) ||
   !process.env.CYBERSOC_ANTHROPIC_API_KEY?.trim() ||
@@ -18,13 +18,13 @@ if (skip)
     'JOB_SUMMARY_LIVE: OMITIDA. Requiere clave de desarrollo, CYBERSOC_RUN_AI_LIVE=1 y ejecución fuera de CI.',
   );
 
-describe.skipIf(skip)('live — escaneo de fixtures → JOB_SUMMARY real', () => {
+describe.skipIf(skip)('live — fixture scan → real JOB_SUMMARY', () => {
   let harness: AIFlowHarness | undefined;
   afterEach(async () => {
     await harness?.close();
   });
 
-  it('resume un escaneo real de los fixtures con la API de Claude', async () => {
+  it('summarizes a real scan of the fixtures with the Claude API', async () => {
     const model = appConfigSchema.parse({}).ai.analysisModel;
     harness = new AIFlowHarness(
       () =>
@@ -33,7 +33,7 @@ describe.skipIf(skip)('live — escaneo de fixtures → JOB_SUMMARY real', () =>
           model,
         }),
     );
-    // Solo el resumen llama a la API: sin análisis automáticos de archivo (coste mínimo).
+    // Only the summary calls the API: no automatic file analyses (minimal cost).
     new AppConfigStore(harness.db).save({ ai: { autoAnalyzeLimitPerScan: 0 } });
     await harness.prepare();
     const { job, results } = await harness.scan();
@@ -72,7 +72,7 @@ describe.skipIf(skip)('live — escaneo de fixtures → JOB_SUMMARY real', () =>
       ),
     );
     const saved = store.latestValid(job.id);
-    // Salida para la evidencia: nunca contiene la clave.
+    // Output for the evidence: it never contains the key.
     console.info(
       `JOB_SUMMARY_LIVE_RESULT\n${JSON.stringify(
         {

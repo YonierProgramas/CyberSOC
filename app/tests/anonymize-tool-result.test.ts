@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { anonymizeToolResult } from '../src/core/ai/anonymizeToolResult';
 
 describe('anonymizeToolResult (AUD-04)', () => {
-  it('anonimiza rutas del perfil en cualquier nivel y clave', () => {
+  it('anonymizes profile paths at any level and key', () => {
     const result = {
       ok: true,
       data: {
@@ -29,7 +29,7 @@ describe('anonymizeToolResult (AUD-04)', () => {
     );
   });
 
-  it('no toca textos que no son rutas ni rutas sin perfil personal', () => {
+  it('does not touch texts that are not paths or paths without a personal profile', () => {
     const result = {
       reason: 'firma a/b conocida',
       date: '2026-11-05',
@@ -42,7 +42,7 @@ describe('anonymizeToolResult (AUD-04)', () => {
     expect(anonymizeToolResult(result)).toEqual(result);
   });
 
-  it('devuelve una copia: el resultado original del Core no cambia', () => {
+  it('returns a copy: the original Core result does not change', () => {
     const result = { rows: [{ path: 'C:\\Users\\maria.lopez\\a.txt' }] };
     anonymizeToolResult(result);
     expect(result.rows[0]!.path).toBe('C:\\Users\\maria.lopez\\a.txt');

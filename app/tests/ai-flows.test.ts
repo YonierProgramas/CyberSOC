@@ -46,7 +46,7 @@ afterEach(async () => {
   vi.useRealTimers();
   await harness.close();
 });
-/** Peticiones de análisis por archivo; cada escaneo completado añade además su JOB_SUMMARY. */
+/** Per-file analysis requests; each completed scan also adds its JOB_SUMMARY. */
 function fileRequests() {
   return fake.requests.filter(
     (request) => request.schema === aiAssessmentSchema,
@@ -63,7 +63,7 @@ function attempts(id: string) {
     .all(id);
 }
 
-it('CA-2.3: un escaneo real de siete fixtures analiza los seis no limpios y omite el limpio', async () => {
+it('CA-2.3: a real scan of seven fixtures analyzes the six non-clean ones and skips the clean one', async () => {
   for (let i = 0; i < 6; i++) fake.enqueueValue(answer());
   harness.worker.start();
   const { job, results } = await harness.scan();
@@ -97,14 +97,14 @@ it('CA-2.3: un escaneo real de siete fixtures analiza los seis no limpios y omit
   }
 }, 20_000);
 
-it('CA-3.5: cada escaneo completado encola su JOB_SUMMARY; solo cita resultados reales', async () => {
+it('CA-3.5: each completed scan enqueues its JOB_SUMMARY; it only cites real results', async () => {
   const { job, results } = await harness.scan();
   expect(job.status).toBe('COMPLETED');
   const summaries = new JobSummaryStore(harness.db);
   expect(summaries.status(job.id)).toBe('PENDING');
   const risky = results.filter((row) => row.verdict !== 'CLEAN');
   for (let i = 0; i < risky.length; i++) fake.enqueueValue(answer());
-  // El primer resumen cita un resultId inventado (rechazado); el reintento cita uno real.
+  // The first summary cites an invented resultId (rejected); the retry cites a real one.
   const real = risky.find((row) => row.verdict === 'DETECTED')!.id;
   const summary = (ids: string[]): JobSummary => ({
     summary: 'Se escanearon 7 archivos de prueba.',
@@ -140,7 +140,7 @@ it('CA-3.5: cada escaneo completado encola su JOB_SUMMARY; solo cita resultados 
   expect(summaries.latestValid(job.id)?.summary.citedResultIds).toEqual([real]);
 }, 20_000);
 
-it('CA-2.5: OFFLINE no bloquea el escaneo; tres reintentos, pausa y recuperación explícita', async () => {
+it('CA-2.5: OFFLINE does not block the scan; three retries, pause and explicit recovery', async () => {
   for (let i = 0; i < 4; i++) fake.enqueueError('OFFLINE');
   fake.enqueueValue(answer());
   const { job, results } = await harness.scan(harness.signature);
@@ -160,7 +160,7 @@ it('CA-2.5: OFFLINE no bloquea el escaneo; tres reintentos, pausa y recuperació
   expect(harness.worker.state.paused).toBe(true);
   const policy = new RiskAssessmentRepository(harness.db).get(id)!;
   expect(policy.traceJson).toContain('IA pendiente / no disponible');
-  harness.worker.resume(); // Señal de recuperación: la integración usa healthCheck exitoso.
+  harness.worker.resume(); // Recovery signal: the integration uses a successful healthCheck.
   await vi.advanceTimersByTimeAsync(0);
   expect(result(id)).toMatchObject({
     verdict: 'DETECTED',
@@ -175,7 +175,7 @@ it('CA-2.5: OFFLINE no bloquea el escaneo; tres reintentos, pausa y recuperació
   ]);
 });
 
-it('CA-2.5: un RETRY_WAIT por OFFLINE se recupera al reabrir SQLite y reiniciar el worker', async () => {
+it('CA-2.5: a RETRY_WAIT from OFFLINE recovers when reopening SQLite and restarting the worker', async () => {
   fake.enqueueError('OFFLINE').enqueueValue(answer());
   const { results } = await harness.scan(harness.signature);
   const id = results[0]!.id;
@@ -190,7 +190,7 @@ it('CA-2.5: un RETRY_WAIT por OFFLINE se recupera al reabrir SQLite y reiniciar 
   ]);
 });
 
-it('CA-2.6: un ID inventado se rechaza dos veces y nunca afecta el veredicto', async () => {
+it('CA-2.6: an invented ID is rejected twice and never affects the verdict', async () => {
   fake
     .enqueueValue(answer('LIKELY_BENIGN', ['ev999']))
     .enqueueValue(answer('LIKELY_BENIGN', ['ev999']));
@@ -214,9 +214,9 @@ it('CA-2.6: un ID inventado se rechaza dos veces y nunca afecta el veredicto', a
   expect(fileRequests()[1]!.prompt).toContain('ev999');
 });
 
-// RiskPolicy v2 (S3) sustituye a CA-2.8: la IA nunca baja un veredicto ni produce DETECTED, y
-// solo escala CLEAN → SUSPICIOUS con todas las condiciones (CA-3.4). answer() usa confianza 0.8
-// y cita ev1, que existe en los tres fixtures.
+// RiskPolicy v2 (S3) replaces CA-2.8: the AI never lowers a verdict nor produces DETECTED, and
+// only escalates CLEAN → SUSPICIOUS with all conditions (CA-3.4). answer() uses confidence 0.8
+// and cites ev1, which exists in the three fixtures.
 it.each([
   [
     'lowScore',
@@ -252,7 +252,7 @@ it.each([
     },
   ],
 ] as const)(
-  'CA-3.4: %s (%s) con IA %s aplica RiskPolicy v2',
+  'CA-3.4: %s (%s) with AI %s applies RiskPolicy v2',
   async (file, engineVerdict, opinion, expected) => {
     const verdict = engineVerdict;
     const { results } = await harness.scan(harness[file]);
@@ -281,7 +281,7 @@ it.each([
   },
 );
 
-it('CA-2.8: una acusación sin evidencias sobre CLEAN se descarta y no lo escala', async () => {
+it('CA-2.8: an accusation without evidence on CLEAN is discarded and does not escalate it', async () => {
   const { results } = await harness.scan(harness.clean);
   const id = results[0]!.id;
   fake

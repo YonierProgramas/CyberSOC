@@ -41,7 +41,7 @@ function create006(path: string) {
   return db;
 }
 
-it('limpio/reinicio: 001–007 una vez y ningún backup de base inexistente', () => {
+it('clean/restart: 001–007 once and no backup of a nonexistent database', () => {
   const root = profile();
   openDatabaseWithBackup(root, '0.11.0').close();
   const db = openDatabaseWithBackup(root, '0.11.0');
@@ -52,9 +52,9 @@ it('limpio/reinicio: 001–007 una vez y ningún backup de base inexistente', ()
   db.close();
 });
 
-it('006 con WAL confirmado: copia abrible anterior a 007, conserva datos y reinicio sin duplicación', () => {
+it('006 with committed WAL: openable copy before 007, keeps data and restarts without duplication', () => {
   const root = profile();
-  const writer = create006(root); // Conexión abierta: las últimas filas están en WAL.
+  const writer = create006(root); // Open connection: the latest rows are in the WAL.
   writer
     .prepare('INSERT INTO settings VALUES (?,?,?)')
     .run('wal-fixture', '42', '2026-11-05');
@@ -98,7 +98,7 @@ it('006 con WAL confirmado: copia abrible anterior a 007, conserva datos y reini
   again.close();
 });
 
-it('backup fallido: no aplica 007 ni pierde filas', () => {
+it('failed backup: does not apply 007 or lose rows', () => {
   const root = profile();
   create006(root).close();
   writeFileSync(join(root, 'backups'), 'archivo bloquea directorio');
@@ -115,7 +115,7 @@ it('backup fallido: no aplica 007 ni pierde filas', () => {
   db.close();
 });
 
-it('escritor concurrente: falla cerrado antes de copia/migración', () => {
+it('concurrent writer: fails closed before copy/migration', () => {
   const root = profile();
   const writer = create006(root);
   writer.exec('BEGIN IMMEDIATE');
@@ -132,7 +132,7 @@ it('escritor concurrente: falla cerrado antes de copia/migración', () => {
   db.close();
 });
 
-it('migración fallida: rollback 007 y copia verificada recuperable con versión compatible', () => {
+it('failed migration: 007 rollback and verified recoverable copy with a compatible version', () => {
   const root = profile();
   const original = create006(root);
   original.exec(
@@ -155,7 +155,7 @@ it('migración fallida: rollback 007 y copia verificada recuperable con versión
   expect(readdirSync(join(root, 'backups'))).toHaveLength(1);
 });
 
-it('007 preexistente: respalda tarjetas al adoptar versión; rechaza versión futura y perfil movido', () => {
+it('preexisting 007: backs up cards when adopting the version; rejects a future version and moved profile', () => {
   const root = profile();
   const initial = new Database(join(root, 'cybersoc.db'));
   new MigrationRunner(initial).run();
@@ -188,10 +188,10 @@ it('007 preexistente: respalda tarjetas al adoptar versión; rechaza versión fu
   expect(() => openDatabaseWithBackup(root, '0.11.0')).toThrow(
     'Perfil incompatible',
   );
-  mkdirSync(join(root, 'vault-fixture')); // La prueba nunca elimina bóvedas ni secretos.
+  mkdirSync(join(root, 'vault-fixture')); // The test never deletes vaults or secrets.
 });
 
-it('FK inválidas: no certifica una copia ni continúa la migración', () => {
+it('invalid FKs: does not certify a copy or continue the migration', () => {
   const root = profile();
   const initial = create006(root);
   initial.exec(

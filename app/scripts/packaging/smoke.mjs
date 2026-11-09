@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { _electron, chromium } from 'playwright';
 
-// Recuperado del borrador Codex T6.2 (base 6d9394d), sin modificar su fuente.
+// Recovered from the Codex T6.2 draft (base 6d9394d), without modifying its source.
 
 const appRoot = resolve(import.meta.dirname, '../..');
 const args = process.argv.slice(2);
@@ -68,7 +68,7 @@ if (packaged) {
     join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0'),
   ].join(';');
   console.log('PATH_WITHOUT_DEV_TOOLS', env.PATH);
-  // Controles negativos: el paquete debe ignorar un motor y Python ajenos.
+  // Negative controls: the package must ignore a foreign engine and Python.
   env.CYBERSOC_ENGINE_CMD = '["C:/cybersoc-no-existe/python.exe"]';
   env.PYTHONHOME = 'C:/cybersoc-no-existe';
   env.PYTHONPATH = 'C:/cybersoc-no-existe';
@@ -193,7 +193,7 @@ try {
   );
   assert.equal(signatures.length, 5);
   assert(signatures.every((r) => r.verdict === 'DETECTED'));
-  // AUTO puede desactivar SCRIPTS según la zona; no se inventa un veredicto fijo.
+  // AUTO may disable SCRIPTS depending on the zone; no fixed verdict is invented.
   assert(
     results.items.some(
       (r) => r.fileName === 'encoded_marker.ps1' && r.status === 'SCANNED',
@@ -206,8 +206,8 @@ try {
       processed: job.filesProcessed,
       errors: job.filesError,
       signaturesDetected: signatures.length,
-      // Diccionario: una clave por veredicto; cada suma O(1) promedio,
-      // recorrido completo O(n). Cuenta resultados, no archivos únicos.
+      // Dictionary: one key per verdict; each sum O(1) average,
+      // full walk O(n). It counts results, not unique files.
       verdicts: results.items.reduce((a, r) => {
         a[r.verdict] = (a[r.verdict] ?? 0) + 1;
         return a;

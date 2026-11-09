@@ -64,7 +64,7 @@ afterEach(() => {
 });
 
 it.each(['html', 'csv', 'json'] as const)(
-  'solo guarda %s después de aceptar el diálogo',
+  'only stores %s after accepting the dialog',
   async (format) => {
     let resolve!: (value: unknown) => void;
     mocks.save.mockImplementationOnce(
@@ -91,7 +91,7 @@ it.each(['html', 'csv', 'json'] as const)(
     );
   },
 );
-it('cancelación no escribe y un ID inexistente no abre el diálogo', async () => {
+it('cancelling does not write and a nonexistent ID does not open the dialog', async () => {
   mocks.save.mockResolvedValueOnce({ canceled: true });
   await expect(
     handler(event, { reportDraftId: id, format: 'html' }),
@@ -110,14 +110,14 @@ it.each([
   { reportDraftId: 'invalid', format: 'html' },
   { format: 'exe' },
   { format: 'html', path: 'C:\\invento' },
-])('rechaza argumentos inválidos %j', async (input) => {
+])('rejects invalid arguments %j', async (input) => {
   await expect(
     handler(event, { reportDraftId: id, ...input }),
   ).rejects.toThrow();
   expect(mocks.save).not.toHaveBeenCalled();
   expect(mocks.write).not.toHaveBeenCalled();
 });
-it('rechaza otra ventana, subframe, navegación y argumentos adicionales', async () => {
+it('rejects another window, subframe, navigation and additional arguments', async () => {
   for (const input of [
     { sender: {}, senderFrame: frame },
     { sender: contents, senderFrame: { url } },
@@ -138,7 +138,7 @@ it('rechaza otra ventana, subframe, navegación y argumentos adicionales', async
   expect(mocks.save).not.toHaveBeenCalled();
 });
 it.each(['navigation', 'stop'])(
-  'no escribe si ocurre %s durante el diálogo',
+  'does not write if %s happens during the dialog',
   async (mode) => {
     mocks.save.mockImplementationOnce(async () => {
       if (mode === 'stop') stop();
@@ -151,7 +151,7 @@ it.each(['navigation', 'stop'])(
     expect(mocks.write).not.toHaveBeenCalled();
   },
 );
-it('no expone errores de escritura y retira el handler al cerrar', async () => {
+it('does not expose write errors and removes the handler on close', async () => {
   mocks.write.mockRejectedValueOnce(new Error('PRIVATE-PATH-ERROR'));
   await expect(
     handler(event, { reportDraftId: id, format: 'json' }),

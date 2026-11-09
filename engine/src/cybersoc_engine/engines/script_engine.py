@@ -63,5 +63,5 @@ class ScriptEngine:
                     },
                 )
             )
-        # Solo detección textual: no evalúa scripts ni decodifica/ejecuta comandos.
+        # Text detection only: it neither evaluates scripts nor decodes/executes commands.
         return findings

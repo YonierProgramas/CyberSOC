@@ -19,7 +19,7 @@ export class EvidenceRepository {
          decisive, confidence, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
       for (const value of evidence) {
         const item = evidenceSchema.parse(value);
-        // ev1 identifica evidencia dentro de UN resultado; el UUID es global.
+        // ev1 identifies evidence within ONE result; the UUID is global.
         insert.run(
           randomUUID(),
           resultId,
@@ -38,7 +38,7 @@ export class EvidenceRepository {
   }
 
   listByResult(resultId: string): EvidenceRecord[] {
-    // Las claves evN se ordenan por su parte numérica: ev2 precede a ev10.
+    // evN keys are sorted by their numeric part: ev2 precedes ev10.
     const rows = this.database
       .prepare(
         `SELECT id, result_id AS resultId,

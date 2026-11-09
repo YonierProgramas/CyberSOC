@@ -194,7 +194,7 @@ function writeSmallFiles(folder: string, count: number): number {
   return performance.now() - preparing;
 }
 
-/** Escribe N bytes en bloques de 8 MiB. No retiene el archivo en RAM. */
+/** Writes N bytes in 8 MiB blocks. It does not keep the file in RAM. */
 function writeBytes(path: string, total: number): void {
   const fd = openSync(path, 'w');
   const chunk = Buffer.alloc(8 * 1024 * 1024, 0x61);
@@ -211,10 +211,10 @@ function writeBytes(path: string, total: number): void {
 }
 
 /**
- * La pila del descubrimiento es DFS: push y pop son O(1) amortizado.
- * Invariante: el pico es el máximo de carpetas hermanas pendientes.
- * La cola de archivos está acotada (capacidad 1000): encolar y sacar son
- * O(1) amortizado; si se llena, el productor espera y no crece sin límite.
+ * The discovery stack is DFS: push and pop are amortized O(1).
+ * Invariant: the peak is the maximum of pending sibling folders.
+ * The file queue is bounded (capacity 1000): enqueue and dequeue are
+ * amortized O(1); if it fills up, the producer waits and it does not grow without limit.
  */
 function writeDeepWideTree(folder: string): { files: number; dirs: number } {
   mkdirSync(folder);
@@ -423,7 +423,7 @@ async function scenarioGigabyte(): Promise<void> {
       `(b) Memoria máxima del proceso Python: ${memoryMb.toFixed(1)} MiB en ${watcher.samples()} muestras`,
     );
     console.log(
-      '(b) El perfil de esta medición permite 2048 MB. El perfil de zona, en uso normal, omite archivos más grandes.',
+      '(b) The profile of this measurement allows 2048 MB. The zone profile, in normal use, skips larger files.',
     );
   } finally {
     watcher.stop();
@@ -498,7 +498,7 @@ try {
     await scenarioUi();
   }
   console.log(
-    'La medición de archivos excluye generación, arranque de Python y limpieza.',
+    'The file measurement excludes generation, Python startup and cleanup.',
   );
 } finally {
   hooks.deregister();

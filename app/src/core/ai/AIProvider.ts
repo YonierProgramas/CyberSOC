@@ -1,18 +1,18 @@
 import type { z } from 'zod';
 
 export interface StructuredRequest<T> {
-  /** Instrucciones del sistema (opcional). */
+  /** System instructions (optional). */
   system?: string;
-  /** Mensaje del usuario. */
+  /** User message. */
   prompt: string;
-  /** Esquema de la salida: se envía como JSON Schema y la respuesta se valida con él. */
+  /** Output schema: sent as JSON Schema and the response is validated against it. */
   schema: z.ZodType<T>;
   maxTokens: number;
-  /** Cancelación externa. El proveedor añade además su propio timeout. */
+  /** External cancellation. The provider also adds its own timeout. */
   signal?: AbortSignal;
 }
 
-/** Bloques de contenido del Copilot v2, en el formato de la Messages API. */
+/** Copilot v2 content blocks, in Messages API format. */
 export type AssistantBlock =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: unknown }
@@ -23,13 +23,13 @@ export type AssistantBlock =
       is_error?: boolean;
     };
 
-/** Un mensaje de la conversación del asistente, en el formato de la Messages API. */
+/** A message of the assistant conversation, in Messages API format. */
 export interface AssistantMessage {
   role: 'user' | 'assistant';
   content: string | readonly AssistantBlock[];
 }
 
-/** Herramienta en modo estricto, tal como la describe `ToolRegistry.definitions()`. */
+/** Strict-mode tool, exactly as described by `ToolRegistry.definitions()`. */
 export interface AssistantToolSpec {
   name: string;
   description: string;
@@ -37,7 +37,7 @@ export interface AssistantToolSpec {
   input_schema: Record<string, unknown>;
 }
 
-/** Llamada a herramienta pedida por el modelo. Sus argumentos se validan otra vez al ejecutar. */
+/** Tool call requested by the model. Its arguments are validated again on execution. */
 export interface AssistantToolCall {
   id: string;
   name: string;
@@ -45,33 +45,33 @@ export interface AssistantToolCall {
 }
 
 /**
- * Turno del Copilot. S4: texto libre. S5: con `tools` (modo estricto) y `output`
- * (respuesta final con `output_config.format`); la API admite ambos en la misma petición.
+ * Copilot turn. S4: free text. S5: with `tools` (strict mode) and `output`
+ * (final response with `output_config.format`); the API accepts both in the same request.
  */
 export interface AssistantTurnRequest<T = string> {
   system: string;
-  /** Empiezan y terminan con un mensaje del usuario (texto o resultados de herramientas). */
+  /** They start and end with a user message (text or tool results). */
   messages: readonly AssistantMessage[];
   maxTokens: number;
-  /** Modelo de `ai.assistantModel`; si falta, el del proveedor. */
+  /** Model from `ai.assistantModel`; if missing, the provider default. */
   model?: string;
   signal?: AbortSignal;
   tools?: readonly AssistantToolSpec[];
   /**
-   * 'none': las herramientas solo se declaran (la API las exige si el historial tiene
-   * tool_use) y no pueden llamarse. Se usa para pedir la respuesta final estructurada.
+   * 'none': tools are only declared (the API requires them if the history has
+   * tool_use) and cannot be called. Used to request the structured final response.
    */
   toolChoice?: 'auto' | 'none';
-  /** Esquema de la respuesta final. Sin él, la respuesta final es el texto. */
+  /** Final response schema. Without it, the final response is the text. */
   output?: z.ZodType<T>;
 }
 
-/** Un paso del bucle: el modelo pide herramientas o entrega la respuesta final. */
+/** One loop step: the model requests tools or delivers the final response. */
 export type AssistantStep<T = string> =
   | {
       kind: 'TOOL_CALLS';
       calls: AssistantToolCall[];
-      /** Contenido exacto del asistente (texto + tool_use) para devolverlo en el siguiente turno. */
+      /** Exact assistant content (text + tool_use) to send back on the next turn. */
       content: AssistantBlock[];
     }
   | { kind: 'FINAL'; value: T; text: string };
@@ -82,7 +82,7 @@ export interface AIProvider {
   readonly id: AIProviderId;
   healthCheck(): Promise<AIResult<{ model: string }>>;
   generateStructured<T>(req: StructuredRequest<T>): Promise<AIResult<T>>;
-  /** Un paso del Copilot: llamadas a herramientas o respuesta final (texto o estructurada). */
+  /** One Copilot step: tool calls or final response (text or structured). */
   runAssistantTurn<T = string>(
     req: AssistantTurnRequest<T>,
   ): Promise<AIResult<AssistantStep<T>>>;
@@ -100,7 +100,7 @@ export type AIResult<T> =
       model: string;
       usage: AIUsage;
       latencyMs: number;
-      /** Texto exacto devuelto por el modelo: lo revalida `AIResponseValidator` y se guarda para auditoría. */
+      /** Exact text returned by the model: `AIResponseValidator` revalidates it and it is kept for audit. */
       rawText?: string;
     }
   | { ok: false; error: AIError };
@@ -120,11 +120,11 @@ export interface AIError {
   retryable: boolean;
   retryAfterMs?: number;
   message: string;
-  /** Solo si hubo respuesta del modelo (p. ej. INVALID_OUTPUT o INCOMPLETE): su texto exacto. */
+  /** Only if the model responded (e.g. INVALID_OUTPUT or INCOMPLETE): its exact text. */
   rawText?: string;
-  /** Tokens consumidos por esa respuesta, aunque no sea utilizable. */
+  /** Tokens consumed by that response, even if it is unusable. */
   usage?: AIUsage;
-  /** Metadatos reales si hubo respuesta, incluso cuando no pasó la validación. */
+  /** Real metadata if there was a response, even when it failed validation. */
   model?: string;
   latencyMs?: number;
 }

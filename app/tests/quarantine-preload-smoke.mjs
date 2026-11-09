@@ -1,4 +1,4 @@
-// Ejecutar después de npm run build. El sandbox de Electron no ofrece require('zod').
+// Run after npm run build. The Electron sandbox does not offer require('zod').
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';

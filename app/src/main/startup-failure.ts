@@ -1,12 +1,12 @@
-// Mensaje para la persona cuando la app no puede arrancar (B-03 de 11.B). Antes se cerraba
-// sin explicar nada. Los textos salen de los errores de UpgradeBackup/perfil y nunca piden
-// borrar datos: la base, su WAL y el marcador del perfil son lo que permite recuperar.
+// Message for the person when the app cannot start (B-03 of 11.B). It used to close
+// without explaining anything. Texts derive from UpgradeBackup/profile errors and never ask
+// to delete data: the database, its WAL and the profile marker are what allow recovery.
 
 const KEEP_DATA =
   'Tus datos no se borraron. No borres la carpeta de datos ni los archivos cybersoc.db, cybersoc.db-wal o distribution-profile.json: la guía de instalación explica cómo recuperarlos.';
 
-// Patrones de los mensajes de error de arranque -> explicación. Se recorren en orden
-// (lista cerrada de 4 entradas, O(1) en la práctica) y gana el primero que coincide.
+// Patterns of startup error messages -> explanation. They are walked in order
+// (closed list of 4 entries, O(1) in practice) and the first match wins.
 const causes: readonly { pattern: RegExp; explanation: string }[] = [
   {
     pattern: /incompatible|downgrade|Versión de perfil inválida/i,

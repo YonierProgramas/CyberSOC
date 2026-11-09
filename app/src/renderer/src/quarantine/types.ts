@@ -1,7 +1,7 @@
 export type QuarantineStatus =
   'PENDING' | 'QUARANTINED' | 'RESTORED' | 'DELETED' | 'FAILED';
 
-/** Lo que T4.4 debe exponer. No incluye la clave ni el IV de la bóveda. */
+/** What T4.4 must expose. It does not include the vault key or IV. */
 export interface QuarantineItemDTO {
   id: string;
   resultId: string | null;

@@ -13,7 +13,7 @@ import type { AnalysisFacts } from './AIContextBuilder';
 import type { Evidence } from '../../shared/protocol';
 import { AllowlistRepository } from '../persistence/AllowlistRepository';
 
-/** Adaptador de persistencia del flujo IA. No lee archivos ni ejecuta acciones sobre ellos. */
+/** Persistence adapter for the AI flow. It neither reads files nor performs actions on them. */
 export class AIAnalysisStore {
   readonly results: ScanResultRepository;
   constructor(private readonly db: Database) {
@@ -86,7 +86,7 @@ export class AIAnalysisStore {
   }
 
   pending(): string[] {
-    // Un cierre abrupto puede dejar RUNNING; ningún proceso anterior sigue atendiendo al reiniciar.
+    // An abrupt shutdown can leave RUNNING behind; no earlier process is still serving after a restart.
     this.db.exec(
       "UPDATE scan_results SET ai_status = 'PENDING' WHERE ai_status = 'RUNNING'",
     );
@@ -119,7 +119,7 @@ export class AIAnalysisStore {
         .get(key);
       const count = row ? Number(JSON.parse(String(row.value_json))) : 0;
       if (!Number.isSafeInteger(count) || count < 0)
-        throw new Error('Contador IA inválido.');
+        throw new Error('Invalid AI counter.');
       if (count >= limit) return false;
       this.db
         .prepare(
@@ -163,7 +163,7 @@ export class AIAnalysisStore {
           },
           ai,
         );
-        // Actualización atómica junto al intento y al estado, sin borrar una evaluación previa.
+        // Atomic update together with the attempt and the status, without deleting an earlier assessment.
         this.db
           .prepare(
             `INSERT INTO risk_assessments

@@ -56,10 +56,10 @@ export class FileDiscovery {
   peakFrontier = 0;
   dirsVisited = 0;
   skippedLinks = 0;
-  // Entradas que no se pudieron leer, por código de error (EACCES, EPERM, ENOENT, EBUSY).
-  // Map motivo -> cantidad: registrar es O(1) promedio y nunca guarda rutas, solo conteos.
-  // Invariante: la suma de los valores es skippedEntries. Si es mayor que 0, la carpeta
-  // no se recorrió completa y no debe presentarse como analizada en su totalidad (AUD-10).
+  // Entries that could not be read, by error code (EACCES, EPERM, ENOENT, EBUSY).
+  // Map reason -> count: recording is O(1) average and stores only counts, never paths.
+  // Invariant: the sum of the values is skippedEntries. If greater than 0, the folder
+  // was not fully traversed and must not be presented as completely analyzed (AUD-10).
   private readonly skipped = new Map<string, number>();
 
   get skippedEntries(): number {
@@ -72,7 +72,7 @@ export class FileDiscovery {
     return Object.fromEntries(this.skipped);
   }
 
-  // Devuelve true si el error es una omisión esperable y la deja contada.
+  // Returns true if the error is an expected skip and counts it.
   private skip(error: unknown): boolean {
     if (!isSkippable(error)) return false;
     const code = errorCode(error) ?? 'UNKNOWN';

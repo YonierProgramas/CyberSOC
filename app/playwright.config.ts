@@ -8,9 +8,9 @@ const evidenceReport = join(
 );
 
 /**
- * Playwright para Electron. Un solo trabajador: la app y el motor Python
- * no se lanzan en paralelo. El informe HTML queda en construccion/, que
- * el equipo conserva solo en local.
+ * Playwright for Electron. A single worker: the app and the Python engine
+ * are not launched in parallel. The HTML report stays in construccion/, which
+ * the team keeps locally only.
  */
 export default defineConfig({
   testDir: './tests/e2e',

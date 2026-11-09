@@ -1,4 +1,4 @@
-"""Verificación de build; no forma parte del motor ni se distribuye como ejecutable."""
+"""Build verification; not part of the engine and not distributed as an executable."""
 import base64
 import csv
 import hashlib

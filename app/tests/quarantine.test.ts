@@ -69,7 +69,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
   await manager.close();
   db.close();
-  // Solo el directorio creado por ESTE test; nunca corpus ni archivos del usuario.
+  // Only the directory created by THIS test; never corpus or user files.
   await fs.rm(root, { recursive: true, force: true });
 });
 async function seed(
@@ -107,7 +107,7 @@ async function seed(
   return { id, path, hash: sha(data) };
 }
 
-it('ciclo completo: hash idéntico, CSQ1 neutralizado, confirmaciones y auditoría', async () => {
+it('full cycle: identical hash, neutralized CSQ1, confirmations and audit', async () => {
   const input = await seed(
     'inofensivo.txt',
     Buffer.alloc(3 * 1024 * 1024 + 47, 65),
@@ -152,7 +152,7 @@ it('ciclo completo: hash idéntico, CSQ1 neutralizado, confirmaciones y auditor�
   );
 });
 
-it('no actúa sin confirmación y no crea PENDING', async () => {
+it('does not act without confirmation and creates no PENDING', async () => {
   const input = await seed();
   confirm.mockResolvedValue(false);
   await expect(manager.quarantine(input.id)).rejects.toMatchObject({
@@ -163,7 +163,7 @@ it('no actúa sin confirmación y no crea PENDING', async () => {
   expect(manager.audit.list().at(-1)?.action).toBe('QUARANTINE_FAILED');
 });
 
-it('archivo vacío: GCM autentica también cero bytes y cada ítem usa su propia clave', async () => {
+it('empty file: GCM also authenticates zero bytes and each item uses its own key', async () => {
   const a = await seed('empty-a.txt', '');
   const b = await seed('empty-b.txt', '');
   const first = await manager.quarantine(a.id);
@@ -176,7 +176,7 @@ it('archivo vacío: GCM autentica también cero bytes y cada ítem usa su propia
   expect((await fs.stat(a.path)).size).toBe(0);
 });
 
-it('denegar la segunda confirmación de DETECTED conserva cuarentena y no añade confianza', async () => {
+it('denying the second DETECTED confirmation keeps quarantine and adds no trust', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   confirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
@@ -189,7 +189,7 @@ it('denegar la segunda confirmación de DETECTED conserva cuarentena y no añade
   expect(await exists(item.vaultFile)).toBe(true);
 });
 
-it('delete cancelado conserva el blob y el registro', async () => {
+it('cancelled delete keeps the blob and record', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   confirm.mockResolvedValue(false);
@@ -199,7 +199,7 @@ it('delete cancelado conserva el blob y el registro', async () => {
   expect(await exists(item.vaultFile)).toBe(true);
   expect(manager.repository.get(item.id)?.status).toBe('QUARANTINED');
 });
-it('aborta si el archivo cambió después del escaneo', async () => {
+it('aborts if the file changed after the scan', async () => {
   const input = await seed();
   await fs.writeFile(input.path, 'Contenido cambiado');
   await expect(manager.quarantine(input.id)).rejects.toMatchObject({
@@ -208,7 +208,7 @@ it('aborta si el archivo cambió después del escaneo', async () => {
   expect(manager.list()).toEqual([]);
   expect(await fs.readFile(input.path, 'utf8')).toBe('Contenido cambiado');
 });
-it('aborta si el original cambia durante el cifrado; no borra el reemplazo', async () => {
+it('aborts if the original changes during encryption; does not delete the replacement', async () => {
   const input = await seed();
   const encrypt = vault.encrypt.bind(vault);
   vi.spyOn(vault, 'encrypt').mockImplementation(async (file, item) => {
@@ -225,7 +225,7 @@ it('aborta si el original cambia durante el cifrado; no borra el reemplazo', asy
     'Cambio posterior a la copia',
   );
 });
-it('falla antes de borrar si el temporal cifrado no supera la verificación', async () => {
+it('fails before deleting if the encrypted temporary fails verification', async () => {
   const input = await seed();
   vi.spyOn(vault, 'verify').mockRejectedValue(new Error('corrupción simulada'));
   await expect(manager.quarantine(input.id)).rejects.toThrow('corrupción');
@@ -233,7 +233,7 @@ it('falla antes de borrar si el temporal cifrado no supera la verificación', as
   expect(manager.list()[0]?.status).toBe('FAILED');
   expect(await fs.readdir(vault.root)).toEqual([]);
 });
-it('original bloqueado: FAILED sin blob; conserva el original (fallo de borrado)', async () => {
+it('locked original: FAILED without blob; keeps the original (delete failure)', async () => {
   const input = await seed();
   vi.spyOn(originalFile, 'deleteVerifiedOriginal').mockRejectedValue(
     Object.assign(new Error('bloqueado'), { code: 'EPERM' }),
@@ -246,7 +246,7 @@ it('original bloqueado: FAILED sin blob; conserva el original (fallo de borrado)
   expect(await fs.readdir(vault.root)).toEqual([]);
 });
 
-it('borrado sin acuse: conserva el blob y PENDING para reconciliar al reiniciar', async () => {
+it('delete without acknowledgment: keeps the blob and PENDING to reconcile on restart', async () => {
   const input = await seed();
   vi.spyOn(originalFile, 'deleteVerifiedOriginal').mockImplementation(
     async (path) => {
@@ -269,7 +269,7 @@ it('borrado sin acuse: conserva el blob y PENDING para reconciliar al reiniciar'
 });
 
 it.skipIf(process.platform !== 'win32')(
-  'Windows revalida el hash por handle incluso tras la última comprobación de Node',
+  'Windows revalidates the hash by handle even after the last Node check',
   async () => {
     const input = await seed();
     const verifiedDelete = originalFile.deleteVerifiedOriginal;
@@ -290,10 +290,10 @@ it.skipIf(process.platform !== 'win32')(
   },
 );
 it.skipIf(process.platform !== 'win32')(
-  'original bloqueado realmente por Windows: FAILED sin blob',
+  'original really locked by Windows: FAILED without blob',
   async () => {
     const input = await seed();
-    // FileShare.Read permite verificar/cifrar, pero niega Delete: fuerza el fallo del paso 6.
+    // FileShare.Read allows verifying/encrypting but denies Delete: forces the step 6 failure.
     const child = spawn(
       'powershell.exe',
       [
@@ -329,7 +329,7 @@ it.skipIf(process.platform !== 'win32')(
 );
 
 it.each([0, 4, 7, 20])(
-  'blob corrupto en byte %s: no restaura y conserva el blob',
+  'corrupt blob at byte %s: does not restore and keeps the blob',
   async (offset) => {
     const input = await seed();
     const item = await manager.quarantine(input.id);
@@ -344,7 +344,7 @@ it.each([0, 4, 7, 20])(
     expect(manager.repository.get(item.id)?.status).toBe('QUARANTINED');
   },
 );
-it('restaura con sufijo sin sobrescribir un destino existente', async () => {
+it('restores with a suffix without overwriting an existing target', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   await fs.writeFile(input.path, 'Archivo nuevo que no se debe tocar');
@@ -356,7 +356,7 @@ it('restaura con sufijo sin sobrescribir un destino existente', async () => {
   );
   expect(manager.allowlist.has(input.hash)).toBe(false);
 });
-it('una colisión al publicar tampoco sobrescribe y revierte la restauración', async () => {
+it('a collision while publishing does not overwrite either and reverts the restoration', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   const decrypt = vault.decrypt.bind(vault);
@@ -381,7 +381,7 @@ it('una colisión al publicar tampoco sobrescribe y revierte la restauración', 
     ),
   ).toBe(false);
 });
-it('rechaza restauración por traversal y conserva el blob', async () => {
+it('rejects traversal restoration and keeps the blob', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   await expect(
@@ -392,7 +392,7 @@ it('rechaza restauración por traversal y conserva el blob', async () => {
   ).rejects.toMatchObject({ code: 'INVALID_PATH' });
   expect(await exists(item.vaultFile)).toBe(true);
 });
-it('delete confirmado solo borra el blob y conserva DELETED y auditoría', async () => {
+it('confirmed delete only deletes the blob and keeps DELETED and audit', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   await fs.writeFile(input.path, 'No tocar este nuevo original');
@@ -404,7 +404,7 @@ it('delete confirmado solo borra el blob y conserva DELETED y auditoría', async
   );
   expect(manager.audit.list(item.id).at(-1)?.action).toBe('DELETE');
 });
-it('dos solicitudes sobre la misma ruta: la segunda se rechaza antes de confirmar', async () => {
+it('two requests on the same path: the second is rejected before confirming', async () => {
   const input = await seed();
   let release!: (value: boolean) => void;
   confirm.mockImplementationOnce(
@@ -422,7 +422,7 @@ it('dos solicitudes sobre la misma ruta: la segunda se rechaza antes de confirma
   await first;
   expect(confirm).toHaveBeenCalledTimes(1);
 });
-it('la IA posterior no revoca el hash confiado', async () => {
+it('later AI does not revoke the trusted hash', async () => {
   const input = await seed();
   const item = await manager.quarantine(input.id);
   await manager.restore(item.id, { trustHash: true });
@@ -452,7 +452,7 @@ it('la IA posterior no revoca el hash confiado', async () => {
   });
 });
 
-describe('reconciliación PENDING al reiniciar', () => {
+describe('PENDING reconciliation on restart', () => {
   async function pending() {
     const input = await seed();
     const item = await manager.quarantine(input.id);
@@ -462,14 +462,14 @@ describe('reconciliación PENDING al reiniciar', () => {
     manager.repository.update(record);
     return { input, item, record };
   }
-  it('blob verificado sin original completa QUARANTINED', async () => {
+  it('verified blob without original completes QUARANTINED', async () => {
     const { item } = await pending();
     manager = makeManager();
     await manager.reconcile();
     expect(manager.repository.get(item.id)?.status).toBe('QUARANTINED');
-    expect(confirm).toHaveBeenCalledTimes(1); // Recuperación no inicia nuevas acciones.
+    expect(confirm).toHaveBeenCalledTimes(1); // Recovery does not start new actions.
   });
-  it('original y blob: revierte preservando el original, sin duplicar', async () => {
+  it('original and blob: reverts preserving the original, without duplicating', async () => {
     const { input, item } = await pending();
     await fs.writeFile(input.path, 'Texto de prueba inofensivo.\n');
     manager = makeManager();
@@ -478,7 +478,7 @@ describe('reconciliación PENDING al reiniciar', () => {
     expect(await exists(input.path)).toBe(true);
     expect(await exists(item.vaultFile)).toBe(false);
   });
-  it('solo temporal cifrado completo recupera la única copia', async () => {
+  it('only complete encrypted temporary recovers the single copy', async () => {
     const { item, record } = await pending();
     await fs.rename(item.vaultFile, vault.path(item.id, true));
     record.authTagB64 = null;
@@ -489,7 +489,7 @@ describe('reconciliación PENDING al reiniciar', () => {
     expect(await exists(item.vaultFile)).toBe(true);
     expect(await exists(vault.path(item.id, true))).toBe(false);
   });
-  it('blob corrupto sin original se conserva para recuperación; no se destruye', async () => {
+  it('corrupt blob without original is kept for recovery; not destroyed', async () => {
     const { item } = await pending();
     await fs.writeFile(item.vaultFile, 'truncado');
     manager = makeManager();
@@ -497,7 +497,7 @@ describe('reconciliación PENDING al reiniciar', () => {
     expect(manager.repository.get(item.id)?.status).toBe('FAILED');
     expect(await fs.readFile(item.vaultFile, 'utf8')).toBe('truncado');
   });
-  it('delete interrumpido completa DELETED aunque el blob ya no exista', async () => {
+  it('interrupted delete completes DELETED even if the blob no longer exists', async () => {
     const { item, record } = await pending();
     record.errorMessage = 'DELETE_PENDING';
     manager.repository.update(record);
@@ -506,7 +506,7 @@ describe('reconciliación PENDING al reiniciar', () => {
     await manager.reconcile();
     expect(manager.repository.get(item.id)?.status).toBe('DELETED');
   });
-  it('restore publicado antes del cierre completa sin crear otra copia', async () => {
+  it('restore published before shutdown completes without creating another copy', async () => {
     const { input, item, record } = await pending();
     await fs.writeFile(input.path, 'Texto de prueba inofensivo.\n');
     record.restoredTo = input.path;
@@ -527,7 +527,7 @@ describe('rutas protegidas', () => {
     'C:\\Program Files\\app\\x',
     'c:/program files (x86)/app/x',
     'C:\\ProgramData\\Microsoft\\x',
-  ])('rechaza %s por segmento normalizado', (path) => {
+  ])('rejects %s by normalized segment', (path) => {
     expect(() => new ProtectedPaths([]).assertAllowed(path)).toThrow(
       'protegida',
     );
@@ -536,10 +536,10 @@ describe('rutas protegidas', () => {
     'C:\\Windows2\\x.txt',
     'C:/Program Files Otro/x.txt',
     'C:/Users/Ana/niño.txt',
-  ])('permite prefijo de nombre diferente: %s', (path) => {
+  ])('allows a different name prefix: %s', (path) => {
     expect(() => new ProtectedPaths([]).assertAllowed(path)).not.toThrow();
   });
-  it('rechaza un archivo real en ruta protegida sin leerlo ni cifrarlo', async () => {
+  it('rejects a real file in a protected path without reading or encrypting it', async () => {
     await fs.mkdir(join(root, 'protected'));
     const input = await seed('protected/texto.txt');
     const encrypt = vi.spyOn(vault, 'encrypt');
@@ -552,7 +552,7 @@ describe('rutas protegidas', () => {
       'RUTA_PROTEGIDA rechazada=true original_intacto=true blob_creado=false',
     );
   });
-  it('rechaza hardlinks y junctions, sin tocar sus destinos', async () => {
+  it('rejects hardlinks and junctions, without touching their targets', async () => {
     const input = await seed();
     await fs.link(input.path, join(root, 'alias.txt'));
     await expect(manager.quarantine(input.id)).rejects.toMatchObject({
@@ -580,7 +580,7 @@ describe('rutas protegidas', () => {
     '\\\\?\\C:\\Windows\\x',
     'C:/safe/NUL.txt',
     'C:/safe/name.',
-  ])('rechaza ruta ambigua: %s', (path) => {
+  ])('rejects ambiguous path: %s', (path) => {
     expect(() => validatePath(path)).toThrow();
   });
 });

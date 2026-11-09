@@ -14,7 +14,7 @@ import {
 } from '../src/core/ai/prompts/analysis.v1';
 import { aiAssessmentJsonSchema } from '../src/core/ai/schemas';
 
-// Clave ficticia: nunca se envía a ningún sitio porque `fetch` está simulado.
+// Fake key: never sent anywhere because `fetch` is mocked.
 const API_KEY = 'sk-ant-test-0000000000';
 const MODEL = 'claude-haiku-4-5-20251001';
 
@@ -110,8 +110,8 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe('ClaudeProvider: construcción', () => {
-  it('exige apiKey y modelo explícitos aunque existan variables de entorno', () => {
+describe('ClaudeProvider: construction', () => {
+  it('requires explicit apiKey and model even if environment variables exist', () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-env');
     expect(() => new ClaudeProvider({ apiKey: '', model: MODEL })).toThrow(
       TypeError,
@@ -124,7 +124,7 @@ describe('ClaudeProvider: construcción', () => {
     );
   });
 
-  it('no expone la clave al serializar o inspeccionar el proveedor', () => {
+  it('does not expose the key when serializing or inspecting the provider', () => {
     const { claude } = provider(() => message(validText));
     expect(JSON.stringify(claude)).not.toContain(API_KEY);
     expect(inspect(claude, { depth: 10, showHidden: true })).not.toContain(
@@ -134,7 +134,7 @@ describe('ClaudeProvider: construcción', () => {
 });
 
 describe('ClaudeProvider.generateStructured', () => {
-  it('envía la petición con output_config.format y valida la respuesta', async () => {
+  it('sends the request with output_config.format and validates the response', async () => {
     const { claude, calls } = provider(() => message(validText));
 
     const result = await claude.generateStructured(request);
@@ -177,7 +177,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('ignora ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN y ANTHROPIC_BASE_URL del entorno', async () => {
+  it('ignores ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN and ANTHROPIC_BASE_URL from the environment', async () => {
     vi.stubEnv('ANTHROPIC_API_KEY', 'sk-ant-env');
     vi.stubEnv('ANTHROPIC_AUTH_TOKEN', 'token-env');
     vi.stubEnv('ANTHROPIC_BASE_URL', 'https://evil.example');
@@ -190,7 +190,7 @@ describe('ClaudeProvider.generateStructured', () => {
     expect(calls[0]?.headers.get('authorization')).toBeNull();
   });
 
-  it('omite system cuando no se indica', async () => {
+  it('omits system when not given', async () => {
     const { claude, calls } = provider(() => message(validText));
     await claude.generateStructured({
       prompt: 'hola',
@@ -203,7 +203,7 @@ describe('ClaudeProvider.generateStructured', () => {
   it.each([
     [401, 'authentication_error'],
     [403, 'permission_error'],
-  ])('HTTP %i → AUTH no reintentable', async (status, type) => {
+  ])('HTTP %i → non-retryable AUTH', async (status, type) => {
     const { claude } = provider(() => apiError(status, type));
     const result = await claude.generateStructured(request);
     expect(result).toEqual({
@@ -217,7 +217,7 @@ describe('ClaudeProvider.generateStructured', () => {
     expect(JSON.stringify(result)).not.toContain(API_KEY);
   });
 
-  it('HTTP 429 → RATE_LIMIT con retryAfterMs de retry-after', async () => {
+  it('HTTP 429 → RATE_LIMIT with retryAfterMs from retry-after', async () => {
     const { claude } = provider(() =>
       apiError(429, 'rate_limit_error', { 'retry-after': '7' }),
     );
@@ -232,7 +232,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('HTTP 429 sin cabecera → RATE_LIMIT sin retryAfterMs', async () => {
+  it('HTTP 429 without header → RATE_LIMIT without retryAfterMs', async () => {
     const { claude } = provider(() => apiError(429, 'rate_limit_error'));
     const result = await claude.generateStructured(request);
     expect(result.ok ? null : result.error).toEqual({
@@ -246,7 +246,7 @@ describe('ClaudeProvider.generateStructured', () => {
     [500, 'api_error'],
     [529, 'overloaded_error'],
   ])(
-    'HTTP %i → PROVIDER_DOWN reintentable, sin reintentos internos del SDK',
+    'HTTP %i → retryable PROVIDER_DOWN, without internal SDK retries',
     async (status, type) => {
       const { claude, fetch } = provider(() => apiError(status, type));
       const result = await claude.generateStructured(request);
@@ -262,7 +262,7 @@ describe('ClaudeProvider.generateStructured', () => {
     },
   );
 
-  it('HTTP 400 → PROVIDER_DOWN no reintentable, con el detalle de la API', async () => {
+  it('HTTP 400 → non-retryable PROVIDER_DOWN, with the API detail', async () => {
     const { claude } = provider(() =>
       json(400, {
         type: 'error',
@@ -281,7 +281,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('error de red → OFFLINE', async () => {
+  it('network error → OFFLINE', async () => {
     const { claude } = provider(() => {
       throw new TypeError('fetch failed');
     });
@@ -291,7 +291,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('timeout propio con AbortSignal → TIMEOUT reintentable', async () => {
+  it('own timeout with AbortSignal → retryable TIMEOUT', async () => {
     const { claude } = provider(
       (_call, init) =>
         new Promise<Response>((_resolve, reject) => {
@@ -311,7 +311,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('cancelación del llamador → TIMEOUT no reintentable', async () => {
+  it('caller cancellation → non-retryable TIMEOUT', async () => {
     const controller = new AbortController();
     const { claude } = provider(
       (_call, init) =>
@@ -351,7 +351,7 @@ describe('ClaudeProvider.generateStructured', () => {
           kind,
           retryable,
           message: expect.any(String),
-          // Se conserva la respuesta para auditoría y para AIResponseValidator.
+          // The response is kept for audit and for AIResponseValidator.
           rawText: validText,
           usage: { inputTokens: 21, outputTokens: 9 },
           model: 'claude-haiku-4-5-20251001',
@@ -361,7 +361,7 @@ describe('ClaudeProvider.generateStructured', () => {
     },
   );
 
-  it('max_tokens → INCOMPLETE aunque el texto cortado no sea JSON válido', async () => {
+  it('max_tokens → INCOMPLETE even if the cut-off text is not valid JSON', async () => {
     const cut = '{"status": "ok", "model": "clau';
     const { claude } = provider(() => message(cut, 'max_tokens'));
     const result = await claude.generateStructured(request);
@@ -394,7 +394,7 @@ describe('ClaudeProvider.generateStructured', () => {
     });
   });
 
-  it('una petición de análisis real envía el JSON Schema de ai-assessment/v1 y max_tokens de la tarea', async () => {
+  it('a real analysis request sends the ai-assessment/v1 JSON Schema and the task max_tokens', async () => {
     const { claude, calls } = provider(() => message(validText));
     await claude.generateStructured(
       buildAnalysisRequest('{"schema":"cybersoc.ai-context/v1"}'),
@@ -409,7 +409,7 @@ describe('ClaudeProvider.generateStructured', () => {
 });
 
 describe('ClaudeProvider.healthCheck', () => {
-  it('consulta el modelo configurado sin gastar tokens', async () => {
+  it('queries the configured model without spending tokens', async () => {
     const { claude, calls } = provider(() =>
       json(200, {
         type: 'model',
@@ -430,7 +430,7 @@ describe('ClaudeProvider.healthCheck', () => {
     expect(calls[0]?.headers.get('x-api-key')).toBe(API_KEY);
   });
 
-  it('clave inválida → AUTH', async () => {
+  it('invalid key → AUTH', async () => {
     const { claude } = provider(() => apiError(401, 'authentication_error'));
     const result = await claude.healthCheck();
     expect(result.ok ? null : result.error.kind).toBe('AUTH');
@@ -438,7 +438,7 @@ describe('ClaudeProvider.healthCheck', () => {
 });
 
 describe('parseRetryAfterMs', () => {
-  it('interpreta retry-after-ms, segundos y fecha HTTP', () => {
+  it('interprets retry-after-ms, seconds and HTTP date', () => {
     const now = Date.parse('2026-10-01T15:00:00Z');
     expect(
       parseRetryAfterMs(new Headers({ 'retry-after-ms': '1500' }), now),
@@ -461,7 +461,7 @@ describe('parseRetryAfterMs', () => {
 });
 
 describe('toClaudeJsonSchema', () => {
-  it('conserva la estructura y quita lo que las salidas estructuradas no admiten', () => {
+  it('keeps the structure and removes what structured outputs do not support', () => {
     const schema = z.object({
       pattern: z.string().regex(/^a+$/),
       score: z.number().int().min(0).max(100),
@@ -506,7 +506,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     maxTokens: 512,
   };
 
-  it('envía system y mensajes sin herramientas ni salida estructurada, y devuelve el texto', async () => {
+  it('sends system and messages without tools or structured output, and returns the text', async () => {
     const { claude, calls } = provider(() => message('Fue marcado por ev1.'));
     const result = await claude.runAssistantTurn({
       ...turn,
@@ -533,13 +533,13 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     expect(body).not.toHaveProperty('output_config');
   });
 
-  it('usa el modelo del proveedor si el turno no indica otro', async () => {
+  it('uses the provider model if the turn gives no other', async () => {
     const { claude, calls } = provider(() => message('ok'));
     await claude.runAssistantTurn(turn);
     expect((calls[0]!.body as { model: string }).model).toBe(MODEL);
   });
 
-  it('copia solo role y content de cada mensaje', async () => {
+  it('copies only role and content of each message', async () => {
     const { claude, calls } = provider(() => message('ok'));
     const extra = { role: 'user' as const, content: 'hola', secreto: 'x' };
     await claude.runAssistantTurn({ ...turn, messages: [extra] });
@@ -548,7 +548,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     ]);
   });
 
-  it('rechaza una conversación vacía o que no termina en el usuario', async () => {
+  it('rejects an empty conversation or one not ending with the user', async () => {
     const { claude, fetch } = provider(() => message('ok'));
     await expect(
       claude.runAssistantTurn({ ...turn, messages: [] }),
@@ -574,7 +574,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     expect(JSON.stringify(result)).not.toContain(API_KEY);
   });
 
-  it('error de red → OFFLINE', async () => {
+  it('network error → OFFLINE', async () => {
     const { claude } = provider(() => {
       throw new TypeError('fetch failed');
     });
@@ -582,7 +582,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     expect(result).toMatchObject({ ok: false, error: { kind: 'OFFLINE' } });
   });
 
-  it('max_tokens → INCOMPLETE conservando el texto cortado', async () => {
+  it('max_tokens → INCOMPLETE keeping the cut-off text', async () => {
     const { claude } = provider(() => message('Respuesta a me', 'max_tokens'));
     const result = await claude.runAssistantTurn(turn);
     expect(result).toMatchObject({
@@ -597,7 +597,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     expect(result).toMatchObject({ ok: false, error: { kind: 'UNSAFE' } });
   });
 
-  it('texto vacío → INVALID_OUTPUT', async () => {
+  it('empty text → INVALID_OUTPUT', async () => {
     const { claude } = provider(() => message('   '));
     const result = await claude.runAssistantTurn(turn);
     expect(result).toMatchObject({
@@ -606,7 +606,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
     });
   });
 
-  it('cancelación del llamador → TIMEOUT no reintentable', async () => {
+  it('caller cancellation → non-retryable TIMEOUT', async () => {
     const controller = new AbortController();
     const { claude } = provider(
       (_call, init) =>
@@ -628,7 +628,7 @@ describe('ClaudeProvider.runAssistantTurn', () => {
   });
 });
 
-describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida estructurada (S5)', () => {
+describe('ClaudeProvider.runAssistantTurn with strict tools and structured output (S5)', () => {
   const Output = z.strictObject({ answer: z.string().min(1) });
   const tool = {
     name: 'get_result_detail',
@@ -683,7 +683,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     });
   }
 
-  it('envía tools con strict: true y output_config.format en la MISMA petición', async () => {
+  it('sends tools with strict: true and output_config.format in the SAME request', async () => {
     const { claude, calls } = provider(() => message('{"answer":"ok"}'));
     await claude.runAssistantTurn(turn);
     const body = calls[0]!.body as {
@@ -707,7 +707,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
       required: ['answer'],
       additionalProperties: false,
     });
-    // El esquema de la herramienta llega limpio: sin longitudes ni patrones y sin uniones anidadas.
+    // The tool schema arrives clean: no lengths or patterns and no nested unions.
     expect(body.tools[0]!.input_schema).toEqual({
       type: 'object',
       properties: {
@@ -719,7 +719,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     });
   });
 
-  it('stop_reason tool_use → TOOL_CALLS con las llamadas y el contenido para reenviar', async () => {
+  it('stop_reason tool_use → TOOL_CALLS with the calls and the content to resend', async () => {
     const { claude } = provider(() => toolUse());
     const result = await claude.runAssistantTurn(turn);
     expect(result).toMatchObject({
@@ -747,7 +747,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     });
   });
 
-  it('reenvía tool_use y tool_result (con is_error) en el formato de la API', async () => {
+  it('resends tool_use and tool_result (with is_error) in the API format', async () => {
     const { claude, calls } = provider(() => message('{"answer":"listo"}'));
     const history = [
       { role: 'user' as const, content: 'pregunta' },
@@ -785,7 +785,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     );
   });
 
-  it('end_turn → FINAL validado con el esquema de salida', async () => {
+  it('end_turn → FINAL validated with the output schema', async () => {
     const { claude } = provider(() =>
       message('{"answer":"Fue por ev1 (SIGNATURES)."}'),
     );
@@ -815,7 +815,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     });
   });
 
-  it("toolChoice 'none' (fase 2): herramientas solo declaradas, sin strict, y tool_choice none", async () => {
+  it("toolChoice 'none' (phase 2): tools only declared, without strict, and tool_choice none", async () => {
     const { claude, calls } = provider(() => message('{"answer":"ok"}'));
     await claude.runAssistantTurn({ ...turn, toolChoice: 'none' });
     const body = calls[0]!.body as {
@@ -828,7 +828,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     expect(body.output_config).toBeDefined();
   });
 
-  it('fase 1 (sin output): herramientas estrictas y sin output_config ni tool_choice', async () => {
+  it('phase 1 (without output): strict tools and no output_config or tool_choice', async () => {
     const { claude, calls } = provider(() => message('Texto libre.'));
     const result = await claude.runAssistantTurn({
       system: 's',
@@ -846,7 +846,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
     });
   });
 
-  it('tool_use sin herramientas declaradas → INVALID_OUTPUT', async () => {
+  it('tool_use without declared tools → INVALID_OUTPUT', async () => {
     const { claude } = provider(() => toolUse());
     await expect(
       claude.runAssistantTurn({
@@ -859,7 +859,7 @@ describe('ClaudeProvider.runAssistantTurn con herramientas estrictas y salida es
 });
 
 describe('toClaudeToolSchema', () => {
-  it('aplana uniones anidadas, quita duplicados de null y conserva enums', () => {
+  it('flattens nested unions, removes null duplicates and keeps enums', () => {
     expect(
       toClaudeToolSchema({
         type: 'object',

@@ -44,8 +44,8 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-describe('Migración 006 y ConversationRepository con BD temporal', () => {
-  it('migra desde 005 sin perder datos y es idempotente', () => {
+describe('Migration 006 and ConversationRepository with a temporary DB', () => {
+  it('migrates from 005 without losing data and is idempotent', () => {
     const old = new Database(join(root, 'old.db'));
     try {
       new MigrationRunner(old, [
@@ -84,7 +84,7 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
     }
   });
 
-  it('guarda mensajes, llamadas y resultados de herramientas, modelo y tokens sin alterar el JSON', () => {
+  it('stores messages, tool calls and results, model and tokens without altering the JSON', () => {
     const conversation = repo.create('Prueba con ñ');
     const calls = '[ { "id": "call-1", "name": "listResults", "input": {} } ]';
     repo.append(conversation.id, [
@@ -135,7 +135,7 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
     ]);
   });
 
-  it('respeta claves foráneas, roles y borrado en cascada', () => {
+  it('respects foreign keys, roles and cascading delete', () => {
     const id = repo.create().id;
     const insert = db.prepare(
       'INSERT INTO ai_messages (id,conversation_id,role,content,created_at) VALUES (?,?,?,?,?)',
@@ -150,7 +150,7 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
     );
   });
 
-  it('revierte el lote completo y updated_at si un mensaje es inválido', () => {
+  it('reverts the whole batch and updated_at if a message is invalid', () => {
     const initial = repo.create();
     for (const invalid of [
       { inputTokens: -1 },
@@ -168,7 +168,7 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
     }
   });
 
-  it('ordena por actualización, desempata de forma estable y pagina', () => {
+  it('sorts by update, breaks ties stably and pages', () => {
     vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(
       '2026-10-02T12:00:00.000Z',
     );
@@ -186,9 +186,9 @@ describe('Migración 006 y ConversationRepository con BD temporal', () => {
   });
 });
 
-describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
-  it('conserva 12 turnos al reiniciar y carga solo los últimos 10 en la Queue y el proveedor', async () => {
-    // Fechas idénticas: debe prevalecer el orden de inserción, nunca el UUID aleatorio.
+describe('AssistantOrchestrator: storing and recovering conversations', () => {
+  it('keeps 12 turns on restart and loads only the last 10 into the Queue and provider', async () => {
+    // Identical dates: insertion order must prevail, never the random UUID.
     vi.spyOn(Date.prototype, 'toISOString').mockReturnValue(
       '2026-10-02T12:00:00.000Z',
     );
@@ -236,7 +236,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     ).toMatchObject({ n: 26 });
   });
 
-  it('nueva conversación conserva el historial y un ID inexistente no modifica la activa', async () => {
+  it('new conversation keeps the history and a nonexistent ID does not modify the active one', async () => {
     const fake = new FakeAIProvider()
       .enqueueFinal(final('A1'))
       .enqueueFinal(final('B1'));
@@ -258,7 +258,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     ]);
   });
 
-  it('guarda la pregunta sin contexto ni errores internos cuando no hay respuesta de IA', async () => {
+  it('stores the question without context or internal errors when there is no AI response', async () => {
     const fake = new FakeAIProvider().enqueueReplyError('OFFLINE', {
       message: 'error-interno-privado',
     });
@@ -280,7 +280,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     ]);
   });
 
-  it('una pregunta inválida no crea conversaciones vacías', async () => {
+  it('an invalid question creates no empty conversations', async () => {
     const assistant = makeAssistant();
     await expect(assistant.ask({ message: ' ' })).rejects.toThrow();
     await expect(
@@ -289,7 +289,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     expect(assistant.listConversations()).toEqual([]);
   });
 
-  it('los intentos sin respuesta no expulsan pares completos al reabrir', async () => {
+  it('attempts without a response do not evict complete pairs on reopen', async () => {
     const fake = new FakeAIProvider();
     const assistant = makeAssistant(fake);
     for (let i = 0; i < 10; i++) {
@@ -306,7 +306,7 @@ describe('AssistantOrchestrator: guardar y recuperar conversaciones', () => {
     expect(assistant.turns()).toEqual(before);
   });
 
-  it('al abrir otra conversación cancela la respuesta tardía y las preguntas aún en cola', async () => {
+  it('opening another conversation cancels the late response and questions still queued', async () => {
     const target = repo.create('destino').id;
     repo.append(target, [
       { role: 'user', content: 'guardada' },

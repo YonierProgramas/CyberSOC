@@ -25,7 +25,7 @@ const python = join(
   process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
 );
 it.skipIf(!existsSync(python))(
-  'ejemplo de reporte: fixtures benignos del generador, motor real y tres formatos',
+  'report example: benign generator fixtures, real engine and three formats',
   () => {
     const root = mkdtempSync(join(tmpdir(), 'cybersoc-report-example-'));
     const db = new Database(join(root, 'example.db'));

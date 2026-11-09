@@ -14,9 +14,9 @@ const prefixes = [
 const trie = new PathTrie<number>();
 prefixes.forEach((prefix, i) => trie.insert(prefix, i + 1));
 
-// Alternativa lineal: el primer prefijo válido de la lista ordenada por longitud
-// es el más específico. Preparar p prefijos cuesta O(p log p) comparaciones;
-// consultar cuesta O(p * L) en el peor caso (L caracteres de comparación).
+// Linear alternative: the first valid prefix of the list sorted by length
+// is the most specific one. Preparing p prefixes costs O(p log p) comparisons;
+// a lookup costs O(p * L) worst case (L comparison characters).
 const ordered = prefixes
   .map((prefix, i) => {
     const normalized = win32.normalize(prefix).toLowerCase();
@@ -37,7 +37,7 @@ function listMatch(path: string): number | undefined {
 }
 
 // Corpus determinista: zonas hermanas, anidamiento, coincidencias parciales,
-// otra unidad y variantes de escritura. No se lee ni escribe ningún fixture.
+// another drive and spelling variants. No fixture is read or written.
 const paths = Array.from({ length: classifications }, (_, i) => {
   const zone = i % 256;
   switch (i % 5) {
@@ -55,7 +55,7 @@ const paths = Array.from({ length: classifications }, (_, i) => {
 });
 
 let expectedChecksum = 0;
-// Antes de medir, comprobamos cada resultado, no solo la suma de resultados.
+// Before measuring, we check every result, not just the sum of results.
 for (const path of paths) {
   const value = listMatch(path);
   assert.equal(trie.longestPrefixMatch(path), value, path);
@@ -74,7 +74,7 @@ function measure(classify: Classifier): number {
   return elapsed;
 }
 
-// Calentamiento equivalente y orden alternado para reducir el sesgo del JIT.
+// Equivalent warm-up and alternating order to reduce JIT bias.
 for (const path of paths.slice(0, 5_000)) {
   trieMatch(path);
   listMatch(path);
@@ -101,16 +101,16 @@ console.log('Fecha UTC:', new Date().toISOString());
 console.log('Entorno:', process.platform, process.arch, process.version);
 console.log('CPU:', cpus()[0]?.model ?? 'desconocida');
 console.log('Prefijos:', prefixes.length);
-console.log('Clasificaciones por repetición y algoritmo:', classifications);
+console.log('Classifications per repetition and algorithm:', classifications);
 console.log('Repeticiones:', repetitions, '(mediana; orden alternado)');
-console.log(
-  'Normalización incluida; construcción, corpus y validación excluidos.',
-);
-console.log('Equivalencia: PASS, 100000 resultados idénticos.');
+console.log('Normalization included; build, corpus and validation excluded.');
+console.log('Equivalence: PASS, 100000 identical results.');
 console.log('Checksum:', expectedChecksum);
 console.log('PathTrie (ms):', trieTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Lista (ms):', listTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Mediana PathTrie:', trieMs.toFixed(3), 'ms');
 console.log('Mediana lista:', listMs.toFixed(3), 'ms');
-console.log('Relación lista/Trie:', (listMs / trieMs).toFixed(2) + 'x');
-console.log('Medición sintética; no garantiza una ventaja con pocas zonas.');
+console.log('List/Trie ratio:', (listMs / trieMs).toFixed(2) + 'x');
+console.log(
+  'Synthetic measurement; does not guarantee an advantage with few zones.',
+);

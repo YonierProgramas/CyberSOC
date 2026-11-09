@@ -72,7 +72,7 @@ export const scanJobsPageQuerySchema = z
       .array(jobStatusSchema)
       .max(7)
       .refine((values) => {
-        // Set: una entrada por estado. Construcción O(n), memoria O(n); n ≤ 7.
+        // Set: one entry per status. O(n) build, O(n) memory; n ≤ 7.
         return new Set(values).size === values.length;
       })
       .optional(),

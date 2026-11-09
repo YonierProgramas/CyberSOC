@@ -38,7 +38,7 @@ export type RiskAssessmentRecord = z.output<typeof assessmentSchema>;
 export class RiskAssessmentRepository {
   constructor(private readonly database: Database) {}
 
-  /** Reevalúa los resultados conocidos del hash confirmado, conservando los hechos del motor. */
+  /** Re-evaluates known results of the confirmed hash, keeping the engine facts. */
   applyAllowlist(sha256: string): void {
     if (!new AllowlistRepository(this.database).has(sha256)) return;
     this.database.transaction(() => {
@@ -79,7 +79,7 @@ export class RiskAssessmentRepository {
     });
   }
 
-  // Guarda una decisión ya calculada por RiskPolicy; no infiere veredictos.
+  // Stores a decision already computed by RiskPolicy; it does not infer verdicts.
   insert(input: InsertRiskAssessment): RiskAssessmentRecord {
     const item = assessmentSchema.parse(input);
     this.database

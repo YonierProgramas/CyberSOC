@@ -57,8 +57,8 @@ let fake: FakeAIProvider;
 let service: AISecurityService;
 let worker: AIAnalysisWorker;
 beforeEach(() => {
-  // Date/setTimeout controlan backoff y Retry-After. La fase check del worker
-  // es I/O real: no convertir setImmediate en un avance artificial del reloj.
+  // Date/setTimeout control backoff and Retry-After. The worker check phase
+  // is real I/O: do not turn setImmediate into an artificial clock advance.
   vi.useFakeTimers({
     toFake: [
       'Date',
@@ -151,7 +151,7 @@ function rows() {
   return db.prepare('SELECT * FROM ai_analyses ORDER BY rowid').all();
 }
 
-it('una regla con guiones llega intacta al proveedor real del servicio, sin modo evidencia', async () => {
+it('a hyphenated rule reaches the real service provider intact, without evidence mode', async () => {
   const id = seed(0, {
     evidence: [{ ...evidence, source: 'RULES', code: 'R-TEST-DOWNLOADER' }],
   });
@@ -169,13 +169,13 @@ async function flush(
 ) {
   const now = Date.now();
   await vi.advanceTimersByTimeAsync(0);
-  // Esperar el estado observado permite ejecutar check/I/O sin adelantar
-  // el reloj virtual: 4999+1 ms sigue siendo exactamente Retry-After=5000.
+  // Waiting for the observed state allows running check/I/O without advancing
+  // the virtual clock: 4999+1 ms is still exactly Retry-After=5000.
   await vi.waitFor(() => expect(ready()).toBe(true), { interval: 0 });
   expect(Date.now()).toBe(now);
 }
 
-it('contexto v1: top 20 estable, capas, desglose, historial y ningún contenido', () => {
+it('v1 context: stable top 20, layers, breakdown, history and no content', () => {
   seed();
   const id = seed(1, {
     evidence: Array.from({ length: 25 }, (_, i) => ({
@@ -208,7 +208,7 @@ it('contexto v1: top 20 estable, capas, desglose, historial y ningún contenido'
   );
 });
 
-it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto', async () => {
+it('stores response, exact context, tokens and decision without lowering the verdict', async () => {
   const id = seed();
   fake.enqueueValue(valid, {
     model: 'fake-version',
@@ -237,7 +237,7 @@ it('guarda respuesta, contexto exacto, tokens y decisión sin bajar el veredicto
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
 
-it('reintenta validación una vez con retroalimentación; registra ambos intentos', async () => {
+it('retries validation once with feedback; records both attempts', async () => {
   const id = seed();
   fake
     .enqueueRaw('{broken', {
@@ -262,7 +262,7 @@ it('reintenta validación una vez con retroalimentación; registra ambos intento
   });
 });
 
-it('al cerrar cancela la petición y deja PENDING sin registrar un fallo falso', async () => {
+it('on close cancels the request and leaves PENDING without recording a false failure', async () => {
   const id = seed();
   const request = vi.spyOn(fake, 'generateStructured').mockImplementation(
     async (req) =>
@@ -297,7 +297,7 @@ it('al cerrar cancela la petición y deja PENDING sin registrar un fallo falso',
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
 
-it('un suscriptor que lanza no interrumpe el análisis ni los otros suscriptores', async () => {
+it('a throwing subscriber interrupts neither the analysis nor other subscribers', async () => {
   const id = seed();
   fake.enqueueValue(valid);
   worker.on('ai:resultUpdated', () => {
@@ -316,7 +316,7 @@ it('un suscriptor que lanza no interrumpe el análisis ni los otros suscriptores
   expect(worker.state.paused).toBe(false);
 });
 
-it('no cita evidencias fuera del top 20 y conserva empates en orden del motor', async () => {
+it('cites no evidence outside the top 20 and keeps ties in engine order', async () => {
   const id = seed(0, {
     evidence: Array.from({ length: 21 }, (_, i) => ({
       ...evidence,
@@ -345,7 +345,7 @@ it('no cita evidencias fuera del top 20 y conserva empates en orden del motor', 
   expect(rows()[0]!.context_json).not.toContain('factura.pdf');
 });
 
-it('segundo fallo queda INVALID y una salida insegura se descarta sin reintento', async () => {
+it('second failure stays INVALID and an unsafe output is discarded without retry', async () => {
   const id = seed();
   fake.enqueueRaw('{}').enqueueRaw('{}');
   expect(await service.analyze(id)).toEqual({ status: 'INVALID' });
@@ -357,7 +357,7 @@ it('segundo fallo queda INVALID y una salida insegura se descarta sin reintento'
   expect(rows()[2]!.validation_status).toBe('UNSAFE');
 });
 
-it('INCOMPLETE permite solo un reintento con más tokens', async () => {
+it('INCOMPLETE allows only one retry with more tokens', async () => {
   const id = seed();
   fake.enqueueRaw('{cut', { stopReason: 'max_tokens' }).enqueueValue(valid);
   await service.analyze(id);
@@ -368,7 +368,7 @@ it('INCOMPLETE permite solo un reintento con más tokens', async () => {
   expect(rows()[0]!.validation_status).toBe('INCOMPLETE');
 });
 
-it('rollback del intento y estado si falla el guardado de la evaluación', async () => {
+it('rollback of the attempt and status if saving the assessment fails', async () => {
   const id = seed();
   fake.enqueueValue(valid);
   db.exec(
@@ -380,7 +380,7 @@ it('rollback del intento y estado si falla el guardado de la evaluación', async
   expect(new RiskAssessmentRepository(db).get(id)?.aiOpinion).toBeNull();
 });
 
-it('sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async () => {
+it('no duplicates, event and manual trigger of a CLEAN without evidence', async () => {
   const first = seed();
   const second = seed(1, { clean: true });
   fake.enqueueValue(valid).enqueueValue({
@@ -406,7 +406,7 @@ it('sin duplicados, evento y disparo manual de un CLEAN sin evidencia', async ()
   expect(events).toContain(`${second}:COMPLETED`);
 });
 
-it('429 respeta retryAfterMs y no adelanta el segundo archivo', async () => {
+it('429 respects retryAfterMs and does not advance the second file', async () => {
   const first = seed();
   const second = seed(1);
   fake
@@ -419,7 +419,7 @@ it('429 respeta retryAfterMs y no adelanta el segundo archivo', async () => {
   await flush(() => store.results.get(first)?.aiStatus === 'RETRY_WAIT');
   expect(store.results.get(first)?.aiStatus).toBe('RETRY_WAIT');
   await vi.advanceTimersByTimeAsync(4999);
-  worker.resume(); // Un healthCheck exitoso no debe saltarse Retry-After.
+  worker.resume(); // A successful healthCheck must not skip Retry-After.
   expect(fake.requests).toHaveLength(1);
   await vi.advanceTimersByTimeAsync(1);
   await flush();
@@ -427,7 +427,7 @@ it('429 respeta retryAfterMs y no adelanta el segundo archivo', async () => {
   expect(rows().map((r) => r.result_id)).toEqual([first, first, second]);
 });
 
-it('401 pausa NOT_CONFIGURED sin reintentos hasta resume', async () => {
+it('401 pauses NOT_CONFIGURED without retries until resume', async () => {
   const first = seed();
   const second = seed(1);
   fake.enqueueError('AUTH').enqueueValue(valid).enqueueValue(valid);
@@ -444,7 +444,7 @@ it('401 pausa NOT_CONFIGURED sin reintentos hasta resume', async () => {
   expect(fake.requests).toHaveLength(3);
 });
 
-it('timeout usa backoff y tres fallos consecutivos abren el circuito 60 segundos', async () => {
+it('timeout uses backoff and three consecutive failures open the circuit for 60 seconds', async () => {
   const id = seed();
   fake
     .enqueueError('TIMEOUT')
@@ -468,7 +468,7 @@ it('timeout usa backoff y tres fallos consecutivos abren el circuito 60 segundos
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
 
-it('sin red: tres reintentos, UNAVAILABLE y pausa; resume conserva el pendiente', async () => {
+it('no network: three retries, UNAVAILABLE and pause; resume keeps the pending item', async () => {
   const id = seed();
   for (let i = 0; i < 4; i++) fake.enqueueError('OFFLINE');
   fake.enqueueValue(valid);
@@ -484,7 +484,7 @@ it('sin red: tres reintentos, UNAVAILABLE y pausa; resume conserva el pendiente'
   expect(store.results.get(id)?.aiStatus).toBe('COMPLETED');
 });
 
-it('reiniciar recupera PENDING, RETRY_WAIT y un RUNNING interrumpido', async () => {
+it('restart recovers PENDING, RETRY_WAIT and an interrupted RUNNING', async () => {
   for (const [i, state] of (
     ['PENDING', 'RETRY_WAIT', 'RUNNING'] as const
   ).entries()) {
@@ -507,7 +507,7 @@ it('reiniciar recupera PENDING, RETRY_WAIT y un RUNNING interrumpido', async () 
   expect(rows().map((r) => r.result_id)).toEqual(['job-0', 'job-1', 'job-2']);
 });
 
-it('tope persistido de 50 automáticos por trabajo; manual no consume ese tope', async () => {
+it('persisted cap of 50 automatic per job; manual does not consume that cap', async () => {
   for (let i = 0; i < 51; i++) {
     const id = seed(i);
     expect(worker.enqueueAutomatic(id)).toBe(i < 50);
@@ -521,7 +521,7 @@ it('tope persistido de 50 automáticos por trabajo; manual no consume ese tope',
   expect(worker.state.pending).toBe(1);
 });
 
-it('automatico incluye CLEAN con evidencia MEDIUM, y configuración puede reducir el tope', () => {
+it('automatic includes CLEAN with MEDIUM evidence, and configuration can lower the cap', () => {
   worker = new AIAnalysisWorker(service, () => 1);
   const id = seed(0, {
     clean: true,
@@ -531,7 +531,7 @@ it('automatico incluye CLEAN con evidencia MEDIUM, y configuración puede reduci
   expect(worker.enqueueAutomatic(seed(1))).toBe(false);
 });
 
-it('proveedor no configurado se registra sin red y sin alterar el veredicto', async () => {
+it('unconfigured provider is recorded without network and without altering the verdict', async () => {
   const id = seed();
   service = new AISecurityService(
     store,
@@ -549,7 +549,7 @@ it('proveedor no configurado se registra sin red y sin alterar el veredicto', as
   });
 });
 
-it('corregir la credencial recupera NOT_CONFIGURED incluso después de reiniciar', async () => {
+it('correcting the credential recovers NOT_CONFIGURED even after restarting', async () => {
   const id = seed();
   store.setStatus(id, 'NOT_CONFIGURED');
   worker.start();
@@ -562,7 +562,7 @@ it('corregir la credencial recupera NOT_CONFIGURED incluso después de reiniciar
 });
 
 it.each(['manual', 'reinicio'] as const)(
-  'prioridad: tres pendientes, primero el mayor riesgo (%s)',
+  'priority: three pending, highest risk first (%s)',
   async (mode) => {
     const low = seed(0, { score: 40 });
     const high = seed(1, { score: 90 });
@@ -590,7 +590,7 @@ it.each(['manual', 'reinicio'] as const)(
   },
 );
 
-it('empates usan llegada al worker, no el seq del resultado en SQLite', async () => {
+it('ties use arrival at the worker, not the SQLite result seq', async () => {
   const first = seed(2);
   const second = seed(0);
   const third = seed(1);
@@ -601,7 +601,7 @@ it('empates usan llegada al worker, no el seq del resultado en SQLite', async ()
   expect(rows().map((row) => row.result_id)).toEqual([first, second, third]);
 });
 
-it('una llegada prioritaria durante RUNNING no duplica ni retira el análisis equivocado', async () => {
+it('a priority arrival during RUNNING neither duplicates nor removes the wrong analysis', async () => {
   const current = seed(0);
   const low = seed(1);
   const high = seed(2, { verdict: 'DETECTED', score: 85 });
@@ -611,7 +611,7 @@ it('una llegada prioritaria durante RUNNING no duplica ni retira el análisis eq
   worker.once('ai:resultUpdated', () => {
     worker.analyzeNow(low);
     worker.analyzeNow(high);
-    worker.analyzeNow(current); // Sigue deduplicado mientras está en vuelo.
+    worker.analyzeNow(current); // Stays deduplicated while in flight.
     observedPending = worker.state.pending;
   });
   worker.start();
@@ -622,7 +622,7 @@ it('una llegada prioritaria durante RUNNING no duplica ni retira el análisis eq
   expect(worker.state.pending).toBe(0);
 });
 
-it('una prioridad nueva no evita Retry-After y se atiende después del reintento', async () => {
+it('a new priority does not skip Retry-After and is served after the retry', async () => {
   const current = seed(0);
   const low = seed(1);
   const high = seed(2, { verdict: 'DETECTED', score: 85 });
@@ -646,7 +646,7 @@ it('una prioridad nueva no evita Retry-After y se atiende después del reintento
   expect(worker.state.pending).toBe(0);
 });
 
-it('parar en vuelo conserva el trabajo aunque llegue uno más prioritario', async () => {
+it('stopping in flight keeps the job even if a higher-priority one arrives', async () => {
   const current = seed(0);
   const high = seed(1, { verdict: 'DETECTED', score: 85 });
   const original = fake.generateStructured.bind(fake);

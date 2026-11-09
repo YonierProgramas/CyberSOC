@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class AnalysisContext:
-    """Datos del mismo archivo abierto; las capas no necesitan abrir rutas."""
+    """Data of the same open file; layers do not need to open paths."""
 
     file: FileInfo
     prefix: bytes

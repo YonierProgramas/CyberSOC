@@ -61,7 +61,7 @@ function fieldPaths(
 ): string[][] {
   return Object.entries(object).flatMap(([key, value]) => {
     const path = [...prefix, key];
-    // facts es un diccionario abierto: sus claves particulares no son obligatorias.
+    // facts is an open dictionary: its particular keys are not mandatory.
     if (key === 'facts') return [path];
     return [
       path,
@@ -104,14 +104,14 @@ function mutate(
   return copy;
 }
 
-it('valida todos los archivos compartidos sin dejar ejemplos sin esquema', () => {
+it('validates all shared files without leaving examples without a schema', () => {
   expect(readdirSync(directory).sort()).toEqual(Object.keys(schemas).sort());
 });
 
 for (const [name, schema] of Object.entries(schemas)) {
   describe(name, () => {
     const example = load(name);
-    it('acepta el ejemplo en disco sin convertir ni eliminar campos', () => {
+    it('accepts the on-disk example without converting or removing fields', () => {
       expect(schema.parse(example)).toEqual(example);
     });
     for (const path of fieldPaths(example)) {
@@ -127,24 +127,24 @@ for (const [name, schema] of Object.entries(schemas)) {
             'result.scoreBreakdown',
           ].includes(path.join('.')));
       if (!optional) {
-        it(`rechaza eliminar ${path.join('.')}`, () => {
+        it(`rejects removing ${path.join('.')}`, () => {
           expect(
             schema.safeParse(mutate(example, path, 'delete')).success,
           ).toBe(false);
         });
       }
-      it(`rechaza tipo incorrecto en ${path.join('.')}`, () => {
+      it(`rejects wrong type in ${path.join('.')}`, () => {
         expect(schema.safeParse(mutate(example, path, 'type')).success).toBe(
           false,
         );
       });
     }
-    it('rechaza versiones de JSON-RPC distintas de 2.0', () => {
+    it('rejects JSON-RPC versions other than 2.0', () => {
       expect(schema.safeParse({ ...example, jsonrpc: '1.0' }).success).toBe(
         false,
       );
     });
-    it('rechaza mezclar peticion, resultado y error', () => {
+    it('rejects mixing request, result and error', () => {
       const extra =
         'method' in example
           ? { result: {} }
@@ -161,13 +161,13 @@ it.each([
   'engine.ping',
   'engine.shutdown',
   'engine.stats',
-] as const)('%s conserva el id de la peticion', (method) => {
+] as const)('%s keeps the request id', (method) => {
   expect(load(`${method}.response.json`).id).toEqual(
     load(`${method}.request.json`).id,
   );
 });
 
-it.each([1, '2', 2])('rechaza protocolo incompatible %s', (protocol) => {
+it.each([1, '2', 2])('rejects incompatible protocol %s', (protocol) => {
   expect(
     helloRequestSchema.safeParse({
       ...load('engine.hello.request.json'),
@@ -190,7 +190,7 @@ it.each([
   '2026-10-01T15:00:00+00:00',
   '2026-10-01T15:00Z',
   '2026-10-01T25:00:00Z',
-])('rechaza timestamp %s', (ts) => {
+])('rejects timestamp %s', (ts) => {
   expect(
     pingResponseSchema.safeParse({
       ...load('engine.ping.response.json'),
@@ -208,7 +208,7 @@ it.each([false, 1, 'true'])('shutdown exige true booleano: %s', (ok) => {
   ).toBe(false);
 });
 
-it('rechaza metodos, parametros, capacidades y codigos incorrectos', () => {
+it('rejects wrong methods, parameters, capabilities and codes', () => {
   expect(
     pingRequestSchema.safeParse({
       ...load('engine.ping.request.json'),

@@ -15,8 +15,8 @@ const heap = () => topK(items, k, score);
 const sort = () =>
   [...items].sort((a, b) => score(b) - score(a) || a.id - b.id).slice(0, k);
 const expected = sort();
-// Calentamiento y oráculo fuera del intervalo medido. Ambas rutas devuelven
-// los mismos diez objetos ordenados; sort incluye su copia, sin mutar el corpus.
+// Warm-up and oracle outside the measured interval. Both paths return
+// the same ten sorted objects; sort includes its copy, without mutating the corpus.
 for (let i = 0; i < 3; i++) {
   heap();
   sort();
@@ -61,18 +61,16 @@ console.log(
   '(3 calentamientos, orden alternado, mediana)',
 );
 console.log(
-  'Incluye selección y orden de salida; excluye creación del corpus y validación.',
+  'Includes selection and output sorting; excludes corpus creation and validation.',
 );
 console.log(
-  'Equivalencia: PASS en cada repetición. IDs:',
+  'Equivalence: PASS on each repetition. IDs:',
   expected.map((item) => item.id).join(', '),
 );
 console.log('Heap (ms):', heapTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Sort (ms):', sortTimes.map((ms) => ms.toFixed(3)).join(', '));
 console.log('Mediana heap:', heapMs.toFixed(3), 'ms');
 console.log('Mediana sort:', sortMs.toFixed(3), 'ms');
-console.log('Relación sort/heap:', (sortMs / heapMs).toFixed(2) + 'x');
+console.log('Sort/heap ratio:', (sortMs / heapMs).toFixed(2) + 'x');
 console.log('Heap: O(n log k), memoria O(k); sort: O(n log n), copia O(n).');
-console.log(
-  'Medición sintética local: no predice el tiempo de escaneo ni de IA.',
-);
+console.log('Local synthetic measurement: does not predict scan or AI time.');

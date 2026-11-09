@@ -1,9 +1,9 @@
 import { win32 } from 'node:path';
 
-/** Usa módulos del SO ya cargados por Windows (KnownDLLs), nunca PATH/cwd/env.
- * getReport solo construye un objeto en memoria: no se escribe ni registra el
- * informe completo, que podría contener variables privadas del proceso.
- * Búsqueda lineal O(n), memoria O(1) aparte del informe del runtime.
+/** Uses OS modules already loaded by Windows (KnownDLLs), never PATH/cwd/env.
+ * getReport only builds an in-memory object: the full report is neither written
+ * nor logged, since it could contain private process variables.
+ * Linear search O(n), O(1) memory aside from the runtime report.
  */
 export function windowsPowerShellPath(
   modules: readonly string[] = (

@@ -1,4 +1,4 @@
-"""Parser aislado: recibe bytes por stdin y devuelve solo metadatos JSON acotados."""
+"""Isolated parser: receives bytes via stdin and returns only bounded JSON metadata."""
 
 import json
 import sys
@@ -50,7 +50,7 @@ def main() -> None:
         result = {"data": parse_pe(data)}
     except Exception:
         result = {"error": "PE_MALFORMED"}
-    # Canal privado del auxiliar: nunca es el stdout JSON-RPC del servidor.
+    # Private helper channel: it is never the server JSON-RPC stdout.
     sys.stdout.write(json.dumps(result, ensure_ascii=True))
 
 

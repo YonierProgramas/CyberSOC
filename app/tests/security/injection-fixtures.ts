@@ -31,7 +31,7 @@ export const validPlan = {
   layerRationale: [],
 };
 
-/** BD y archivo testigo temporales. No hay motor, bóveda real ni rutas personales. */
+/** Temporary DB and witness file. No engine, real vault or personal paths. */
 export class InjectionHarness {
   readonly root = mkdtempSync(join(tmpdir(), 'cybersoc-t57-'));
   readonly db = new Database(join(this.root, 'security.db'));
@@ -103,7 +103,7 @@ export class InjectionHarness {
       sha256: '0'.repeat(64),
       sizeBytes: 16,
       vaultFile: this.sentinel,
-      // Valores ficticios: nunca se entregan claves reales al proveedor.
+      // Fake values: real keys are never handed to the provider.
       keyB64: 'TEST-KEY-NOT-REAL',
       ivB64: 'TEST-IV',
       authTagB64: 'TEST-TAG',
@@ -127,11 +127,11 @@ export class InjectionHarness {
       now: () => new Date(stamp),
     });
   }
-  /** Se permite guardar conversación; TODO el resto de SQLite debe ser idéntico. */
+  /** Storing the conversation is allowed; ALL the rest of SQLite must be identical. */
   snapshot() {
-    // 007 añade tarjetas al historial permitido, no al estado de seguridad.
-    // Verificarlas explícitamente antes de excluirlas del snapshot: cada respuesta
-    // final tiene exactamente una tarjeta válida/omitida y ninguna autoriza acciones.
+    // 007 adds cards to the allowed history, not to the security state.
+    // Verify them explicitly before excluding them from the snapshot: each final
+    // response has exactly one valid/omitted card and none authorizes actions.
     const cards = this.db
       .prepare(
         `SELECT c.*, m.role, m.tool_calls_json

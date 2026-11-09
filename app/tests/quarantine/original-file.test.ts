@@ -13,7 +13,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe.skipIf(process.platform !== 'win32')('auxiliar nativo aislado', () => {
-  it('carga el módulo incorporado sin heredar secretos ni interpolar la ruta', async () => {
+  it('loads the built-in module without inheriting secrets or interpolating the path', async () => {
     vi.stubEnv('CYBERSOC_ANTHROPIC_API_KEY', 'secret-sentinel');
     vi.stubEnv('GITHUB_TOKEN', 'token-sentinel');
     vi.stubEnv('PSModulePath', 'C:\\untrusted-modules');
@@ -60,15 +60,12 @@ describe.skipIf(process.platform !== 'win32')('auxiliar nativo aislado', () => {
     [4, 'DELETE_FAILED'],
     [5, 'DELETE_UNCERTAIN'],
     ['ETIMEDOUT', 'DELETE_UNCERTAIN'],
-  ])(
-    'mantiene el tratamiento conservador del error %s',
-    async (code, expected) => {
-      native.execFile.mockImplementation((...args: unknown[]) => {
-        (args[3] as (error: unknown) => void)({ code });
-      });
-      await expect(
-        deleteVerifiedOriginal('C:\\fixture.txt', 'a'.repeat(64)),
-      ).rejects.toMatchObject({ code: expected });
-    },
-  );
+  ])('keeps the conservative handling of error %s', async (code, expected) => {
+    native.execFile.mockImplementation((...args: unknown[]) => {
+      (args[3] as (error: unknown) => void)({ code });
+    });
+    await expect(
+      deleteVerifiedOriginal('C:\\fixture.txt', 'a'.repeat(64)),
+    ).rejects.toMatchObject({ code: expected });
+  });
 });

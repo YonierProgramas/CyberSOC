@@ -43,7 +43,7 @@ test.afterAll(async () => {
   await session?.app.close();
 });
 
-test('el inicio está vacío y el asistente cerrado', async () => {
+test('home is empty and the assistant closed', async () => {
   await session.page.getByTestId('nav-home').click();
   await expect(
     session.page.getByRole('heading', { name: 'Resumen' }),
@@ -56,7 +56,7 @@ test('el inicio está vacío y el asistente cerrado', async () => {
   await shot('dashboard-vacio.png', true);
 });
 
-test('cerrar el panel no borra el borrador', async () => {
+test('closing the panel does not delete the draft', async () => {
   await session.page.getByTestId('assistant-open').click();
   await expect(session.page.getByTestId('copilot-panel')).toHaveAttribute(
     'role',
@@ -75,7 +75,7 @@ test('cerrar el panel no borra el borrador', async () => {
   await session.page.getByTestId('assistant-close').click();
 });
 
-test('el historial vacío no se presenta como una lista completa', async () => {
+test('the empty history is not presented as a complete list', async () => {
   await session.page.getByTestId('nav-history').click();
   await expect(session.page.getByTestId('history-page-notice')).toHaveText(
     'No hay análisis guardados.',
@@ -83,7 +83,7 @@ test('el historial vacío no se presenta como una lista completa', async () => {
   await shot('historial-vacio.png', true);
 });
 
-test('un escaneo benigno alimenta el resumen y el historial', async () => {
+test('a benign scan feeds the summary and history', async () => {
   const folder = join(session.root, 'fixtures');
   await session.page.getByTestId('nav-scan').click();
   await pointDialog(session.app, folder);
@@ -108,7 +108,7 @@ test('un escaneo benigno alimenta el resumen y el historial', async () => {
   await shot('historial-con-datos.png', true);
 });
 
-test('el diálogo estrecho aísla el fondo y Escape devuelve el foco', async () => {
+test('the narrow dialog isolates the background and Escape returns the focus', async () => {
   await session.page.getByTestId('assistant-open').click();
   await session.page
     .getByTestId('copilot-message')
@@ -144,7 +144,7 @@ test('el diálogo estrecho aísla el fondo y Escape devuelve el foco', async () 
   await session.page.getByTestId('assistant-close').click();
 });
 
-test('el reflow a 1024 y la escala de página no tapan el resumen', async () => {
+test('reflow at 1024 and page zoom do not cover the summary', async () => {
   await session.page.getByTestId('nav-home').click();
   await resize(1024, 768);
   const wide = await session.page.evaluate(() => {

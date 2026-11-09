@@ -108,7 +108,7 @@ const errorKindSchema = z.enum([
   'UNSAFE',
   'TOOL_LIMIT',
 ]);
-/** La respuesta también se valida: al renderer solo llegan estos campos. */
+/** The response is validated too: only these fields reach the renderer. */
 export const assistantReplySchema = z.strictObject({
   status: z.enum(['ANSWERED', 'UNAVAILABLE', 'CANCELLED']),
   text: z.string(),
@@ -151,10 +151,10 @@ export function registerAssistantIpc(
       validate(event);
       const [query] = askArguments.parse(args);
       const reply = await service.ask(query);
-      validate(event); // La ventana puede haberse cerrado o navegado durante la petición.
+      validate(event); // The window may have closed or navigated during the request.
       return assistantReplySchema.parse(reply);
     } catch {
-      // Nunca propagar el error original: puede contener la pregunta, rutas o un ZodError.
+      // Never propagate the original error: it may contain the question, paths or a ZodError.
       throw new Error('No se pudo completar la consulta al asistente.');
     }
   });

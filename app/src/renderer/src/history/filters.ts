@@ -29,7 +29,7 @@ export function historyFiltersActive(filters: HistoryFilters): boolean {
   );
 }
 
-/** El IPC de resultados solo pagina por trabajo. El filtro ocurre en la UI. */
+/** The results IPC only pages per job. Filtering happens in the UI. */
 export function resultMatchesFilters(
   result: ScanResultDTO,
   filters: HistoryFilters,

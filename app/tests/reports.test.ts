@@ -31,7 +31,7 @@ afterEach(() => {
   rmSync(root, { recursive: true, force: true });
 });
 
-it('reporte y cada filtro coinciden con SELECT independientes; solo lectura', () => {
+it('report and each filter match independent SELECTs; read-only', () => {
   const before = db.prepare('SELECT total_changes() AS n').get();
   for (const [filters, sql, params] of [
     [{}, '1=1', []],
@@ -99,7 +99,7 @@ it('reporte y cada filtro coinciden con SELECT independientes; solo lectura', ()
   expect(db.prepare('SELECT total_changes() AS n').get()).toEqual(before);
 });
 
-it('fechas normalizadas, límites inclusivos, filtros inválidos y trabajo inexistente', () => {
+it('normalized dates, inclusive limits, invalid filters and nonexistent job', () => {
   expect(
     builder.build({
       from: '2026-10-01T07:00:00-05:00',
@@ -115,7 +115,7 @@ it('fechas normalizadas, límites inclusivos, filtros inválidos y trabajo inexi
   expect(builder.build({ zone: 'TEMPORALES' }).total).toBe(0);
 });
 
-it('borrador estable, copias defensivas, caducidad y expulsión por capacidad', () => {
+it('stable draft, defensive copies, expiry and eviction by capacity', () => {
   let now = 1000;
   const cache = new ReportBuilder(db, {
     now: () => now,
@@ -141,7 +141,7 @@ it('borrador estable, copias defensivas, caducidad y expulsión por capacidad', 
   );
 });
 
-it('HTML escapado: el nombre <script>alert(1)</script>.exe nunca se interpreta como HTML', () => {
+it('escaped HTML: the name <script>alert(1)</script>.exe is never interpreted as HTML', () => {
   const draft = builder.build();
   builder.attachNarrative(draft.reportDraftId, {
     executiveSummary: '<svg onload=alert(4)>',
@@ -163,7 +163,7 @@ it('HTML escapado: el nombre <script>alert(1)</script>.exe nunca se interpreta c
   );
 });
 
-it('CSV conserva comas, comillas, saltos, Unicode y todas las secciones', () => {
+it('CSV keeps commas, quotes, line breaks, Unicode and all sections', () => {
   expect(csvCell('informe, "niño"\r\n😀')).toBe('"informe, ""niño""\r\n😀"');
   const csv = exportCsv(builder.build());
   expect(csv).toContain('"informe, ""niño"".txt"');
@@ -177,7 +177,7 @@ it('CSV conserva comas, comillas, saltos, Unicode y todas las secciones', () => 
   expect(csv.startsWith('\ufeff')).toBe(true);
 });
 
-it('JSON conserva el borrador íntegro y la IA no puede reemplazar datos ni inventar citas', () => {
+it('JSON keeps the full draft and the AI cannot replace data or invent citations', () => {
   const draft = builder.build();
   expect(JSON.parse(exportJson(draft))).toEqual(draft);
   expect(() =>
@@ -198,7 +198,7 @@ it('JSON conserva el borrador íntegro y la IA no puede reemplazar datos ni inve
   expect(builder.get(draft.reportDraftId)).toEqual(draft);
 });
 
-it('build_report devuelve ID exportable y el recorte de la herramienta no altera el borrador', async () => {
+it('build_report returns an exportable ID and the tool trim does not alter the draft', async () => {
   db.exec('PRAGMA query_only=OFF');
   const results = new ScanResultRepository(db);
   for (let i = 4; i < 35; i++)
@@ -247,7 +247,7 @@ it('build_report devuelve ID exportable y el recorte de la herramienta no altera
   ).toMatchObject({ ok: false, error: { code: 'INVALID_ARGUMENTS' } });
 });
 
-it('conserva únicamente el último análisis válido aunque cambie jobId de null a su trabajo', () => {
+it('keeps only the latest valid analysis even if jobId changes from null to its job', () => {
   db.exec('PRAGMA query_only=OFF');
   const analyses = new AIAnalysisRepository(db);
   for (const [id, validationStatus, day] of [

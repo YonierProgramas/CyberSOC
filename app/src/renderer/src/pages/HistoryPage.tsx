@@ -44,8 +44,8 @@ export function HistoryPage() {
   const selectedJobId = useRef<string | null>(null);
   const offsetRef = useRef(0);
   const queryRef = useRef(jobQuery);
-  // Conjunto: cada id entra una sola vez por filtro. Un alta es un id ausente;
-  // una actualización es un id ya listado. has/add son O(1) en promedio.
+  // Set: each id enters only once per filter. An addition is an absent id;
+  // an update is an already listed id. has/add are O(1) on average.
   const seenIds = useRef(new Set<string>());
   const matchedIds = useRef(new Set<string>());
   const appliedQuery = useRef(jobQuery);
@@ -110,8 +110,8 @@ export function HistoryPage() {
   const loadJobs = useCallback(
     (nextOffset: number, query: JobQuery, background = false) => {
       const token = ++pageToken.current;
-      // La revalidación conserva la página y sus metadatos visibles. Solo una
-      // navegación/filtro nuevo reemplaza la página por la carga inicial.
+      // Revalidation keeps the page and its visible metadata. Only a new
+      // navigation/filter replaces the page with the initial load.
       if (!background) setLoading(true);
       setFailed(false);
       if (!background) setJobs([]);
@@ -157,8 +157,8 @@ export function HistoryPage() {
   const showPage = useCallback((nextOffset: number) => {
     if (nextOffset === offsetRef.current) return;
     offsetRef.current = nextOffset;
-    // En el mismo render que el cambio de página: sin esto, hasta que el efecto
-    // de carga corría se pintaba «Análisis 21–40» junto a las filas 1–20 (R-UI-01).
+    // In the same render as the page change: without this, until the load
+    // effect ran, «Análisis 21–40» was painted next to rows 1–20 (R-UI-01).
     setLoading(true);
     setJobs([]);
     setOffset(nextOffset);

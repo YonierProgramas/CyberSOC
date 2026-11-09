@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { PathTrie } from '../src/core/structures/PathTrie';
 
-describe('PathTrie: zonas por segmentos Windows', () => {
-  it('vacío: no hay coincidencia ni prefijos', () => {
+describe('PathTrie: zones by Windows segments', () => {
+  it('empty: no match and no prefixes', () => {
     const trie = new PathTrie<string>();
     expect(trie.size).toBe(0);
     expect(trie.longestPrefixMatch('C:\\archivo.txt')).toBeUndefined();
   });
 
   it.each([false, true])(
-    'Temp prevalece sobre LocalAppData, independientemente del orden (%s)',
+    'Temp prevails over LocalAppData, regardless of the order (%s)',
     (reverse) => {
       const trie = new PathTrie<string>();
       const entries = [
@@ -37,13 +37,13 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     'c:/USERS\\Ana/Downloads\\\\factura.pdf',
     'C:\\Users\\Ana\\Downloads',
     'c:/users/ana/downloads/',
-  ])('normaliza mayúsculas, unidad y separadores: %s', (path) => {
+  ])('normalizes case, drive and separators: %s', (path) => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\Users\\Ana\\Downloads\\', 'DESCARGAS');
     expect(trie.longestPrefixMatch(path)).toBe('DESCARGAS');
   });
 
-  it('conserva ñ y tildes al comparar sin distinguir mayúsculas', () => {
+  it('keeps ñ and accents when comparing case-insensitively', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\Usuarios\\NIÑA\\Documentación', 'DOCUMENTOS');
     expect(
@@ -51,7 +51,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     ).toBe('DOCUMENTOS');
   });
 
-  it('no confunde prefijos parciales ni carpetas con nombres parecidos', () => {
+  it('does not confuse partial prefixes or similarly named folders', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\Win', 'CORTO');
     expect(trie.longestPrefixMatch('C:\\Windows\\x.dll')).toBeUndefined();
@@ -59,7 +59,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.longestPrefixMatch('C:\\Win\\x.dll')).toBe('CORTO');
   });
 
-  it('no devuelve nodos intermedios que no tienen un prefijo registrado', () => {
+  it('does not return intermediate nodes without a registered prefix', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\A\\B\\C', 'PROFUNDO');
     expect(trie.longestPrefixMatch('C:\\A\\B')).toBeUndefined();
@@ -67,14 +67,14 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.size).toBe(1);
   });
 
-  it('recuerda el último ancestro con valor al fallar una rama intermedia', () => {
+  it('remembers the last ancestor with a value when an intermediate branch fails', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\A', 'PADRE');
     trie.insert('C:\\A\\B\\C', 'HIJO');
     expect(trie.longestPrefixMatch('C:\\A\\B\\D\\x')).toBe('PADRE');
   });
 
-  it('aísla unidades y permite clasificar la raíz y cualquier descendiente', () => {
+  it('isolates drives and allows classifying the root and any descendant', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:/', 'UNIDAD_C');
     trie.insert('C:\\Windows', 'SISTEMA');
@@ -86,7 +86,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.longestPrefixMatch('E:\\Windows\\x')).toBeUndefined();
   });
 
-  it('actualiza un prefijo equivalente sin aumentar size', () => {
+  it('updates an equivalent prefix without increasing size', () => {
     const trie = new PathTrie<{ id: number }>();
     trie.insert('C:\\DATOS\\', { id: 1 });
     const replacement = { id: 2 };
@@ -95,7 +95,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.longestPrefixMatch('C:\\Datos\\x')).toBe(replacement);
   });
 
-  it('acepta valores falsy y undefined sin confundirlos con nodos vacíos', () => {
+  it('accepts falsy and undefined values without confusing them with empty nodes', () => {
     const trie = new PathTrie<number | boolean | null | undefined>();
     trie.insert('C:\\', 9);
     trie.insert('C:\\Cero', 0);
@@ -110,7 +110,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.longestPrefixMatch('C:\\Vacio\\x')).toBeUndefined();
   });
 
-  it('normaliza segmentos punto y punto-punto sin clasificar fuera de la zona', () => {
+  it('normalizes dot and dot-dot segments without classifying outside the zone', () => {
     const trie = new PathTrie<string>();
     trie.insert('C:\\Datos\\.\\Temp\\', 'TEMP');
     expect(trie.longestPrefixMatch('C:\\Datos\\Otro\\..\\Temp\\x')).toBe(
@@ -119,7 +119,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     expect(trie.longestPrefixMatch('C:\\Datos\\Temp\\..\\x')).toBeUndefined();
   });
 
-  it('aísla recursos UNC y admite su raíz como prefijo', () => {
+  it('isolates UNC shares and accepts their root as a prefix', () => {
     const trie = new PathTrie<string>();
     trie.insert('\\\\SERVIDOR\\Compartido', 'RED');
     trie.insert('//servidor/compartido/Temp', 'TEMP_RED');
@@ -141,7 +141,7 @@ describe('PathTrie: zonas por segmentos Windows', () => {
     '\\\\.\\C:\\Temp',
     'C:\\a\0b',
   ])(
-    'rechaza rutas ambiguas o de dispositivos sin modificar el trie: %j',
+    'rejects ambiguous or device paths without modifying the trie: %j',
     (path) => {
       const trie = new PathTrie<string>();
       expect(() => trie.insert(path, 'INVALIDA')).toThrow(TypeError);

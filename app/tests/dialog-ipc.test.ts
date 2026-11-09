@@ -15,7 +15,7 @@ vi.mock('electron', () => ({
 import { registerDialogIpc } from '../src/main/ipc/dialog.ipc';
 import { existingScanTarget } from '../src/main/ipc/scan-validation';
 
-describe('IPC de diálogos y validación de destinos', () => {
+describe('dialog IPC and target validation', () => {
   let directory: string;
   let file: string;
   const trustedUrl = 'file:///cybersoc/out/renderer/index.html';
@@ -52,7 +52,7 @@ describe('IPC de diálogos y validación de destinos', () => {
   it.each([
     ['dialog:selectFolder', 'openDirectory'],
     ['dialog:selectFile', 'openFile'],
-  ])('abre %s con padre y selección única', async (channel, property) => {
+  ])('opens %s with parent and single selection', async (channel, property) => {
     const selected = property === 'openDirectory' ? directory : file;
     electron.showOpenDialog.mockResolvedValueOnce({
       canceled: false,
@@ -65,7 +65,7 @@ describe('IPC de diálogos y validación de destinos', () => {
     );
   });
 
-  it('cancelar el diálogo devuelve null', async () => {
+  it('cancelling the dialog returns null', async () => {
     electron.showOpenDialog.mockResolvedValueOnce({
       canceled: true,
       filePaths: [],
@@ -73,7 +73,7 @@ describe('IPC de diálogos y validación de destinos', () => {
     await expect(handler('dialog:selectFile')(event)).resolves.toBeNull();
   });
 
-  it('rechaza argumentos y remitentes no autorizados antes del diálogo', async () => {
+  it('rejects unauthorized arguments and senders before the dialog', async () => {
     const call = handler('dialog:selectFile');
     await expect(call(event, 'unexpected')).rejects.toThrow();
     await expect(
@@ -87,7 +87,7 @@ describe('IPC de diálogos y validación de destinos', () => {
     expect(electron.showOpenDialog).not.toHaveBeenCalled();
   });
 
-  it('no entrega rutas si el renderer navegó mientras esperaba el diálogo', async () => {
+  it('delivers no paths if the renderer navigated while waiting for the dialog', async () => {
     electron.showOpenDialog.mockImplementationOnce(async () => {
       mainFrame.url = 'about:blank';
       return { canceled: false, filePaths: [file] };
@@ -97,7 +97,7 @@ describe('IPC de diálogos y validación de destinos', () => {
     );
   });
 
-  it('valida rutas absolutas, existentes y del tipo solicitado', async () => {
+  it('validates absolute, existing paths of the requested type', async () => {
     await expect(
       existingScanTarget({ kind: 'FILE', path: file }),
     ).resolves.toEqual({ kind: 'FILE', path: file });
@@ -116,7 +116,7 @@ describe('IPC de diálogos y validación de destinos', () => {
       await expect(existingScanTarget(input)).rejects.toThrow();
   });
 
-  it('elimina handlers al desmontar el registro', () => {
+  it('removes handlers when unmounting the registration', () => {
     registerDialogIpc(() => window, trustedUrl)();
     expect(electron.removeHandler.mock.calls).toEqual([
       ['dialog:selectFolder'],

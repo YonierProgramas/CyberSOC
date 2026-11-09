@@ -11,9 +11,9 @@ const MAX_CONDITIONS = 600;
 const SEVERITIES = new Set(['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
 
 /**
- * Lee una regla del motor (`engine/data/rules/*.yaml`) sin dependencias nuevas. Solo usa las
- * claves de primer nivel `id`, `description` y `severity`, y resume el bloque `conditions`
- * como texto: es información para get_rule_info, nunca se ejecuta ni se evalúa.
+ * Reads an engine rule (`engine/data/rules/*.yaml`) without new dependencies. It only uses the
+ * top-level keys `id`, `description` and `severity`, and summarizes the `conditions` block
+ * as text: it is information for get_rule_info and is never executed or evaluated.
  */
 export function parseRuleYaml(text: string): RuleInfo {
   const scalars = new Map<string, string>();
@@ -51,7 +51,7 @@ const signatureFileSchema = z.object({
   ),
 });
 
-/** Catálogo real del motor: reglas YAML y firmas JSON de `engine/data`. Solo lectura. */
+/** Real engine catalog: YAML rules and JSON signatures from `engine/data`. Read-only. */
 export function loadToolCatalog(engineDataDir: string): ToolCatalogRepository {
   const rulesDir = join(engineDataDir, 'rules');
   const rules = readdirSync(rulesDir)

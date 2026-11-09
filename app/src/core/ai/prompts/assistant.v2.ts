@@ -1,15 +1,15 @@
 import { buildDelimitedPrompt } from './delimited';
 
-/** Cambiar el texto del prompt exige una versión nueva. */
+/** Changing the prompt text requires a new version. */
 export const ASSISTANT_PROMPT_VERSION = 'assistant.v2';
 
-/** `max_tokens` de cada paso: la respuesta final puede incluir un reporte o un plan. */
+/** `max_tokens` of each step: the final response may include a report or a plan. */
 export const ASSISTANT_MAX_TOKENS = 2_048;
 
 /**
- * v2 = las reglas de v1 (idioma, datos no confiables, CyberSOC frente a conocimiento general,
- * capa de cada evidencia, sin afirmar acciones, sin pedidos ofensivos) + herramientas de
- * solo lectura, reportes, consulta de capas y planificador (proponer, nunca ejecutar).
+ * v2 = the v1 rules (language, untrusted data, CyberSOC versus general knowledge,
+ * layer of each evidence, no action claims, no offensive requests) + read-only
+ * tools, reports, layer queries and planner (propose, never execute).
  */
 export const ASSISTANT_SYSTEM_PROMPT = `Eres SOC Copilot, el asistente de CyberSOC Defender, un antivirus académico para Windows. Ayudas al usuario a entender sus escaneos y resultados con datos reales de CyberSOC.
 
@@ -74,13 +74,13 @@ Formato de la respuesta final
 - scanPlan: [{"schema": "cybersoc.scan-plan/v1", "targets": [{"zoneId": "...", "driveId": "..."}], "layers": ["HASH", "SIGNATURES", "..."], "includeHidden": true, "maxFileSizeMB": 512, "rationale": "...", "layerRationale": [{"layer": "...", "why": "..."}]}].
 - Si escribes otra cosa, CyberSOC te pedirá la respuesta final de nuevo, ya sin herramientas.`;
 
-/** Fase 2: CyberSOC pide la respuesta final estructurada (output_config.format, sin herramientas). */
+/** Phase 2: CyberSOC requests the structured final response (output_config.format, no tools). */
 export const FINAL_ANSWER_REQUEST =
   'CyberSOC necesita ahora tu respuesta final. Escríbela con el JSON del esquema, usando solo los datos del contexto y de los resultados de herramientas de esta conversación.';
 
 /**
- * Mensaje del usuario de cada pregunta: el foco entre <contexto>, la fecha de hoy (la pone el
- * Core, para "los sospechosos de hoy") y la pregunta. `focusJson` viene de `toPromptSafeJson`.
+ * User message of each question: the focus between <contexto>, today's date (set by the
+ * Core, for "los sospechosos de hoy") and the question. `focusJson` comes from `toPromptSafeJson`.
  */
 export function buildAssistantUserMessage(
   focusJson: string,
@@ -88,8 +88,8 @@ export function buildAssistantUserMessage(
   today: string,
   previousResultId?: string,
 ): string {
-  // El resultado del turno anterior lo pone el Core (es un ID, no texto de un archivo):
-  // así "estas dos detecciones" se refiere al foco actual y a ese resultado.
+  // The previous turn result is set by the Core (it is an ID, not file text):
+  // so "estas dos detecciones" refers to the current focus and that result.
   const previous = previousResultId
     ? `\nResultado del turno anterior (para "estos dos" o "estas dos"): ${previousResultId}`
     : '';
@@ -99,7 +99,7 @@ export function buildAssistantUserMessage(
   )}\n\nFecha de hoy (CyberSOC): ${today}${previous}\n\nPregunta del usuario:\n${question}`;
 }
 
-/** Retroalimentación del Core cuando descarta una respuesta final (mensajes del Core, no de la IA). */
+/** Core feedback when it rejects a final response (Core messages, not AI messages). */
 export function buildCorrectionMessage(errors: readonly string[]): string {
   return [
     'CyberSOC descartó tu respuesta final por estos motivos:',

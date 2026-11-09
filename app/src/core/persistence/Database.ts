@@ -30,10 +30,9 @@ export class Database {
   }
 
   transaction<T>(operation: () => T): T {
-    if (this.reading)
-      throw new Error('No se puede escribir durante una lectura.');
-    // Los repositorios pueden componer operaciones síncronas. Un SAVEPOINT no
-    // confirma la transacción exterior: solo el nivel cero hace COMMIT.
+    if (this.reading) throw new Error('Cannot write during a read.');
+    // Repositories may compose synchronous operations. A SAVEPOINT does not
+    // commit the outer transaction: only level zero issues COMMIT.
     const nested = this.transactionDepth > 0;
     const savepoint = `repository_${this.transactionDepth}`;
     this.exec(nested ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE');
@@ -61,16 +60,16 @@ export class Database {
     this.closed = true;
   }
 
-  /** Snapshot de SELECT síncronos. WAL permite otro escritor sin mezclar instantes.
-   * query_only impide DML/DDL por accidente; no sostiene una transacción durante await.
+  /** Snapshot of synchronous SELECTs. WAL allows another writer without mixing instants.
+   * query_only prevents accidental DML/DDL; it does not hold a transaction across await.
    */
   readTransaction<T>(operation: () => T): T {
     if (this.transactionDepth > 0)
-      throw new Error('La lectura requiere una transacción independiente.');
+      throw new Error('The read requires an independent transaction.');
     const run = () => {
       const result = operation();
       if (result && typeof (result as { then?: unknown }).then === 'function')
-        throw new TypeError('La lectura debe ser síncrona.');
+        throw new TypeError('The read must be synchronous.');
       return result;
     };
     if (this.reading) return run();

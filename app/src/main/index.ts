@@ -39,7 +39,7 @@ import { verifyResources } from './resource-integrity';
 import { startupFailureMessage } from './startup-failure';
 
 prepareAppProfile();
-// Ningún logger, motor, repositorio o migración escribe antes de este lock.
+// No logger, engine, repository or migration writes before this lock.
 if (!app.requestSingleInstanceLock()) app.exit(0);
 if (app.isPackaged && RELEASE)
   verifyResources(process.resourcesPath, RESOURCE_DIGEST);
@@ -94,7 +94,7 @@ app.on('before-quit', (event) => {
   ])
     .then((results) => {
       if (results.some((result) => result.status === 'rejected'))
-        console.error('No se pudo finalizar algún trabajo pendiente.');
+        console.error('Could not finish some pending work.');
     })
     .then(() => engine.close())
     .catch((error: unknown) =>
@@ -168,10 +168,10 @@ app
       trustedRendererUrl,
       new AssistantOrchestrator({
         db,
-        // Por pregunta: usa siempre la API key y la configuración vigentes.
+        // Per question: always uses the current API key and configuration.
         provider: () => createAIProvider(db),
         readConfig: () => new AppConfigStore(db).load(),
-        // T5.5: herramientas de solo lectura con datos reales y borradores de reporte.
+        // T5.5: read-only tools with real data and report drafts.
         tools: createAssistantTools(db, engine, reports, app.getAppPath()),
         reports,
       }),
@@ -199,7 +199,7 @@ app
   })
   .catch((error: unknown) => {
     console.error('No se pudo iniciar CyberSOC Defender:', error);
-    // Solo en la app instalada: en desarrollo y pruebas un diálogo modal colgaría el proceso.
+    // Only in the installed app: in development and tests a modal dialog would hang the process.
     if (app.isPackaged)
       dialog.showErrorBox(
         'CyberSOC Defender no pudo iniciar',

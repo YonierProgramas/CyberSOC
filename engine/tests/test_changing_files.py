@@ -1,4 +1,4 @@
-"""Regresiones AUD-02: el escritor pertenece al test, nunca al motor."""
+"""AUD-02 regressions: the writer belongs to the test, never the engine."""
 
 import hashlib
 import os
@@ -83,7 +83,7 @@ def test_changed_read_is_error_without_hash_or_trusted_evidence(tmp_path, monkey
     def instrument(target, *args, **kwargs):
         reader = InstrumentedReader(real_open(target, *args, **kwargs), change)
         if mutation == "short-read":
-            reader.read = lambda _size: b""  # EOF prematuro sin cambiar los metadatos.
+            reader.read = lambda _size: b""  # Premature EOF without changing the metadata.
         readers.append(reader)
         return reader
 

@@ -14,8 +14,8 @@ export const VERDICT_ORDER = [
   'NOT_EVALUATED',
 ] as const satisfies readonly ScanResultDTO['verdict'][];
 
-// Invariante del diccionario: una etiqueta por ámbito aceptado. Consultar
-// una clave cuesta O(1); el conjunto de tres claves no crece con el historial.
+// Dictionary invariant: one label per accepted scope. Looking up
+// a key costs O(1); the set of three keys does not grow with the history.
 export const SCOPE_LABEL: Record<DashboardScope, string> = {
   LAST_COMPLETED: 'Último',
   ALL_COMPLETED: 'Todos',
@@ -28,7 +28,7 @@ export interface CountRow {
   count: number;
 }
 
-/** Muestra las cifras del Core. No recalcula veredictos ni rellena huecos. */
+/** Shows the Core figures. It neither recomputes verdicts nor fills gaps. */
 export function verdictRows(distribution: VerdictDistributionDTO): CountRow[] {
   return VERDICT_ORDER.map((verdict) => ({
     key: verdict,

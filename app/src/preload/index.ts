@@ -50,7 +50,7 @@ function subscribe<T>(
   callback: (value: T) => void,
 ): () => void {
   if (typeof callback !== 'function')
-    throw new TypeError('Se requiere una función de suscripción.');
+    throw new TypeError('A subscription function is required.');
   let active = true;
   const listener = (_event: IpcRendererEvent, value: T) => {
     if (active) callback(value);

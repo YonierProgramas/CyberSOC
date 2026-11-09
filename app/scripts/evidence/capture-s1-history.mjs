@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { setTimeout as delay } from 'node:timers/promises';
 import { _electron } from 'playwright';
 
-// Ejecuta el código histórico sin cambiar sus veredictos ni insertar resultados.
+// Runs the historical code without changing its verdicts or inserting results.
 // Uso: node scripts/evidence/capture-s1-history.mjs <checkout-S1> <evidencias-S1>
 assert.equal(process.argv.length, 4);
 const checkout = resolve(process.argv[2]);
@@ -67,7 +67,7 @@ execFileSync(
 );
 for (let i = 0; i < 5000; i++)
   writeFileSync(join(bulk, `documento-${i}.txt`), `Texto inofensivo ${i}.\n`);
-// Solo el arranque del arnés fija userData; el bundle histórico permanece intacto.
+// Only the harness startup sets userData; the historical bundle stays intact.
 const bootstrap = join(root, 'bootstrap.cjs');
 writeFileSync(
   bootstrap,
@@ -92,7 +92,7 @@ try {
   await page.getByText(/Motor: conectado/).waitFor({ timeout: 30000 });
   await page.getByRole('button', { name: 'Escaneo', exact: true }).click();
   async function scan(path) {
-    // Sustituye únicamente la elección del diálogo nativo, nunca el escaneo.
+    // Replaces only the native dialog choice, never the scan.
     await electron.evaluate(({ dialog }, selected) => {
       dialog.showOpenDialog = async () => ({
         canceled: false,
@@ -136,7 +136,7 @@ try {
       createHash('sha256').update(readFileSync(row.path)).digest('hex'),
     );
   }
-  // Observa la actividad del renderer durante 5000 archivos; no altera la UI.
+  // Observes renderer activity during 5000 files; it does not alter the UI.
   await page.evaluate(() => {
     window.__captureTiming = {
       running: true,

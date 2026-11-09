@@ -20,9 +20,9 @@ const digest = (value: string | Buffer) =>
   createHash('sha256').update(value).digest('hex');
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 
-/** No guarda contenido: una huella por fila, ordenada para conservar duplicados.
- * Invariante: el arreglo tiene exactamente una entrada por fila, incluso repetida.
- * Inserción O(1) amortizada; ordenar O(n log n), memoria O(n) huellas de 64 bytes.
+/** Stores no content: one fingerprint per row, sorted to keep duplicates.
+ * Invariant: the array has exactly one entry per row, even when repeated.
+ * Amortized O(1) insert; sort O(n log n), O(n) memory of 64-byte fingerprints.
  */
 function inspect(connection: DatabaseSync) {
   if (
@@ -40,7 +40,7 @@ function inspect(connection: DatabaseSync) {
     )
     .all();
   return tables.map(({ name }) => {
-    if (typeof name !== 'string') throw new Error('Tabla inválida.');
+    if (typeof name !== 'string') throw new Error('Invalid table.');
     const rows: string[] = [];
     for (const row of connection
       .prepare(`SELECT * FROM ${quote(name)}`)
@@ -82,10 +82,10 @@ function durableWrite(path: string, value: unknown): void {
   }
 }
 
-/** Llamar solo después del lock de instancia, antes de workers/repositorios.
- * BEGIN IMMEDIATE impide escritores desde inspección hasta COMMIT de migraciones.
- * VACUUM INTO, en otra conexión lectora, incluye páginas confirmadas del WAL.
- * No se copia un .db activo con copyFile ni se sobrescribe una copia anterior.
+/** Call only after the instance lock, before workers/repositories.
+ * BEGIN IMMEDIATE blocks writers from inspection until the migrations COMMIT.
+ * VACUUM INTO, on another reader connection, includes pages committed in the WAL.
+ * An active .db is neither copied with copyFile nor written over an earlier copy.
  */
 export function openDatabaseWithBackup(
   profile: string,
@@ -126,7 +126,7 @@ export function openDatabaseWithBackup(
         'El perfil requiere una versión compatible más reciente.',
       );
   }
-  // La conexión se abre para bloquear/leer; ninguna migración ni escritor de app corre aquí.
+  // The connection is opened to lock/read; no migration or app writer runs here.
   const database = new Database(path);
   try {
     database.transaction(() => {
@@ -163,7 +163,7 @@ export function openDatabaseWithBackup(
         } finally {
           source.close();
         }
-        // VACUUM INTO termina su snapshot; fsync y reapertura comprueban bytes persistidos.
+        // VACUUM INTO finishes its snapshot; fsync and reopening check the persisted bytes.
         const fd = openSync(destination, 'r+');
         try {
           fsyncSync(fd);

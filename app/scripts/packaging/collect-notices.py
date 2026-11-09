@@ -1,7 +1,7 @@
-"""Solo build: obtiene avisos de fuentes fijadas, no instala ni ejecuta dependencias.
+"""Build only: gets notices from pinned sources; it neither installs nor runs dependencies.
 
-Los textos Rust cubren conservadoramente Cargo.lock completo del sdist verificado;
-no se afirma que dependencias de build/otros targets estén en el DLL final.
+The Rust texts conservatively cover the full Cargo.lock of the verified sdist;
+it does not claim that build/other-target dependencies are in the final DLL.
 """
 import concurrent.futures
 import hashlib
@@ -20,11 +20,11 @@ import zipfile
 
 
 def wheel_license_files(site_packages):
-    """Textos legales de cada wheel instalado: [(carpeta dist-info, ruta relativa, Path)].
+    """Legal texts of each installed wheel: [(dist-info folder, relative path, Path)].
 
-    Python 3.12: un glob que termina en '**' solo devuelve carpetas, nunca archivos. El patrón
-    anterior "*.dist-info/**/**" dejaba fuera las licencias de los siete wheels (B-01/AUD-12).
-    rglob("*") sí recorre los archivos de cada dist-info, incluido licenses/.
+    Python 3.12: a glob ending in '**' only returns folders, never files. The earlier
+    pattern "*.dist-info/**/**" left out the licenses of the seven wheels (B-01/AUD-12).
+    rglob("*") does walk the files of each dist-info, including licenses/.
     """
     found = []
     for dist_info in sorted(site_packages.glob("*.dist-info")):
@@ -34,7 +34,7 @@ def wheel_license_files(site_packages):
     return found
 
 
-# Modo de comprobación sin descargas ni escrituras: lista lo que se copiaría de los wheels.
+# Check mode without downloads or writes: lists what would be copied from the wheels.
 if len(sys.argv) == 3 and sys.argv[1] == "--list-wheel-licenses":
     print(json.dumps([[component, path] for component, path, _ in wheel_license_files(Path(sys.argv[2]))]))
     sys.exit(0)
@@ -67,7 +67,7 @@ inventory = []
 
 
 def save(component, name, data, source):
-    # Nombres generados, nunca rutas de extracción arbitrarias.
+    # Generated names, never arbitrary extraction paths.
     directory = notices / re.sub(r"[^a-zA-Z0-9_.-]", "_", component)
     directory.mkdir(exist_ok=True)
     target = directory / re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
@@ -175,9 +175,9 @@ def crate_licenses(package):
     return name + "-" + version, url, texts
 
 
-# Cada descarga tiene un destino distinto y se valida antes de usarla. No ejecuta Rust.
+# Each download has a distinct target and is validated before use. It does not run Rust.
 packages = [p for p in cargo["package"] if p.get("source", "").startswith("registry+") and p["name"] not in ("r-efi", "wit-bindgen-rt")]
-# r-efi es solo UEFI y wit-bindgen-rt solo WASI; no compilan en Windows x64.
+# r-efi is UEFI only and wit-bindgen-rt WASI only; they do not compile on Windows x64.
 with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
     for component, url, texts in pool.map(crate_licenses, packages):
         for name, data in texts:

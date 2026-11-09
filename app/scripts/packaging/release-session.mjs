@@ -1,4 +1,4 @@
-// Launcher externo para pruebas nativas. No abre inspector, IPC de pruebas ni CDP.
+// External launcher for native tests. It opens no inspector, test IPC or CDP.
 import { spawn } from 'node:child_process';
 import {
   mkdtempSync,
@@ -28,7 +28,7 @@ const env = {
   TMP: process.env.TMP,
   USERPROFILE: process.env.USERPROFILE,
   PATH: join(process.env.SystemRoot, 'System32'),
-  // Señuelos: el release debe ignorarlos. No tienen secretos ni rutas reales de datos.
+  // Decoys: the release must ignore them. They hold no secrets or real data paths.
   CYBERSOC_EVIDENCE_MODE: '1',
   CYBERSOC_EVIDENCE_ROOT: join(profile, 'evidence-trap'),
   CYBERSOC_ENGINE_CMD: '["C:/cybersoc-invalid/python.exe"]',

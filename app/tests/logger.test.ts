@@ -92,7 +92,7 @@ describe('logger JSONL', () => {
     return mkdtempSync(join(tmpdir(), 'cybersoc-logs-'));
   }
 
-  it('escribe entradas del core y del motor con ts, level, component y msg', async () => {
+  it('writes core and engine entries with ts, level, component and msg', async () => {
     const logger = createLogger(logsDirectory());
     logger.info({ component: 'core' }, 'Logging started');
     const { engine, child } = engineWith(logger);
@@ -135,7 +135,7 @@ describe('logger JSONL', () => {
     await engine.close();
   });
 
-  it('no escribe apiKey, authorization, x-api-key ni contenido de archivo', () => {
+  it('does not write apiKey, authorization, x-api-key or file content', () => {
     const apiKey = 'sk-live-api-key-value';
     const authorization = 'Bearer auth-header-value';
     const apiHeader = 'x-api-key-value';
@@ -173,7 +173,7 @@ describe('logger JSONL', () => {
 });
 
 describe('composition root', () => {
-  it('inyecta userData/logs cuando main no pasa la ruta', async () => {
+  it('injects userData/logs when main does not pass the path', async () => {
     const userData = mkdtempSync(join(tmpdir(), 'cybersoc-userdata-'));
     mocks.getPath.mockReturnValue(userData);
     const { createEngine } = await import('../src/main/composition-root');

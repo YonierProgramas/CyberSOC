@@ -17,6 +17,7 @@ import { pathLabel, useCopilotFocus } from '../copilot/focus';
 import { useShell } from '../navigation/shell';
 import { jobStatusLabel } from '../scan/format';
 import { engineHeadline, useEngineStatus } from '../system/engineStatus';
+import { ipcErrorText } from '../ipc/errors';
 
 const activeStatuses = new Set<ScanJobDTO['status']>([
   'CREATED',
@@ -137,11 +138,7 @@ export function ScanPage() {
         setJob(await window.cybersoc.scan.getJob(started.jobId));
         setRefreshToken((value) => value + 1);
       } catch (error) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : 'No se pudo iniciar el escaneo.',
-        );
+        setMessage(ipcErrorText(error, 'No se pudo iniciar el escaneo.'));
       } finally {
         setBusy(false);
       }
@@ -180,11 +177,7 @@ export function ScanPage() {
     try {
       await window.cybersoc.scan.cancel(job.id);
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo cancelar el escaneo.',
-      );
+      setMessage(ipcErrorText(error, 'No se pudo cancelar el escaneo.'));
     } finally {
       setBusy(false);
     }

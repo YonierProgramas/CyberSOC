@@ -45,8 +45,8 @@ afterEach(async () => {
     await rm(path, { recursive: true, force: true });
 });
 
-describe('ai:eval — corpus y métricas', () => {
-  it('incluye 15 contextos, todos los casos del plan y benignos susceptibles de escalar', () => {
+describe('ai:eval — corpus and metrics', () => {
+  it('includes 15 contexts, all plan cases and benign cases that could escalate', () => {
     expect(scenarios).toHaveLength(15);
     expect(scenarios.every((s) => scenarioSchema.safeParse(s).success)).toBe(
       true,
@@ -80,7 +80,7 @@ describe('ai:eval — corpus y métricas', () => {
     );
   });
 
-  it('fake recorre exactamente una vez los 15 casos, usa prompt v2 y no envía expectativas', async () => {
+  it('fake walks the 15 cases exactly once, uses prompt v2 and sends no expectations', async () => {
     const network = vi.fn(() => {
       throw new Error('Prohibido usar red');
     });
@@ -101,7 +101,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(rows[6]?.policyRule).toBe('CLEAN_ESCALATED_BY_AI');
   });
 
-  it('rechaza una cita inventada en lista, correlación o prosa usando el validador real', () => {
+  it('rejects an invented citation in a list, correlation or prose using the real validator', () => {
     for (const change of [
       { citedEvidenceIds: ['ev999'] },
       {
@@ -120,7 +120,7 @@ describe('ai:eval — corpus y métricas', () => {
     }
   });
 
-  it('cuenta citas distintas y separa opinión incoherente de esquema válido', () => {
+  it('counts distinct citations and separates an incoherent opinion from a valid schema', () => {
     const scenario = scenarios[14]!;
     const repeated = judge(
       scenario,
@@ -138,7 +138,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(mismatch.coherent).toBe(false);
   });
 
-  it('detecta realmente el escalamiento benigno por RiskPolicy v2', () => {
+  it('really detects benign escalation through RiskPolicy v2', () => {
     const row = judge(
       scenarios[0]!,
       ok({ ...samples[0]!, opinion: 'SUSPICIOUS', confidence: 0.9 }),
@@ -153,7 +153,7 @@ describe('ai:eval — corpus y métricas', () => {
     );
   });
 
-  it('incluye tokens de respuestas inválidas, inseguras e incompletas', async () => {
+  it('includes tokens of invalid, unsafe and incomplete responses', async () => {
     const provider = new FakeAIProvider()
       .enqueueRaw('{}', { usage: { inputTokens: 100, outputTokens: 50 } })
       .enqueueRaw(
@@ -178,7 +178,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(text).toContain('HAY INCUMPLIMIENTOS');
   });
 
-  it('no reintenta 429, AUTH ni timeout; no imprime mensajes del proveedor', async () => {
+  it('does not retry 429, AUTH or timeout; does not print provider messages', async () => {
     const provider = new FakeAIProvider()
       .enqueueError('RATE_LIMIT', { message: 'secret-sentinel' })
       .enqueueError('AUTH')
@@ -193,7 +193,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(text).not.toContain('secret-sentinel');
   });
 
-  it('captura excepciones inesperadas sin revelar secretos ni ocultar los casos siguientes', async () => {
+  it('catches unexpected exceptions without revealing secrets or hiding the following cases', async () => {
     const provider = await fakeProvider();
     vi.spyOn(provider, 'generateStructured').mockRejectedValueOnce(
       new Error('secret-sentinel'),
@@ -204,7 +204,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(JSON.stringify(rows)).not.toContain('secret-sentinel');
   });
 
-  it('percentiles de rango próximo no mutan datos, incluidos conjunto vacío y singleton', () => {
+  it('nearest-rank percentiles do not mutate data, including empty set and singleton', () => {
     const numbers = [50, 10, 40, 30, 20];
     expect(percentile(numbers, 0.5)).toBe(30);
     expect(percentile(numbers, 0.95)).toBe(50);
@@ -214,7 +214,7 @@ describe('ai:eval — corpus y métricas', () => {
     expect(() => percentile(numbers, 0)).toThrow();
   });
 
-  it('valida fixtures antes de consumir tokens', async () => {
+  it('validates fixtures before consuming tokens', async () => {
     const bad: Scenario = structuredClone(scenarios[0]!);
     bad.expectations.minCitations = 2;
     expect(scenarioSchema.safeParse(bad).success).toBe(false);
@@ -225,12 +225,12 @@ describe('ai:eval — corpus y métricas', () => {
   });
 });
 
-describe('ai:eval — comando y evidencia', () => {
-  it('ejecuta el comando real en modo fake sin credenciales, conserva el reporte y no permite sobrescribir', async () => {
+describe('ai:eval — command and evidence', () => {
+  it('runs the real command in fake mode without credentials, keeps the report and forbids overwriting', async () => {
     const dir = await temp();
     const output = join(dir, 'fake.md');
     const app = fileURLToPath(new URL('../../', import.meta.url));
-    // Import meta está en tests/ai-eval: dos niveles llevan a app/.
+    // Import meta is in tests/ai-eval: two levels lead to app/.
     const args = [
       '--experimental-transform-types',
       '--import',
@@ -261,7 +261,7 @@ describe('ai:eval — comando y evidencia', () => {
     expect(await readFile(output, 'utf8')).toBe(contents);
   }, 30_000);
 
-  it('rechaza live en CI, clave ausente, argumentos erróneos y fake sobre evidencia real', async () => {
+  it('rejects live in CI, missing key, wrong arguments and fake over real evidence', async () => {
     vi.stubEnv('CI', '1');
     await expect(main([])).rejects.toThrow('CI solo');
     vi.stubEnv('CI', '');

@@ -50,10 +50,10 @@ export function validatePath(path: string): string {
   return resolve(path);
 }
 
-/** Set: invariante, cada prefijo es absoluto, único y normalizado.
- * Insertar/consultar un prefijo exacto cuesta O(1) promedio tras normalizar.
- * Proteger por prefijo exige recorrer p entradas: O(p·L), L longitud de ruta.
- * El separador es frontera de segmento: C:\\Win NO protege C:\\Windows.
+/** Set: invariant, each prefix is absolute, unique and normalized.
+ * Inserting/looking up an exact prefix costs O(1) average after normalization.
+ * Prefix protection requires walking p entries: O(p·L), L being the path length.
+ * The separator is a segment boundary: C:\\Win does NOT protect C:\\Windows.
  */
 export class ProtectedPaths {
   readonly prefixes: ReadonlySet<string>;
@@ -83,7 +83,7 @@ export class ProtectedPaths {
   }
 }
 
-/** Rechaza enlaces/junctions en todos los ancestros, no solo en el último nombre. */
+/** Rejects links/junctions in all ancestors, not just the last name. */
 export async function assertNoLinks(path: string): Promise<void> {
   let current = path;
   const root = parse(current).root;
@@ -97,8 +97,8 @@ export async function assertNoLinks(path: string): Promise<void> {
     if (current === root) break;
     current = dirname(current);
   }
-  // realpath puede expandir nombres Windows 8.3 sin que haya un enlace.
-  // El llamador vuelve a comprobar los prefijos sobre esa ruta canónica.
+  // realpath can expand Windows 8.3 names without a link being present.
+  // The caller checks the prefixes again on that canonical path.
 }
 export async function exists(path: string): Promise<boolean> {
   try {

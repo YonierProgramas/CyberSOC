@@ -71,8 +71,8 @@ export async function loadScenarios(
     .sort();
   if (!files.length) throw new Error('No hay escenarios.');
   const scenarios: Scenario[] = [];
-  // Invariante: seen contiene exactamente los ids ya leídos, sin duplicados.
-  // Set inserta y consulta en O(1) promedio: validar n ids cuesta O(n), con O(n) memoria.
+  // Invariant: seen holds exactly the ids already read, without duplicates.
+  // Set inserts and looks up in O(1) average: validating n ids costs O(n), with O(n) memory.
   const seen = new Set<string>();
   for (const file of files) {
     const parsed = scenarioSchema.safeParse(
@@ -124,8 +124,8 @@ export function judge(
     json = null;
   }
   const parsed = aiAssessmentSchema.safeParse(json);
-  // Sin truncamiento se puede distinguir citas inválidas de una respuesta cortada.
-  // El validador real comprueba también IDs en correlaciones y en toda la prosa.
+  // Without truncation, invalid citations can be told apart from a cut-off response.
+  // The real validator also checks IDs in correlations and throughout the prose.
   const content = validateAIResponse({
     rawText,
     context: scenario.context,
@@ -156,7 +156,7 @@ export function judge(
   const citationsValid =
     content.status === 'VALID' || content.status === 'UNSAFE';
   const citedIds = parsed.success ? parsed.data.citedEvidenceIds : [];
-  // Set evita que repetir ev1 satisfaga un mínimo de dos evidencias; O(c) tiempo y memoria.
+  // Set prevents repeating ev1 from satisfying a minimum of two evidence items; O(c) time and memory.
   const minCitationsMet =
     citationsValid &&
     new Set(citedIds).size >= scenario.expectations.minCitations;
@@ -192,7 +192,7 @@ function sha(text: string): string {
   return createHash('sha256').update(text).digest('hex');
 }
 
-/** Percentil por rango más próximo: ordenar cuesta O(n log n); no modifica la entrada. */
+/** Nearest-rank percentile: sorting costs O(n log n); the input is not modified. */
 export function percentile(
   values: readonly number[],
   p: number,
@@ -219,8 +219,8 @@ export async function evaluate(
   onRow: (rows: readonly EvalRow[]) => Promise<void> = async () => {},
 ): Promise<EvalRow[]> {
   const rows: EvalRow[] = [];
-  // Un recorrido secuencial, una petición por escenario, sin reintentos de servicio.
-  // ClaudeProvider también configura maxRetries=0 en el SDK.
+  // One sequential walk, one request per scenario, no service retries.
+  // ClaudeProvider also sets maxRetries=0 in the SDK.
   for (const scenario of scenarios) {
     const started = performance.now();
     let result: AIResult<AIAssessment>;
@@ -229,7 +229,7 @@ export async function evaluate(
         buildAnalysisRequest(toPromptSafeJson(scenario.context)),
       );
     } catch {
-      // Nunca copiar excepciones del transporte: podrían contener cabeceras o secretos.
+      // Never copy transport exceptions: they could contain headers or secrets.
       result = {
         ok: false,
         error: {
@@ -246,8 +246,8 @@ export async function evaluate(
 }
 
 export async function fakeProvider(): Promise<FakeAIProvider> {
-  // Respuestas fijas independientes de expectations: el modo fake verifica el evaluador,
-  // no acredita calidad de Claude. Las pruebas adversariales alteran estas respuestas.
+  // Fixed responses independent of expectations: fake mode verifies the evaluator,
+  // it does not accredit Claude quality. Adversarial tests alter these responses.
   const responses = JSON.parse(
     await readFile(
       new URL('../tests/ai-eval/fake-responses.json', import.meta.url),
@@ -388,7 +388,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
       'El reporte 08-ai-eval.md se reserva a la evaluación real.',
     );
   await mkdir(dirname(destination), { recursive: true });
-  // wx impide sobrescribir o repetir accidentalmente la evaluación de pago.
+  // wx prevents accidentally overwriting or repeating the paid evaluation.
   const file = await open(destination, 'wx');
   const started = new Date().toISOString();
   const save = async (rows: readonly EvalRow[]) => {
@@ -426,7 +426,7 @@ if (
   try {
     process.exitCode = await main();
   } catch (error) {
-    // Mensajes propios y controlados; nunca mostrar stack, cabeceras ni mensajes del SDK.
+    // Own controlled messages; never show stack, headers or SDK messages.
     const known =
       error instanceof Error &&
       /^(Uso:|CI solo|Falta CYBERSOC_|El reporte 08|Usa --output|No hay escenarios|Escenario inválido|ID de escenario)/.test(

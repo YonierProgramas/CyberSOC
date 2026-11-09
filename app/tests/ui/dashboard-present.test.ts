@@ -52,8 +52,8 @@ function distribution(
   };
 }
 
-describe('presentación del resumen', () => {
-  it('muestra cada veredicto del Core, incluido el cero y el no analizado', () => {
+describe('summary presentation', () => {
+  it('shows each Core verdict, including zero and not analyzed', () => {
     const rows = verdictRows(
       distribution(
         {
@@ -77,7 +77,7 @@ describe('presentación del resumen', () => {
     ]);
   });
 
-  it('no presenta el cero como un ámbito limpio y separa los excluidos', () => {
+  it('does not present zero as a clean scope and separates the excluded', () => {
     const text = scopeNotice(
       distribution(
         {
@@ -108,7 +108,7 @@ describe('presentación del resumen', () => {
     ['ALL_COMPLETED', 'análisis no completados', 7],
     ['RANGE', 'por estado dentro del rango', 0],
   ] as const)(
-    'explica el universo de excluidos en %s sin alterar su cifra',
+    'explains the universe of excluded items in %s without altering its figure',
     (scope, label, excluded) => {
       const dto = distribution(
         {
@@ -129,7 +129,7 @@ describe('presentación del resumen', () => {
     },
   );
 
-  it('distingue siete días de otro rango y una página del historial completo', () => {
+  it('distinguishes seven days from another range and a page from the full history', () => {
     expect(
       activityTitle({
         range: { from: '2026-10-29', to: '2026-11-04', days: 7 },
@@ -147,7 +147,7 @@ describe('presentación del resumen', () => {
     expect(historyPageNotice(0, 0, 0)).toBe('No hay análisis guardados.');
   });
 
-  it('un cero no dibuja una barra y el máximo usa la cifra recibida', () => {
+  it('a zero draws no bar and the maximum uses the received figure', () => {
     expect(barHeight(0, 8)).toBe(0);
     expect(barHeight(4, 8)).toBe(50);
     expect(barHeight(4, 0)).toBe(0);

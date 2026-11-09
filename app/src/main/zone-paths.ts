@@ -1,7 +1,7 @@
 import { win32 } from 'node:path';
 import type { ZoneRoot } from '../core/zones/ZoneClassifier';
 
-/** main inyecta las rutas del usuario; core no conoce Electron ni variables globales. */
+/** main injects the user paths; core knows neither Electron nor global variables. */
 export function resolveZoneRoots(
   getPath: (
     name: 'downloads' | 'desktop' | 'documents' | 'temp' | 'appData',
@@ -13,7 +13,7 @@ export function resolveZoneRoots(
     if (path && /^(?:[a-z]:[\\/]|\\\\[^\\]+\\[^\\]+)/i.test(path))
       roots.push({ zone, path });
   };
-  // Ante igualdad exacta gana la última entrada; TEMP se registra al final.
+  // On an exact tie the last entry wins; TEMP is registered last.
   add('SISTEMA', env.SystemRoot ?? env.windir);
   for (const name of ['ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432'])
     add('PROGRAMAS', env[name]);

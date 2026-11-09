@@ -10,8 +10,8 @@ import {
 } from './schemas';
 
 /**
- * Hechos de un resultado que el builder puede usar. `ScanResultRecord` (T1.3) lo cumple
- * estructuralmente. No hay ningún campo de contenido: el builder no puede enviarlo.
+ * Facts of a result the builder may use. `ScanResultRecord` (T1.3) satisfies this
+ * structurally. There is no content field: the builder cannot send one.
  */
 export interface ScanResultFacts {
   id: string;
@@ -25,7 +25,7 @@ export interface ScanResultFacts {
 
 export interface BuiltAIContext {
   context: AIContext;
-  /** JSON exacto que se envía a la IA y se guarda en `ai_analyses.context_json`. */
+  /** Exact JSON sent to the AI and stored in `ai_analyses.context_json`. */
   json: string;
   /** SHA-256 (hex) de `json` en UTF-8: `ai_analyses.context_sha256`. */
   sha256: string;
@@ -40,15 +40,15 @@ export interface AnalysisFacts {
   riskLevel: AIContext['engine']['riskLevel'];
   detectedType: string | null;
   timesSeenBefore: number;
-  /** Zona del archivo (D15). Hoy solo la añade el foco del Copilot (S4). */
+  /** File zone (D15). Currently only added by the Copilot focus (S4). */
   zone?: NonNullable<AIContext['file']['zone']> | null;
-  /** Perfil de capas aplicado (D15). Hoy solo lo añade el foco del Copilot (S4). */
+  /** Applied layer profile (D15). Currently only added by the Copilot focus (S4). */
   profile?: AIContext['profile'] | null;
 }
 
 const ELLIPSIS = '…';
 const USER_PROFILE_ROOT = /^[A-Za-z]:\\+users\\+([^\\]+)(?=\\|$)/i;
-// Perfiles compartidos de Windows: no identifican a nadie.
+// Shared Windows profiles: they identify nobody.
 const SHARED_PROFILES = new Set([
   'public',
   'default',
@@ -58,8 +58,8 @@ const SHARED_PROFILES = new Set([
 const SAFE_EXTENSION = /^\.[A-Za-z0-9]{1,16}$/;
 
 /**
- * Sustituye `C:\Users\<usuario>` por `%USERPROFILE%` (cualquier unidad, sin distinguir
- * mayúsculas). Normaliza `/` a `\` y quita el prefijo de ruta larga `\\?\`.
+ * Replaces `C:\Users\<user>` with `%USERPROFILE%` (any drive, case
+ * insensitive). Normalizes `/` to `\` and removes the long-path prefix `\\?\`.
  */
 export function anonymizePath(path: string): string {
   const normalized = path
@@ -71,8 +71,8 @@ export function anonymizePath(path: string): string {
 }
 
 /**
- * Recorta `value` a `max` unidades UTF-16 conservando el inicio y el final, sin partir pares
- * sustitutos. El final se conserva porque ahí está la extensión real (`factura.pdf     .exe`).
+ * Trims `value` to `max` UTF-16 units keeping the start and end, without splitting surrogate
+ * pairs. The end is kept because it holds the real extension (`factura.pdf     .exe`).
  */
 export function truncateMiddle(value: string, max: number): string {
   if (value.length <= max) return value;
@@ -98,7 +98,7 @@ function sha256Hex(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
 }
 
-/** Seudónimo estable por resultado; solo conserva la extensión si es inofensiva. */
+/** Stable pseudonym per result; keeps the extension only if it is harmless. */
 export function pseudonymFor(
   resultId: string,
   extension: string | null,
@@ -108,9 +108,9 @@ export function pseudonymFor(
 }
 
 /**
- * Construye `ai-context/v1` con hechos, top-20 de evidencias, capas e historial.
- * Sin `analysis` conserva la forma inicial para lectores anteriores.
- * Todo texto del resultado viaja como dato dentro de su campo; nunca se interpreta.
+ * Builds `ai-context/v1` with facts, top-20 evidence, layers and history.
+ * Without `analysis` it keeps the initial shape for earlier readers.
+ * All result text travels as data inside its field; it is never interpreted.
  */
 export class AIContextBuilder {
   constructor(private readonly readConfig: () => Pick<AppConfig, 'ai'>) {}
@@ -124,8 +124,8 @@ export class AIContextBuilder {
       return out;
     };
     const L = AI_CONTEXT_LIMITS;
-    // Top-20: ordenar una copia cuesta O(n log n) tiempo y O(n) espacio.
-    // El orden estable conserva el orden del motor cuando hay empate de puntos.
+    // Top-20: sorting a copy costs O(n log n) time and O(n) space.
+    // The stable sort keeps the engine order when points are tied.
     const selected = [...(analysis?.evidence ?? [])]
       .sort((a, b) => b.points - a.points)
       .slice(0, L.maxEvidence);
@@ -134,7 +134,7 @@ export class AIContextBuilder {
       source: item.source,
       code: item.code,
       severity: item.severity,
-      // No se serializa facts: podría contener datos arbitrarios o contenido.
+      // facts is not serialized: it could contain arbitrary data or content.
       summary: limit(
         sendFileNames
           ? item.title.replace(
@@ -222,8 +222,8 @@ export class AIContextBuilder {
       },
     };
 
-    // Lanza si el resultado no cumple el esquema (p. ej. un SHA-256 mal formado): es un error
-    // del llamador y es preferible a enviar un contexto inválido.
+    // Throws if the result does not match the schema (e.g. a malformed SHA-256): that is a
+    // caller error and is preferable to sending an invalid context.
     const context = aiContextSchema.parse(draft);
     const json = toPromptSafeJson(context);
     return { context, json, sha256: sha256Hex(json) };
@@ -231,9 +231,9 @@ export class AIContextBuilder {
 }
 
 /**
- * `JSON.stringify` con `<`, `>` y `&` escritos como escapes Unicode de JSON (barra invertida,
- * `u` y el código hexadecimal: 003c, 003e y 0026). El JSON parseado es idéntico, pero un campo
- * hostil no puede cerrar la etiqueta <contexto> del prompt.
+ * `JSON.stringify` with `<`, `>` and `&` written as JSON Unicode escapes (backslash,
+ * `u` and the hex code: 003c, 003e and 0026). The parsed JSON is identical, but a hostile
+ * field cannot close the <contexto> tag of the prompt.
  */
 export function toPromptSafeJson(value: unknown): string {
   return JSON.stringify(value).replace(

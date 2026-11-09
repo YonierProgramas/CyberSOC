@@ -7,7 +7,7 @@ import { SecretStore } from '../../src/main/SecretStore';
 
 const directory = process.argv[2]!;
 const phase = process.argv[3]!;
-// Credencial deliberadamente ficticia. No se realiza ninguna petición de red.
+// Deliberately fake credential. No network request is made.
 const key = 'unit-test-native-dpapi-only-9876';
 app.setPath('userData', join(directory, 'profile'));
 app
@@ -38,7 +38,7 @@ app
     app.quit();
   })
   .catch(() => {
-    // La prueba tampoco imprime entradas ni excepciones que pudieran contenerlas.
+    // The test does not print inputs or exceptions that might contain them either.
     process.stderr.write('SECRET_STORE_NATIVE_FAILED\n');
     app.exit(1);
   });

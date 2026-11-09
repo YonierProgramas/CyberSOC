@@ -1,10 +1,10 @@
 import { join } from 'node:path';
 import type { EngineCommand } from '../core/engine/EngineProcess';
 
-// Recuperado del borrador Codex T6.2 (.worktrees/packaging, base 6d9394d),
-// conservado sin merge; 7.F acredita ahora el runtime privado en el paquete.
+// Recovered from the Codex T6.2 draft (.worktrees/packaging, base 6d9394d),
+// kept without merging; 7.F now accredits the private runtime in the package.
 
-/** Rutas explícitas: un paquete no busca Python en PATH ni en un venv del equipo. */
+/** Explicit paths: a package looks for Python neither in PATH nor in a machine venv. */
 export function resolveEnginePaths(
   appRoot: string,
   packaged: boolean,
@@ -17,11 +17,11 @@ export function resolveEnginePaths(
   if (packaged) {
     return {
       root,
-      // Un .asar no es un directorio válido para cwd de un proceso nativo.
+      // An .asar is not a valid cwd for a native process.
       cwd: resourcesPath,
       command: {
         file: join(resourcesPath, 'runtime', 'python.exe'),
-        // _pth limita imports a recursos del paquete; -I ignora PYTHONPATH/HOME.
+        // _pth limits imports to package resources; -I ignores PYTHONPATH/HOME.
         args: ['-I', '-B', '-u', '-m', 'cybersoc_engine'],
       },
     };
@@ -35,8 +35,8 @@ export function resolveEnginePaths(
         '.venv',
         platform === 'win32' ? 'Scripts/python.exe' : 'bin/python',
       ),
-      // uv sync instala dependencias; el proyecto src/ no es un wheel instalado.
-      // Pasar la ruta como argv funciona con espacios sin usar un shell.
+      // uv sync installs dependencies; the src/ project is not an installed wheel.
+      // Passing the path as argv works with spaces without using a shell.
       args: [
         '-B',
         '-u',

@@ -55,8 +55,8 @@ export class LayerTraceRepository {
   }
 
   aggregateByJob(jobId: string): LayerAggregate[] {
-    // SQLite agrega solo las filas del trabajo solicitado; no carga cada traza
-    // en memoria de la app. hits cuenta hallazgos, files cuenta archivos.
+    // SQLite aggregates only the rows of the requested job; it does not load each trace
+    // into app memory. hits counts findings, files counts files.
     return this.database
       .prepare(
         `SELECT l.layer, COUNT(*) AS files,

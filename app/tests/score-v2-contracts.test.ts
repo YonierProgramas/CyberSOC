@@ -17,20 +17,20 @@ it.each([
   ['heuristics', 'capped', 51],
   ['rules', 'capped', 61],
   ['signatures', 'cap', 50],
-])('rechaza un grupo inconsistente: %s.%s=%s', (group, key, value) => {
+])('rejects an inconsistent group: %s.%s=%s', (group, key, value) => {
   const bad = structuredClone(example);
   bad.result.scoreBreakdown[group][key] = value;
   expect(scanFileResponseSchema.safeParse(bad).success).toBe(false);
 });
 it.each(['rawTotal', 'cappedTotal', 'total', 'decisiveFloor'])(
-  'rechaza desglose inconsistente en %s',
+  'rejects inconsistent breakdown in %s',
   (key) => {
     const bad = structuredClone(example);
     bad.result.scoreBreakdown[key] = 99;
     expect(scanFileResponseSchema.safeParse(bad).success).toBe(false);
   },
 );
-it('rechaza puntuación o veredicto que contradiga el desglose', () => {
+it('rejects a score or verdict contradicting the breakdown', () => {
   for (const change of [{ score: 99 }, { verdict: 'DETECTED' }]) {
     const bad = structuredClone(example);
     Object.assign(bad.result, change);

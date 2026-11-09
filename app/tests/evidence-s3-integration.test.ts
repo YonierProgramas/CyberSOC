@@ -16,7 +16,7 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 
-it('modo evidencia usa la RiskPolicy vigente sin reescribir decisiones y genera JOB_SUMMARY válido', async () => {
+it('evidence mode uses the current RiskPolicy without rewriting decisions and generates a valid JOB_SUMMARY', async () => {
   vi.stubEnv('CYBERSOC_EVIDENCE_MODE', '1');
   vi.stubEnv('CYBERSOC_EVIDENCE_SCENARIO', 'escalation');
   vi.stubEnv('CYBERSOC_EVIDENCE_LIVE', '0');

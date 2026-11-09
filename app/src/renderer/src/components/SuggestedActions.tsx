@@ -6,6 +6,7 @@ import type {
 import { useShell } from '../navigation/shell';
 import { quarantineApi, QUARANTINE_UNAVAILABLE } from '../quarantine/types';
 import { ModalDialog } from './ModalDialog';
+import { ipcErrorText } from '../ipc/errors';
 
 const labels: Record<AssistantActionDTO['action'], string> = {
   OPEN_RESULT: 'Abrir resultado',
@@ -49,11 +50,7 @@ export function SuggestedActions({
       close();
       setNotice(text);
     } catch (error) {
-      setDialogMessage(
-        error instanceof Error
-          ? error.message
-          : 'No se pudo completar la acción.',
-      );
+      setDialogMessage(ipcErrorText(error, 'No se pudo completar la acción.'));
       setBusy(false);
     }
   }

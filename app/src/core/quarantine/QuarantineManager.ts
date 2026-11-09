@@ -44,7 +44,7 @@ export interface QuarantineOptions {
   database: Database;
   vault: QuarantineVault;
   protectedPaths: ProtectedPaths;
-  /** Requerido: solo el adaptador de main puede pedir confirmación humana. Sin callback no se actúa. */
+  /** Required: only the main adapter can request human confirmation. No callback, no action. */
   confirm: (request: Confirmation) => Promise<boolean>;
 }
 
@@ -52,10 +52,10 @@ export class QuarantineManager {
   readonly repository: QuarantineRepository;
   readonly audit: AuditLog;
   readonly allowlist: AllowlistRepository;
-  // Map: invariante, una única promesa por ruta normalizada mientras una acción está activa.
+  // Map: invariant, a single promise per normalized path while an action is active.
   // has/set/delete cuestan O(1) promedio (normalizar O(L)); memoria O(k), k operaciones.
-  // Tras canonizar la ruta, has/set son síncronos y preceden a confirmar o modificar.
-  // Se elimina en finally, también ante fallos.
+  // After canonicalizing the path, has/set are synchronous and precede confirming or modifying.
+  // Removed in finally, also on failures.
   private readonly operations = new Map<string, Promise<unknown>>();
   private closing = false;
   private recovery: Promise<void> | undefined;
@@ -80,7 +80,7 @@ export class QuarantineManager {
   ): Promise<T> {
     if (this.closing)
       throw new QuarantineError('CLOSING', 'La app se está cerrando.');
-    // Canonizar también unifica aliases 8.3 de Windows para el bloqueo por ruta.
+    // Canonicalizing also unifies Windows 8.3 aliases for the per-path lock.
     const key = normalizedPath(await realpath(path).catch(() => path));
     if (this.closing)
       throw new QuarantineError('CLOSING', 'La app se está cerrando.');
@@ -128,7 +128,7 @@ export class QuarantineManager {
       this.audit.append('QUARANTINE_ITEM_REJECTED', id, { code: 'NOT_FOUND' });
       throw new QuarantineError('NOT_FOUND', 'No existe el ítem.');
     }
-    // El campo de la BD no puede desviar lecturas/borrados fuera de la bóveda.
+    // The DB field cannot divert reads/deletes outside the vault.
     if (item.vaultFile !== this.options.vault.path(id)) {
       this.audit.append('QUARANTINE_ITEM_REJECTED', id, {
         code: 'INVALID_ITEM',
@@ -165,7 +165,7 @@ export class QuarantineManager {
     );
   }
   private async isolate(result: ScanResultRecord): Promise<QuarantineItem> {
-    // 1. Confirmación explícita; nunca se invoca desde el worker de IA ni al escanear.
+    // 1. Explicit confirmation; never invoked from the AI worker or while scanning.
     await this.confirm({
       action: 'QUARANTINE',
       path: result.path,
@@ -180,7 +180,7 @@ export class QuarantineManager {
         'NOT_ELIGIBLE',
         'Solo se aíslan resultados detectados o sospechosos ya escaneados.',
       );
-    // 2. Prefijos protegidos, enlaces, dispositivos y rutas ambiguas.
+    // 2. Protected prefixes, links, devices and ambiguous paths.
     const path = await this.allowed(result.path, true);
     const source = await open(path, 'r');
     let item: QuarantineRecord | undefined;
@@ -192,7 +192,7 @@ export class QuarantineManager {
           'UNSAFE_LINK',
           'Se requiere un archivo regular sin enlaces duros.',
         );
-      // 3. El hash vuelve a calcularse; la extensión o el nombre nunca sustituyen esta comprobación.
+      // 3. The hash is recomputed; the extension or name never replace this check.
       const sha256 = await hashFile(source);
       if (sha256 !== result.sha256 || before.size !== result.sizeBytes)
         throw new QuarantineError(
@@ -219,15 +219,15 @@ export class QuarantineManager {
         deletedAt: null,
         errorMessage: null,
       };
-      // 4. Journal durable antes de crear el blob; clave e IV sobreviven a un cierre.
+      // 4. Durable journal before creating the blob; key and IV survive a shutdown.
       this.options.database.transaction(() => {
         this.repository.insert(item!);
         this.audit.append('QUARANTINE_PENDING', id, { resultId: result.id });
       });
-      // 5. Cifrado temporal, flush, descifrado verificado y publicación sin reemplazo.
+      // 5. Temporary encryption, flush, verified decryption and publishing without replacement.
       item.authTagB64 = await this.options.vault.encrypt(source, item);
       this.repository.update(item);
-      // Revalidación adicional: otro proceso pudo cambiar/reemplazar la ruta durante el cifrado.
+      // Additional revalidation: another process may have changed/replaced the path during encryption.
       await this.allowed(path, true);
       const current = await lstat(path);
       const after = await source.stat();
@@ -244,21 +244,21 @@ export class QuarantineManager {
           'FILE_CHANGED',
           'El archivo cambió durante la cuarentena. Vuelve a escanearlo.',
         );
-      // 6. Solo ahora se borra la ruta original confirmada. Un fallo conserva el original.
+      // 6. Only now is the confirmed original path deleted. A failure keeps the original.
       await deleteVerifiedOriginal(path, sha256);
       removed = true;
-      // 7. Estado y auditoría en la misma transacción. Si falla, PENDING retiene la copia válida.
+      // 7. Status and audit in the same transaction. If it fails, PENDING retains the valid copy.
       item.status = 'QUARANTINED';
       item.quarantinedAt = new Date().toISOString();
       this.commit(item, 'QUARANTINE');
       return publicItem(item);
     } catch (error) {
       if (item && !removed) {
-        // Un cierre del helper sin acuse puede suceder DESPUÉS del borrado.
-        // No se elimina la única copia verificada en ese caso; el journal lo resuelve al iniciar.
+        // A helper shutdown without acknowledgment may happen AFTER the deletion.
+        // The only verified copy is not deleted in that case; the journal resolves it at startup.
         if (errorCode(error) === 'DELETE_UNCERTAIN' || !(await exists(path)))
           throw error;
-        // Si no podemos limpiar, se conserva PENDING para reconciliar, nunca se oculta el fallo.
+        // If cleanup is impossible, PENDING is kept for reconciliation; the failure is never hidden.
         await this.options.vault.remove(item.id);
         await this.options.vault.remove(item.id, true);
         item.status = 'FAILED';
@@ -330,7 +330,7 @@ export class QuarantineManager {
         await output.close();
         output = undefined;
         await this.allowed(target, false);
-        // link no reemplaza: incluso si aparece un destino DESPUÉS de la comprobación, falla.
+        // link does not replace: even if a target appears AFTER the check, it fails.
         await link(temp, target);
         published = true;
         await unlink(temp);
@@ -346,7 +346,7 @@ export class QuarantineManager {
           item.errorMessage = errorCode(error);
           this.commit(item, 'RESTORE_FAILED');
         }
-        // Tras publicar, PENDING permite completar sin generar una segunda restauración.
+        // After publishing, PENDING allows completing without generating a second restoration.
         throw error;
       }
     });
@@ -424,7 +424,7 @@ export class QuarantineManager {
     item.errorMessage = null;
     this.commit(item, 'DELETE', actor);
   }
-  /** Recuperación conservadora: no vuelve a borrar originales al iniciar. Completa o revierte el journal. */
+  /** Conservative recovery: it does not delete originals again at startup. It completes or reverts the journal. */
   reconcile(): Promise<void> {
     if (this.recovery) return this.recovery;
     if (this.operations.size > 0)
@@ -435,7 +435,7 @@ export class QuarantineManager {
     return this.recovery;
   }
   private async recover(): Promise<void> {
-    // Sin pendientes no se crea una bóveda ni se toca ningún archivo del usuario.
+    // Without pending items no vault is created and no user file is touched.
     const pending = this.repository.list('PENDING');
     if (!pending.length) return;
     await this.options.vault.initialize();
@@ -468,7 +468,7 @@ export class QuarantineManager {
           item.status = 'FAILED';
           item.errorMessage = 'RECOVERED_ORIGINAL_KEPT';
         } else {
-          // Si solo quedó el temporal cifrado completo, recuperarlo sin perder la última copia.
+          // If only the complete encrypted temporary remained, recover it without losing the last copy.
           if (
             !(await exists(this.options.vault.path(item.id))) &&
             (await exists(this.options.vault.path(item.id, true)))
@@ -487,7 +487,7 @@ export class QuarantineManager {
         }
         this.commit(item, 'RECONCILE', 'SYSTEM');
       } catch (error) {
-        // Un blob ilegible sin original no se destruye: conservar para recuperación manual.
+        // An unreadable blob without an original is not destroyed: kept for manual recovery.
         row.status = 'FAILED';
         row.errorMessage = errorCode(error);
         this.commit(row, 'RECONCILE_FAILED', 'SYSTEM');
@@ -509,8 +509,8 @@ export class QuarantineManager {
         await file.close();
       }
     }
-    // El temporal pertenece a esta restauración; no conservar contenido descifrado
-    // tras un cierre, tampoco si otra aplicación ocupó el destino o el blob se dañó.
+    // The temporary belongs to this restoration; do not keep decrypted content
+    // after a shutdown, even if another application took the target or the blob was damaged.
     if (await exists(temp)) {
       await assertNoLinks(temp);
       await unlink(temp);
@@ -518,8 +518,8 @@ export class QuarantineManager {
     if (targetMatches) {
       await this.finishRestore(item, 'SYSTEM');
     } else {
-      // Nunca tocar el archivo ajeno. La copia cifrada verificada vuelve a estar
-      // disponible para restaurar con sufijo o eliminar tras nueva confirmación.
+      // Never touch the foreign file. The verified encrypted copy becomes available again
+      // to restore with a suffix or delete after a new confirmation.
       await this.options.vault.verify(item);
       item.status = 'QUARANTINED';
       item.restoredTo = null;

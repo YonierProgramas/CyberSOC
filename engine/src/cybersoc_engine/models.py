@@ -40,7 +40,7 @@ class DriveInfoResponse(ContractEnvelope):
 
 
 def json_integer(value: object) -> object:
-    # JSON/JavaScript no distingue 1 de 1.0; no convertir cadenas ni booleanos.
+    # JSON/JavaScript does not distinguish 1 from 1.0; do not convert strings or booleans.
     if isinstance(value, float) and value.is_integer():
         return int(value)
     return value
@@ -90,7 +90,7 @@ class Evidence(ContractModel):
     points: NonNegativeInt
     decisive: bool
     confidence: Annotated[float, Field(ge=0, le=1)]
-    # Diccionario de hechos: claves únicas; acceso promedio O(1), validación O(n).
+    # Facts dictionary: unique keys; O(1) average access, O(n) validation.
     facts: dict[str, JsonValue]
 
 
@@ -117,7 +117,7 @@ class LayerTrace(ContractModel):
             if self.layer in ("HASH", "SIGNATURES"):
                 raise ValueError("HASH y SIGNATURES no se pueden desactivar")
             if self.hits != 0 or self.points != 0:
-                raise ValueError("DISABLED no ejecuta análisis")
+                raise ValueError("DISABLED runs no analysis")
         return self
 
 
@@ -156,7 +156,7 @@ class ScanFileOptions(ContractModel):
     @field_validator("layers")
     @classmethod
     def unique_layers(cls, layers: list[Layer]) -> list[Layer]:
-        # El set guarda capas únicas; construirlo cuesta O(n), pertenencia O(1) promedio.
+        # The set stores unique layers; building it costs O(n), membership O(1) average.
         if len(set(layers)) != len(layers):
             raise ValueError("Capa repetida")
         return layers
@@ -205,7 +205,7 @@ class ScoreBreakdown(ContractModel):
     @classmethod
     def reject_boolean_floor(cls, value: object) -> object:
         if isinstance(value, bool):
-            raise ValueError("El mínimo decisivo debe ser numérico")
+            raise ValueError("The decisive minimum must be numeric")
         return value
 
     @model_validator(mode="after")
@@ -219,7 +219,7 @@ class ScoreBreakdown(ContractModel):
         if self.cappedTotal != min(100, sum(g.capped for g in groups)):
             raise ValueError("Total limitado incompatible")
         if self.total != max(self.cappedTotal, self.decisiveFloor):
-            raise ValueError("Puntuación final incompatible")
+            raise ValueError("Incompatible final score")
         return self
 
 
@@ -234,7 +234,7 @@ class EngineResult(ContractModel):
     durationMs: float
     engineVersion: str
 
-    # Grupo opcional por compatibilidad con S1/T2.1: si aparece, debe estar completo.
+    # Optional group for S1/T2.1 compatibility: if present, it must be complete.
     verdict: Literal["CLEAN", "SUSPICIOUS", "DETECTED", "ERROR", "NOT_ANALYZED"] | None = None
     score: Annotated[NonNegativeInt, Field(le=100)] | None = None
     riskLevel: Literal["BAJO", "MEDIO", "ALTO", "CRÍTICO"] | None = None
@@ -244,7 +244,7 @@ class EngineResult(ContractModel):
     def validate_assessment(self) -> "EngineResult":
         if self.scoreBreakdown is not None:
             if self.score != self.scoreBreakdown.total or self.verdict is None:
-                raise ValueError("Desglose incompatible con evaluación")
+                raise ValueError("Breakdown incompatible with the assessment")
             if (self.verdict == "DETECTED") != (self.scoreBreakdown.decisiveFloor == 85):
                 raise ValueError("Desglose decisivo incompatible")
         fields = ("verdict", "score", "riskLevel")
@@ -252,13 +252,13 @@ class EngineResult(ContractModel):
         if not any(present):
             return self
         if not all(present) or self.verdict is None:
-            raise ValueError("La evaluación debe incluir verdict, score y riskLevel")
+            raise ValueError("The assessment must include verdict, score and riskLevel")
         if self.verdict in ("ERROR", "NOT_ANALYZED"):
             if self.score is not None or self.riskLevel is not None:
-                raise ValueError("Sin análisis no hay puntuación ni nivel")
+                raise ValueError("No analysis means no score or level")
         else:
             if self.score is None or self.riskLevel is None:
-                raise ValueError("Un veredicto de riesgo requiere puntuación y nivel")
+                raise ValueError("A risk verdict requires score and level")
             expected = (
                 "BAJO"
                 if self.score < 30
@@ -269,19 +269,19 @@ class EngineResult(ContractModel):
                 else "CRÍTICO"
             )
             if self.riskLevel != expected:
-                raise ValueError("Nivel incompatible con puntuación")
+                raise ValueError("Level incompatible with score")
             if (
                 (self.verdict == "CLEAN" and self.score >= 30)
                 or (self.verdict == "SUSPICIOUS" and self.score < 30)
                 or (self.verdict == "DETECTED" and self.score < 85)
             ):
-                raise ValueError("Veredicto incompatible con puntuación")
+                raise ValueError("Verdict incompatible with score")
         return self
 
     @field_validator("layers")
     @classmethod
     def unique_layers(cls, layers: list[LayerTrace]) -> list[LayerTrace]:
-        # Invariante: el set contiene solo capas ya vistas, sin repetidas.
+        # Invariant: the set holds only layers already seen, without repeats.
         # Pertenencia/add: O(1) promedio; recorrido: O(n) tiempo y espacio.
         seen: set[str] = set()
         for trace in layers:

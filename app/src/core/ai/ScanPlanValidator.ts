@@ -4,7 +4,7 @@ import { scanProfileSchema, type ScanProfile } from '../../shared/scan-profile';
 
 export const SCAN_PLAN_SCHEMA_ID = 'cybersoc.scan-plan/v1';
 
-/** Rangos permitidos para un plan propuesto por la IA. */
+/** Allowed ranges for a plan proposed by the AI. */
 export const SCAN_PLAN_LIMITS = {
   maxTargets: 10,
   minFileSizeMB: 1,
@@ -17,10 +17,10 @@ const L = SCAN_PLAN_LIMITS;
 const MANDATORY_LAYERS = ['HASH', 'SIGNATURES'] as const;
 
 /**
- * Plan tal como lo escribe la IA (D16). No tiene ningún campo de ruta: los destinos son
- * zonas o unidades, y las rutas reales las pone el Core a partir de `list_zones`.
- * `zoneId` y `layers` son texto libre a propósito: este validador, no el esquema,
- * decide qué valores existen, para poder explicar cada rechazo.
+ * Plan as written by the AI (D16). It has no path field: targets are
+ * zones or drives, and the Core fills in the real paths from `list_zones`.
+ * `zoneId` and `layers` are free text on purpose: this validator, not the schema,
+ * decides which values exist, so each rejection can be explained.
  */
 export const scanPlanDraftSchema = z.strictObject({
   schema: z.literal(SCAN_PLAN_SCHEMA_ID),
@@ -57,7 +57,7 @@ export const scanPlanDraftSchema = z.strictObject({
 });
 export type ScanPlanDraft = z.infer<typeof scanPlanDraftSchema>;
 
-/** Una fila de `list_zones`: lo único que puede ser destino de un plan. */
+/** A `list_zones` row: the only thing that can be a plan target. */
 export interface ZoneOption {
   zoneId: string;
   driveId?: string;
@@ -67,14 +67,14 @@ export interface ZoneOption {
 export interface ResolvedTarget {
   zoneId: z.infer<typeof zoneSchema>;
   driveId: string | null;
-  /** Rutas reales de la zona según `list_zones` (las pone el Core, nunca la IA). */
+  /** Real paths of the zone according to `list_zones` (filled in by the Core, never the AI). */
   paths: string[];
 }
 
 export interface ValidScanPlan {
   schema: typeof SCAN_PLAN_SCHEMA_ID;
   targets: ResolvedTarget[];
-  /** Perfil listo para `scan.start` (perfil CUSTOM). Solo se usa si el usuario lo confirma. */
+  /** Profile ready for `scan.start` (CUSTOM profile). Only used if the user confirms it. */
   profile: ScanProfile;
   rationale: string;
   layerRationale: { layer: ScanProfile['layers'][number]; why: string }[];
@@ -84,8 +84,8 @@ export type ScanPlanValidation =
   { ok: true; plan: ValidScanPlan } | { ok: false; errors: string[] };
 
 /**
- * Valida un `scan-plan/v1` propuesto por la IA. Un plan válido se devuelve a la UI como
- * tarjeta: este módulo no conoce el orquestador de escaneo y NUNCA inicia un escaneo.
+ * Validates a `scan-plan/v1` proposed by the AI. A valid plan is returned to the UI as a
+ * card: this module does not know the scan orchestrator and NEVER starts a scan.
  */
 export function validateScanPlan(
   input: unknown,
@@ -97,7 +97,7 @@ export function validateScanPlan(
   const draft = parsed.data;
   const errors: string[] = [];
 
-  // Destinos: cada uno debe coincidir con una fila real de list_zones.
+  // Targets: each one must match a real list_zones row.
   if (draft.targets.length === 0) errors.push('El plan no tiene destinos.');
   if (draft.targets.length > L.maxTargets)
     errors.push(`El plan tiene más de ${L.maxTargets} destinos.`);
@@ -119,7 +119,7 @@ export function validateScanPlan(
       continue;
     }
     const key = `${zone.data}|${driveId}`;
-    if (seen.has(key)) continue; // un destino repetido no se escanea dos veces
+    if (seen.has(key)) continue; // a repeated target is not scanned twice
     seen.add(key);
     targets.push({
       zoneId: zone.data,
@@ -128,7 +128,7 @@ export function validateScanPlan(
     });
   }
 
-  // Capas: del enum, sin repetir, con HASH y SIGNATURES siempre activas.
+  // Layers: from the enum, without repeats, with HASH and SIGNATURES always active.
   const layers: ScanProfile['layers'] = [];
   for (const name of draft.layers) {
     const layer = layerSchema.safeParse(name);
@@ -141,7 +141,7 @@ export function validateScanPlan(
     if (!layers.includes(layer))
       errors.push(`Falta la capa obligatoria ${layer}.`);
 
-  // Tamaño y textos dentro de los rangos.
+  // Size and texts within the ranges.
   if (
     draft.maxFileSizeMB < L.minFileSizeMB ||
     draft.maxFileSizeMB > L.maxFileSizeMB
@@ -179,7 +179,7 @@ export function validateScanPlan(
   };
 }
 
-/** Filas de `list_zones` a partir del resultado acotado de la herramienta. */
+/** `list_zones` rows from the bounded tool result. */
 export function zoneOptionsFrom(data: unknown): ZoneOption[] {
   const rows = (data as { rows?: unknown } | null)?.rows;
   if (!Array.isArray(rows)) return [];
@@ -199,7 +199,7 @@ function describeTarget(zoneId: string, driveId: string): string {
   return driveId ? `${quote(zoneId)} ${quote(driveId)}` : quote(zoneId);
 }
 
-/** Texto de la IA citado en un mensaje del Core: acotado y entre comillas. */
+/** AI text quoted in a Core message: bounded and in quotation marks. */
 function quote(value: string): string {
   const short = value.length > 40 ? `${value.slice(0, 40)}…` : value;
   return JSON.stringify(short);

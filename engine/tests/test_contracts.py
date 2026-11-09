@@ -68,7 +68,7 @@ def field_paths(value, prefix=()):
     for key, child in value.items():
         path = (*prefix, key)
         yield path
-        # facts es un diccionario abierto: sus claves particulares no son obligatorias.
+        # facts is an open dictionary: its particular keys are not mandatory.
         if key == "facts":
             continue
         if isinstance(child, dict):

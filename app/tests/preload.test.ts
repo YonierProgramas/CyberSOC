@@ -16,7 +16,7 @@ vi.mock('electron', () => ({
   },
 }));
 
-it('expone system, dialog, scan, settings.ai y assistant con métodos y canales fijos', async () => {
+it('exposes system, dialog, scan, settings.ai and assistant with fixed methods and channels', async () => {
   await import('../src/preload/index');
   expect(electron.expose).toHaveBeenCalledExactlyOnceWith(
     'cybersoc',

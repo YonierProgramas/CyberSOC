@@ -85,7 +85,7 @@ function snapshot(job) {
   };
 }
 
-describe('ScanJob: tabla completa de estados y métodos', () => {
+describe('ScanJob: full table of states and methods', () => {
   for (const [state, valid] of Object.entries(transitions)) {
     for (const method of methods) {
       const next = valid[method];
@@ -116,8 +116,8 @@ describe('ScanJob: tabla completa de estados y métodos', () => {
   }
 });
 
-describe('ScanJob: contadores y timestamps', () => {
-  it('inicia en CREATED con identidad, contadores cero y reloj real por defecto', () => {
+describe('ScanJob: counters and timestamps', () => {
+  it('starts in CREATED with identity, zero counters and real clock by default', () => {
     const before = Date.now();
     const job = new ScanJob({ ...target, targetKind: 'FILE' });
     assert.equal(job.id, target.id);
@@ -134,7 +134,7 @@ describe('ScanJob: contadores y timestamps', () => {
     );
   });
 
-  it('conserva creación e inicio y registra el final al completar', () => {
+  it('keeps creation and start and records the end on completion', () => {
     let tick = 0;
     const job = new ScanJob(target, () => dates[tick++]);
     job.beginDiscovery();
@@ -148,7 +148,7 @@ describe('ScanJob: contadores y timestamps', () => {
     assert.equal(job.finishedAt, dates[3]);
   });
 
-  it('permite cancelar antes de iniciar sin inventar startedAt', () => {
+  it('allows cancelling before starting without inventing startedAt', () => {
     let now = dates[0];
     const job = new ScanJob(target, () => now);
     now = dates[1];
@@ -161,7 +161,7 @@ describe('ScanJob: contadores y timestamps', () => {
     assert.equal(job.finishedAt, dates[2]);
   });
 
-  it('cuenta el archivo en curso durante CANCELLING y preserva datos al cancelar', () => {
+  it('counts the file in progress during CANCELLING and preserves data on cancel', () => {
     let now = dates[0];
     const job = new ScanJob(target, () => now);
     now = dates[1];
@@ -177,7 +177,7 @@ describe('ScanJob: contadores y timestamps', () => {
     assert.deepEqual(job.counters, counters);
   });
 
-  it('registra motivo y hora del fallo y conserva los contadores', () => {
+  it('records reason and time of failure and keeps the counters', () => {
     let now = dates[0];
     const job = new ScanJob(target, () => now);
     now = dates[1];
@@ -191,7 +191,7 @@ describe('ScanJob: contadores y timestamps', () => {
     assert.deepEqual(job.counters, counters);
   });
 
-  it('rechaza un motivo vacío sin mutar la entidad', () => {
+  it('rejects an empty reason without mutating the entity', () => {
     const job = atState('SCANNING');
     const before = snapshot(job);
     assert.throws(() => job.fail('  '), /requiere un motivo/);
@@ -244,7 +244,7 @@ describe('ScanJob: contadores y timestamps', () => {
     }
   }
 
-  it('no cambia estado ni fechas si falla el reloj', () => {
+  it('does not change state or dates if the clock fails', () => {
     let throws = false;
     const job = new ScanJob(target, () => {
       if (throws) throw new Error('clock failure');

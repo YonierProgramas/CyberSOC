@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TopK, topK } from '../src/core/structures/TopK';
 
 describe('topK: min-heap estable', () => {
-  it('k=0 no consume el iterable ni evalúa puntuaciones', () => {
+  it('k=0 does not consume the iterable or evaluate scores', () => {
     const score = vi.fn(() => 1);
     const iterator = vi.fn(() => [1, 2][Symbol.iterator]());
     expect(topK({ [Symbol.iterator]: iterator }, 0, score)).toEqual([]);
@@ -10,7 +10,7 @@ describe('topK: min-heap estable', () => {
     expect(score).not.toHaveBeenCalled();
   });
 
-  it('vacío, un elemento y k>n; no modifica la entrada', () => {
+  it('empty, one element and k>n; does not modify the input', () => {
     expect(topK([], 10, Number)).toEqual([]);
     expect(topK([7], 1, Number)).toEqual([7]);
     const input = Object.freeze([2, -5, 9, 3]);
@@ -18,7 +18,7 @@ describe('topK: min-heap estable', () => {
     expect(input).toEqual([2, -5, 9, 3]);
   });
 
-  it('k=1 conserva al primero entre los máximos', () => {
+  it('k=1 keeps the first among the maximums', () => {
     const items = [
       { id: 0, s: 8 },
       { id: 1, s: 9 },
@@ -27,7 +27,7 @@ describe('topK: min-heap estable', () => {
     expect(topK(items, 1, (item) => item.s)).toEqual([items[1]]);
   });
 
-  it('los empates en la frontera expulsan al más reciente del top', () => {
+  it('ties at the boundary evict the most recent from the top', () => {
     const items = [5, 5, 5, 9, 5, 9].map((s, id) => ({ id, s }));
     expect(topK(items, 3, (item) => item.s).map((item) => item.id)).toEqual([
       3, 5, 0,
@@ -37,7 +37,7 @@ describe('topK: min-heap estable', () => {
     );
   });
 
-  it('consume un generador una vez y calcula cada puntuación una sola vez', () => {
+  it('consumes a generator once and computes each score only once', () => {
     function* input() {
       yield 3;
       yield 8;
@@ -50,20 +50,23 @@ describe('topK: min-heap estable', () => {
   });
 
   it.each([-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1])(
-    'rechaza k inválido %s',
+    'rejects invalid k %s',
     (k) => expect(() => topK([1], k, Number)).toThrow(RangeError),
   );
-  it.each([NaN, Infinity, -Infinity])('rechaza score no finito %s', (score) => {
-    expect(() => topK([1], 1, () => score)).toThrow(RangeError);
-  });
+  it.each([NaN, Infinity, -Infinity])(
+    'rejects non-finite score %s',
+    (score) => {
+      expect(() => topK([1], 1, () => score)).toThrow(RangeError);
+    },
+  );
 
-  it('incremental: tamaño acotado, snapshots independientes y score capturado', () => {
+  it('incremental: bounded size, independent snapshots and captured score', () => {
     const score = vi.fn((item: { id: number; s: number }) => item.s);
     const heap = new TopK(3, score);
     const first = { id: 0, s: 100 };
     heap.add(first);
     const snapshot = heap.values();
-    first.s = -100; // La prioridad capturada sigue siendo 100.
+    first.s = -100; // The captured priority is still 100.
     for (let i = 1; i <= 100; i++) {
       heap.add({ id: i, s: i });
       expect(heap.size).toBeLessThanOrEqual(3);
@@ -75,13 +78,13 @@ describe('topK: min-heap estable', () => {
     expect(score).toHaveBeenCalledTimes(101);
   });
 
-  it('coincide con ordenar todo en 1 000 casos aleatorios reproducibles', () => {
+  it('matches sorting everything in 1,000 reproducible random cases', () => {
     let seed = 0x5a17;
     const random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0);
     for (let trial = 0; trial < 1000; trial++) {
       const n = random() % 251;
       const k = random() % (n + 20);
-      // Muchos empates, ceros y negativos; id es el orden original.
+      // Many ties, zeros and negatives; id is the original order.
       const items = Array.from({ length: n }, (_, id) => ({
         id,
         s: (random() % 41) - 20,

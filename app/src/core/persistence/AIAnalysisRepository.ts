@@ -17,7 +17,7 @@ const analysisSchema = z
     model: z.string().nullable().default(null),
     promptVersion: z.string().min(1),
     contextJson: jsonTextSchema,
-    // Se conserva la respuesta original, incluso cuando no es JSON válido.
+    // The original response is kept, even when it is not valid JSON.
     responseJson: z.string().nullable().default(null),
     validationStatus: z.enum([
       'VALID',
@@ -85,7 +85,7 @@ export class AIAnalysisRepository {
       const contextSha256 = createHash('sha256')
         .update(item.contextJson, 'utf8')
         .digest('hex');
-      // ISO UTC con precisión fija mantiene el orden cronológico al ordenar TEXT.
+      // UTC ISO with fixed precision keeps chronological order when sorting TEXT.
       const createdAt = new Date(item.createdAt).toISOString();
       this.database
         .prepare(
@@ -142,8 +142,8 @@ export class AIAnalysisRepository {
       .get(resultId) as unknown as AIAnalysisRecord | undefined;
   }
 
-  // Los pendientes son resultados, incluso si todavía no existe un intento IA.
-  // validation_status describe un intento terminado; ai_status describe el trabajo pendiente.
+  // Pending items are results, even if no AI attempt exists yet.
+  // validation_status describes a finished attempt; ai_status describes the pending work.
   listPendingByStatus(
     statuses: readonly AIStatus[] = ['PENDING', 'RETRY_WAIT'],
     offset = 0,

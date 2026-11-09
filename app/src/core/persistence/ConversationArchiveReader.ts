@@ -26,7 +26,7 @@ interface MessageRow {
   createdAt: string;
 }
 
-/** Archivo independiente del asistente: no conoce Queue, reset, ask, herramientas o proveedor. */
+/** Independent assistant archive: it knows nothing about Queue, reset, ask, tools or provider. */
 export class ConversationArchiveReader {
   constructor(
     private readonly db: Database,
@@ -58,8 +58,8 @@ export class ConversationArchiveReader {
           )
           .get(query.conversationId)!.total,
       );
-      // Primero solo longitudes/IDs (≤101 filas): nunca materializar 100 tarjetas grandes
-      // para después descubrir que superan el presupuesto. El índice mantiene orden rowid.
+      // Lengths/IDs only first (≤101 rows): never materialize 100 large cards
+      // just to find out they exceed the budget. The index keeps rowid order.
       const metadata = this.db
         .prepare(
           `SELECT m.rowid, m.id, COALESCE(length(CAST(c.card_json AS BLOB)),0) cardBytes
@@ -72,7 +72,7 @@ export class ConversationArchiveReader {
           ...(cursor ? [Number(cursor.rowid)] : []),
           limit + 1,
         ) as unknown as Metadata[];
-      // Array: siempre es un prefijo contiguo de la lectura descendente, sin huecos.
+      // Array: always a contiguous prefix of the descending read, with no gaps.
       // push O(1) amortizado; recorrido/reverse O(p), p ≤ 100; tarjetas ≤ 8 MiB.
       const selected: Metadata[] = [];
       let bytes = 0;
@@ -202,7 +202,7 @@ export class ConversationArchiveReader {
               : null;
         if (code !== null && code.length > 32)
           throw new Error('Código inválido.');
-        // Lista blanca: jamás devolver content, input, ruta, hash o JSON original.
+        // Allowlist: never return content, input, path, hash or original JSON.
         return { name: call.name, ok: call.ok === true, code };
       },
     );
@@ -235,8 +235,8 @@ export class ConversationArchiveReader {
         result.verdict !== 'SUSPICIOUS'
       )
         return { ...base, availability: 'NOT_APPLICABLE' };
-      // Indicador de disponibilidad, nunca autorización durable: al pulsar se vuelve
-      // al flujo existente (configuración IA / QuarantineManager / confirmación).
+      // Availability indicator, never durable authorization: on click it goes back
+      // to the existing flow (AI settings / QuarantineManager / confirmation).
       return { ...base, availability: 'AVAILABLE' };
     });
   }

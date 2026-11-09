@@ -1,5 +1,5 @@
-; Este candidato no implementa borrado de datos. Ni siquiera acepta el flag
-; genérico heredado del builder: evitar una eliminación recursiva sin validar.
+; This candidate does not implement data deletion. It does not even accept the generic
+; flag inherited from the builder: avoids an unvalidated recursive deletion.
 !macro customUnInit
   ${GetParameters} $R0
   ClearErrors

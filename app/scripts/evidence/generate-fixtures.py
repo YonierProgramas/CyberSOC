@@ -1,4 +1,4 @@
-"""Prepara únicamente fixtures inofensivos dentro del temporal del capturador."""
+"""Prepares only harmless fixtures inside the capturer's temporary folder."""
 
 import os
 import runpy
@@ -15,7 +15,7 @@ with generator["generate_fixtures"](
 ) as generated:
     shutil.copytree(generated, root / "fixtures")
 
-# Dos heurísticas en una muestra: cabecera MZ con relleno, nunca un ejecutable real.
+# Two heuristics in one sample: MZ header with padding, never a real executable.
 shutil.copyfile(root / "fixtures/pe_disfrazado.pdf", root / "fixtures/factura.pdf.ps1")
 for name, count in (("cancelacion", 3000), ("caida", 80)):
     folder = root / name

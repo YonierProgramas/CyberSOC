@@ -80,7 +80,7 @@ beforeEach(() => {
   stop = registerAssistantIpc(() => window, url, service);
 });
 
-it('registra las cuatro operaciones del asistente', () => {
+it('registers the four assistant operations', () => {
   expect(electron.handle.mock.calls.map(([name]) => name)).toEqual([
     ASSISTANT_ASK,
     ASSISTANT_RESET,
@@ -89,7 +89,7 @@ it('registra las cuatro operaciones del asistente', () => {
   ]);
 });
 
-it('ask valida la pregunta y el foco y devuelve la respuesta', async () => {
+it('ask validates the question and focus and returns the response', async () => {
   for (const query of [
     { message: '¿Por qué fue marcado?', focus: { resultId: 'r1' } },
     { message: 'Resúmeme el escaneo', focus: { jobId: 'j1' } },
@@ -119,21 +119,21 @@ it.each([
     { message: 'hola', focus: { resultId: 'r'.repeat(65) } },
   ],
   ['no es objeto', 'hola'],
-])('ask rechaza %s sin llamar al servicio', async (_name, query) => {
+])('ask rejects %s without calling the service', async (_name, query) => {
   await expect(call(ASSISTANT_ASK, event, query)).rejects.toThrow(
     'No se pudo completar la consulta al asistente.',
   );
   expect(service.ask).not.toHaveBeenCalled();
 });
 
-it('ask rechaza argumentos de más', async () => {
+it('ask rejects extra arguments', async () => {
   await expect(
     call(ASSISTANT_ASK, event, { message: 'hola' }, 'extra'),
   ).rejects.toThrow();
   expect(service.ask).not.toHaveBeenCalled();
 });
 
-it('rechaza otra ventana, un subframe o una navegación', async () => {
+it('rejects another window, a subframe or a navigation', async () => {
   for (const sender of [
     { sender: {}, senderFrame: frame },
     { sender: webContents, senderFrame: { url } },
@@ -152,7 +152,7 @@ it('rechaza otra ventana, un subframe o una navegación', async () => {
   expect(service.reset).not.toHaveBeenCalled();
 });
 
-it('no propaga el error original del servicio', async () => {
+it('does not propagate the original service error', async () => {
   service.ask = vi.fn(async () => {
     throw new Error('C:\\Users\\privado\\secreto.exe no existe');
   });
@@ -167,7 +167,7 @@ it('no propaga el error original del servicio', async () => {
   );
 });
 
-it('valida también la respuesta: campos de más no llegan al renderer', async () => {
+it('also validates the response: extra fields do not reach the renderer', async () => {
   service.ask = vi.fn(async () => ({ ...reply, rawPrompt: 'interno' }));
   stop();
   stop = registerAssistantIpc(() => window, url, service);
@@ -176,7 +176,7 @@ it('valida también la respuesta: campos de más no llegan al renderer', async (
   ).rejects.toThrow();
 });
 
-it('reset no admite argumentos y llama al servicio', async () => {
+it('reset accepts no arguments and calls the service', async () => {
   await expect(call(ASSISTANT_RESET)).resolves.toBeUndefined();
   expect(service.reset).toHaveBeenCalledTimes(1);
   await expect(call(ASSISTANT_RESET, event, 'extra')).rejects.toThrow(
@@ -185,7 +185,7 @@ it('reset no admite argumentos y llama al servicio', async () => {
   expect(service.reset).toHaveBeenCalledTimes(1);
 });
 
-it('al detenerse quita los handlers y rechaza llamadas pendientes', async () => {
+it('on stop removes the handlers and rejects pending calls', async () => {
   const handlers = electron.handle.mock.calls.map(([, handler]) => handler);
   stop();
   expect(electron.removeHandler).toHaveBeenCalledWith(ASSISTANT_ASK);
@@ -201,7 +201,7 @@ it('al detenerse quita los handlers y rechaza llamadas pendientes', async () => 
   ).rejects.toThrow();
 });
 
-it('lista con paginación y abre por UUID', async () => {
+it('lists with paging and opens by UUID', async () => {
   service.listConversations = vi.fn(() => [conversation]);
   await expect(call(ASSISTANT_LIST_CONVERSATIONS)).resolves.toEqual([
     conversation,
@@ -232,7 +232,7 @@ it.each([
   [{ extra: true }],
   [null],
   [{}, 'extra'],
-])('rechaza argumentos de listado inválidos: %j', async (...args) => {
+])('rejects invalid listing arguments: %j', async (...args) => {
   await expect(
     call(ASSISTANT_LIST_CONVERSATIONS, event, ...args),
   ).rejects.toThrow('No se pudieron listar');
@@ -240,7 +240,7 @@ it.each([
 });
 
 it.each([[], [''], ['no-existe'], [42], [conversation.id, 'extra']])(
-  'rechaza argumentos de apertura inválidos: %j',
+  'rejects invalid open arguments: %j',
   async (...args) => {
     await expect(
       call(ASSISTANT_OPEN_CONVERSATION, event, ...args),
@@ -249,7 +249,7 @@ it.each([[], [''], ['no-existe'], [42], [conversation.id, 'extra']])(
   },
 );
 
-it('los nuevos handlers verifican origen, ventana, subframe y cierre', async () => {
+it('the new handlers verify origin, window, subframe and shutdown', async () => {
   for (const sender of [
     { sender: {}, senderFrame: frame },
     { sender: webContents, senderFrame: { url } },
@@ -283,7 +283,7 @@ it('los nuevos handlers verifican origen, ventana, subframe y cierre', async () 
   expect(service.openConversation).not.toHaveBeenCalled();
 });
 
-it('no filtra errores internos ni campos adicionales del historial', async () => {
+it('does not leak internal errors or additional history fields', async () => {
   service.openConversation = vi.fn(() => {
     throw new Error('ruta-privada');
   });
@@ -304,7 +304,7 @@ it('no filtra errores internos ni campos adicionales del historial', async () =>
   ).rejects.toThrow();
 });
 
-it('T5.5: las tarjetas de reporte y de plan pasan; un plan con ruta inyectada no llega al renderer', async () => {
+it('T5.5: report and plan cards pass; a plan with an injected path does not reach the renderer', async () => {
   const withCards: AssistantReplyDTO = {
     ...reply,
     report: {
@@ -335,7 +335,7 @@ it('T5.5: las tarjetas de reporte y de plan pasan; un plan con ruta inyectada no
   await expect(
     call(ASSISTANT_ASK, event, { message: 'hola' }),
   ).resolves.toEqual(withCards);
-  // Un campo extra (p. ej. una ruta que no viene de list_zones) se bloquea en la frontera.
+  // An extra field (e.g. a path not coming from list_zones) is blocked at the boundary.
   const injected = {
     ...withCards,
     scanPlan: {

@@ -10,7 +10,7 @@ const base = {
   engineVersion: 'test',
 };
 
-it('conserva respuestas anteriores sin fabricar evaluación', () => {
+it('keeps earlier responses without fabricating an assessment', () => {
   expect(engineResultSchema.parse(base)).toEqual(base);
 });
 
@@ -26,7 +26,7 @@ it.each([
   ['DETECTED', 100, 'CRÍTICO'],
   ['ERROR', null, null],
   ['NOT_ANALYZED', null, null],
-])('acepta evaluación %s/%j/%s', (verdict, score, riskLevel) => {
+])('accepts assessment %s/%j/%s', (verdict, score, riskLevel) => {
   const value = { ...base, verdict, score, riskLevel };
   expect(engineResultSchema.parse(value)).toEqual(value);
 });
@@ -49,7 +49,7 @@ it.each([
   [null, null, null],
   ['UNKNOWN', 0, 'BAJO'],
   ['DETECTED', 85, 'CRITICO'],
-])('rechaza evaluación incoherente %s/%j/%s', (verdict, score, riskLevel) => {
+])('rejects incoherent assessment %s/%j/%s', (verdict, score, riskLevel) => {
   expect(
     engineResultSchema.safeParse({ ...base, verdict, score, riskLevel })
       .success,
@@ -57,7 +57,7 @@ it.each([
 });
 
 it.each(['verdict', 'score', 'riskLevel'])(
-  'rechaza evaluación parcial sin %s',
+  'rejects partial assessment without %s',
   (field) => {
     const value: Record<string, unknown> = {
       ...base,

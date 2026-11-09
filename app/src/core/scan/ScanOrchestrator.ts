@@ -56,8 +56,8 @@ export type ScanEngine = Pick<
   EngineProcess,
   'scanFile' | 'reconnect' | 'getState'
 >;
-// skippedEntries/skippedByReason son opcionales: un descubridor que no los informa
-// deja null en las métricas (desconocido), nunca 0 (que afirmaría «nada omitido»).
+// skippedEntries/skippedByReason are optional: a discoverer that does not report them
+// leaves null in the metrics (unknown), never 0 (which would claim nothing was skipped).
 export type ScanDiscovery = Pick<
   FileDiscovery,
   'discover' | 'peakStackSize' | 'dirsVisited' | 'skippedLinks'
@@ -76,7 +76,7 @@ export interface ScanDependencies {
   jobs: Pick<ScanJobRepository, 'create' | 'updateStatus' | 'updateCounters'> &
     Partial<Pick<ScanJobRepository, 'updateVersions'>>;
   results: Pick<ScanResultRepository, 'insertResult'>;
-  /** Persistencia completa S2; el adaptador recibe también los hechos del motor. */
+  /** Complete S2 persistence; the adapter also receives the engine facts. */
   persistResult?: (
     record: InsertScanResult,
     engineResult: EngineResult,
@@ -246,7 +246,7 @@ export class ScanOrchestrator extends EventEmitter<{
         run.zones = this.dependencies.createZoneSession?.();
         if (this.dependencies.stats) {
           if (!this.dependencies.jobs.updateVersions)
-            throw new Error('Falta persistencia de versiones del motor.');
+            throw new Error('Engine version persistence is missing.');
           const versions = await abortable(
             this.dependencies.stats(),
             run.controller.signal,
@@ -328,8 +328,8 @@ export class ScanOrchestrator extends EventEmitter<{
           ? await abortable(run.zones.classify(path), run.controller.signal)
           : 'OTRA';
         const profile = run.choice === 'AUTO' ? run.profiles[zone] : run.choice;
-        // Se filtra por archivo: podar AppData impediría llegar al TEMP anidado,
-        // cuyo perfil sí incluye ocultos. La consulta considera sus antecesores.
+        // Filtered per file: pruning AppData would prevent reaching the nested TEMP,
+        // whose profile does include hidden files. The query considers its ancestors.
         if (
           !profile.includeHidden &&
           run.zones &&
@@ -413,7 +413,7 @@ export class ScanOrchestrator extends EventEmitter<{
             taskId: task.taskId,
             status: 'ERROR',
             evidence: [],
-            // Sin respuesta del motor no hay una traza de capas verificable.
+            // Without an engine response there is no verifiable layer trace.
             layers: [],
             error: {
               code:
@@ -447,9 +447,9 @@ export class ScanOrchestrator extends EventEmitter<{
         if (this.dependencies.persistResult)
           this.dependencies.persistResult(record, result);
         else this.dependencies.results.insertResult(record);
-        // Invariante: solo diez candidatos persistidos por trabajo, O(k) memoria.
-        // Cada llegada actualiza el min-heap en O(log k), sin releer toda la BD.
-        // La prioridad es la puntuación del motor; no decide un veredicto de RiskPolicy.
+        // Invariant: only ten persisted candidates per job, O(k) memory.
+        // Each arrival updates the min-heap in O(log k), without rereading the whole DB.
+        // The priority is the engine score; it does not decide a RiskPolicy verdict.
         if (result.status === 'SCANNED' && typeof result.score === 'number') {
           run.topRisk.add({
             resultId: record.id,
@@ -493,7 +493,7 @@ export class ScanOrchestrator extends EventEmitter<{
       producerBlockedMs: run.queue.producerBlockedMs,
       dirsVisited: run.discovery.dirsVisited,
       skippedLinks: run.discovery.skippedLinks,
-      // Entradas que no se pudieron leer (AUD-10); solo conteos, nunca rutas.
+      // Entries that could not be read (AUD-10); counts only, never paths.
       skippedEntries: run.discovery.skippedEntries ?? null,
       skippedByReason: run.discovery.skippedByReason ?? null,
       engineRestarts: run.restarts,
@@ -547,8 +547,8 @@ export class ScanOrchestrator extends EventEmitter<{
         : null,
       currentPath: run.currentPath,
       elapsedMs: performance.now() - run.started,
-      // Snapshot O(k log k), k=10. Copias para no compartir el ranking interno
-      // con los receptores ni alterar eventos anteriores al llegar otro resultado.
+      // O(k log k) snapshot, k=10. Copies avoid sharing the internal ranking
+      // with receivers or altering earlier events when another result arrives.
       topRisk: run.topRisk.values().map((item) => ({ ...item })),
     });
   }

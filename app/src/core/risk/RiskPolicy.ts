@@ -1,4 +1,4 @@
-// Solo importaciones de tipos: este archivo también se ejecuta con el type stripping de Node
+// Type-only imports: this file also runs with Node type stripping
 // (cobertura nativa en tests/risk-policy.cases.mjs).
 import type { AIAssessment } from '../ai/schemas';
 import type { RiskLevel } from '../persistence/assessmentTypes';
@@ -6,18 +6,18 @@ import type { RiskLevel } from '../persistence/assessmentTypes';
 export const POLICY_VERSION = '3';
 export const AI_PENDING_LABEL = 'IA pendiente / no disponible';
 
-/** Umbrales de la política v2 (plan S3, sección «RiskPolicy v2»). */
+/** Thresholds of policy v2 (S3 plan, section «RiskPolicy v2»). */
 export const ESCALATION_MIN_CONFIDENCE = 0.7;
 export const FALSE_POSITIVE_REVIEW_MIN_CONFIDENCE = 0.8;
-/** Nivel máximo que puede alcanzar un resultado escalado por la IA. */
+/** Maximum level a result escalated by the AI can reach. */
 export const ESCALATION_LEVEL: RiskLevel = 'MEDIO';
 
-/** Veredictos que la política evalúa. ERROR y NOT_ANALYZED no llegan aquí (no hay puntuación). */
+/** Verdicts the policy evaluates. ERROR and NOT_ANALYZED do not get here (no score). */
 export type EngineVerdict = 'CLEAN' | 'SUSPICIOUS' | 'DETECTED';
 export type AIOpinion = AIAssessment['opinion'];
 export type RiskOrigin = 'ENGINE' | 'AI_ESCALATION' | 'USER_ALLOWLIST';
 
-/** Regla de la política que decidió el resultado (para el panel «¿Cómo se decidió?»). */
+/** Policy rule that decided the result (for the «¿Cómo se decidió?» panel). */
 export type PolicyRule =
   | 'USER_ALLOWLIST'
   | 'DETECTED_KEPT'
@@ -26,7 +26,7 @@ export type PolicyRule =
   | 'CLEAN_ESCALATED_BY_AI'
   | 'CLEAN_KEPT';
 
-/** Mismos valores que `ai_analyses.validation_status`. */
+/** Same values as `ai_analyses.validation_status`. */
 export type AIValidationStatus =
   | 'VALID'
   | 'INVALID_JSON'
@@ -38,15 +38,15 @@ export type AIValidationStatus =
 
 export interface EngineAssessment {
   verdict: EngineVerdict;
-  /** Puntuación del motor, entero de 0 a 100. */
+  /** Engine score, integer from 0 to 100. */
   score: number;
-  /** IDs de las evidencias del motor (`ev1..evN`). Sin ellos no se puede escalar. */
+  /** IDs of the engine evidence (`ev1..evN`). Without them there is no escalation. */
   evidenceIds?: readonly string[];
-  /** Hecho obtenido del repositorio de confianza humana, nunca de la IA. */
+  /** Fact taken from the human trust repository, never from the AI. */
   userAllowlisted?: boolean;
 }
 
-/** Último análisis de IA del resultado, ya pasado por `AIResponseValidator`. */
+/** Latest AI analysis of the result, already passed through `AIResponseValidator`. */
 export type PolicyAIAnalysis =
   | {
       validationStatus: 'VALID';
@@ -60,7 +60,7 @@ export interface RiskDecision {
   policyVersion: typeof POLICY_VERSION;
   engineVerdict: EngineVerdict;
   engineScore: number;
-  /** Solo se rellenan con un análisis válido; si no, `null`. */
+  /** Only filled in with a valid analysis; otherwise `null`. */
   aiOpinion: AIOpinion | null;
   aiConfidence: number | null;
   finalVerdict: EngineVerdict;
@@ -68,9 +68,9 @@ export interface RiskDecision {
   reviewRequired: boolean;
   origin: RiskOrigin;
   rule: PolicyRule;
-  /** La IA está ausente o se descartó: mostrar `AI_PENDING_LABEL`. */
+  /** The AI is absent or was discarded: show `AI_PENDING_LABEL`. */
   aiPending: boolean;
-  /** Pasos legibles de la decisión, en orden. Se guarda como `trace_json`. */
+  /** Readable decision steps, in order. Stored as `trace_json`. */
   trace: string[];
 }
 
@@ -88,7 +88,7 @@ const OPINIONS: ReadonlySet<string> = new Set([
   'INSUFFICIENT_EVIDENCE',
 ]);
 
-/** Nivel por puntuación: 0–29 BAJO · 30–59 MEDIO · 60–84 ALTO · 85–100 CRÍTICO. */
+/** Level by score: 0–29 BAJO · 30–59 MEDIO · 60–84 ALTO · 85–100 CRÍTICO. */
 export function levelForScore(score: number): RiskLevel {
   if (score < 30) return 'BAJO';
   if (score < 60) return 'MEDIO';
@@ -96,7 +96,7 @@ export function levelForScore(score: number): RiskLevel {
   return 'CRÍTICO';
 }
 
-// Defensa: aunque llegue como VALID, no se confía en una opinión o confianza imposibles.
+// Defense: even when it arrives as VALID, an impossible opinion or confidence is not trusted.
 function isWithinRange(ai: ValidAIAnalysis): boolean {
   return (
     OPINIONS.has(ai.opinion) &&
@@ -107,7 +107,7 @@ function isWithinRange(ai: ValidAIAnalysis): boolean {
   );
 }
 
-/** Comprueba, una a una, las condiciones del escalamiento CLEAN → SUSPICIOUS. */
+/** Checks, one by one, the CLEAN → SUSPICIOUS escalation conditions. */
 function escalationChecks(
   score: number,
   evidenceIds: readonly string[],
@@ -136,11 +136,11 @@ function escalationChecks(
 }
 
 /**
- * RiskPolicy v3 (ADR-006). Primero la decisión humana por hash; luego las reglas v2:
- * - la IA nunca produce DETECTED ni baja un veredicto;
- * - solo puede escalar CLEAN → SUSPICIOUS si se cumplen TODAS las condiciones del plan, y
- *   entonces el nivel queda en MEDIO como máximo y el origen es AI_ESCALATION;
- * - sobre SUSPICIOUS, una IA LIKELY_BENIGN con confianza ≥ 0.8 solo pide revisión humana.
+ * RiskPolicy v3 (ADR-006). First the human decision by hash; then the v2 rules:
+ * - the AI never produces DETECTED nor lowers a verdict;
+ * - it can only escalate CLEAN → SUSPICIOUS if ALL plan conditions hold, and
+ *   then the level stays at MEDIO at most and the origin is AI_ESCALATION;
+ * - on SUSPICIOUS, an AI LIKELY_BENIGN with confidence ≥ 0.8 only requests human review.
  */
 export function decideRisk(
   engine: EngineAssessment,
@@ -148,7 +148,7 @@ export function decideRisk(
 ): RiskDecision {
   if (!VERDICTS.has(engine.verdict)) {
     throw new RangeError(
-      `RiskPolicy solo evalúa CLEAN, SUSPICIOUS o DETECTED (recibido: ${String(engine.verdict)}).`,
+      `RiskPolicy only evaluates CLEAN, SUSPICIOUS or DETECTED (received: ${String(engine.verdict)}).`,
     );
   }
   if (
@@ -157,13 +157,13 @@ export function decideRisk(
     engine.score > 100
   ) {
     throw new RangeError(
-      `La puntuación del motor debe ser un entero de 0 a 100 (recibido: ${String(engine.score)}).`,
+      `The engine score must be an integer from 0 to 100 (received: ${String(engine.score)}).`,
     );
   }
 
   const trace: string[] = [];
   const { verdict, score } = engine;
-  // La validación de forma precede a las reglas; la allowlist precede a TODO veredicto/IA.
+  // Shape validation precedes the rules; the allowlist precedes ANY verdict/AI.
   if (engine.userAllowlisted === true) {
     return {
       policyVersion: POLICY_VERSION,
@@ -196,7 +196,7 @@ export function decideRisk(
     trace.push(`Nivel ${finalLevel} según la puntuación.`);
   }
 
-  // 1. ¿Hay una IA utilizable?
+  // 1. Is there a usable AI?
   let usable: ValidAIAnalysis | null = null;
   if (ai == null) {
     trace.push(
@@ -217,7 +217,7 @@ export function decideRisk(
     );
   }
 
-  // 2. Reglas por veredicto del motor.
+  // 2. Rules by engine verdict.
   let finalVerdict: EngineVerdict = verdict;
   let origin: RiskOrigin = 'ENGINE';
   let reviewRequired = false;

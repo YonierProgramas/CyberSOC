@@ -1,5 +1,5 @@
-// Node 24 elimina tipos, pero los imports del core omiten .ts. Este adaptador local
-// resuelve solo imports relativos del código propio; no altera paquetes de terceros.
+// Node 24 strips types, but core imports omit .ts. This local adapter
+// resolves only relative imports of our own code; it does not alter third-party packages.
 import { registerHooks } from 'node:module';
 
 const appUrl = new URL('../../', import.meta.url).href;

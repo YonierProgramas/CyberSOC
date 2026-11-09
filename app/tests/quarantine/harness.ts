@@ -19,7 +19,7 @@ import { decideRisk } from '../../src/core/risk/RiskPolicy';
 export const sha = (data: Buffer | string): string =>
   createHash('sha256').update(data).digest('hex');
 
-/** Texto inofensivo de prueba. Nunca EICAR ni malware. */
+/** Harmless test text. Never EICAR or malware. */
 export const HARMLESS = 'Texto inofensivo para pruebas adversariales.\n';
 
 export interface Seeded {
@@ -30,9 +30,9 @@ export interface Seeded {
 }
 
 /**
- * Escenario aislado: carpeta temporal propia, SQLite con migraciones, bóveda dentro de
- * la carpeta y gestor real. Las rutas protegidas extra son `protected/` y la bóveda.
- * Todo ataque apunta DENTRO de `root`: si una defensa fallara, solo se escribiría ahí.
+ * Isolated scenario: own temporary folder, SQLite with migrations, vault inside
+ * the folder and real manager. The extra protected paths are `protected/` and the vault.
+ * Every attack points INSIDE `root`: if a defense failed, it would only write there.
  */
 export class QuarantineHarness {
   root = '';
@@ -64,7 +64,7 @@ export class QuarantineHarness {
     return new ProtectedPaths([join(this.root, 'protected'), this.vault.root]);
   }
 
-  /** Un gestor nuevo sobre la misma BD y bóveda: equivale a reiniciar la app. */
+  /** A new manager on the same DB and vault: equivalent to restarting the app. */
   makeManager(vault = this.vault): QuarantineManager {
     return new QuarantineManager({
       database: this.db,
@@ -74,7 +74,7 @@ export class QuarantineHarness {
     });
   }
 
-  /** Crea el archivo y su resultado DETECTED, como si lo hubiera escaneado el motor. */
+  /** Creates the file and its DETECTED result, as if the engine had scanned it. */
   async seed(
     name = `muestra-${this.seq}.txt`,
     data: string | Buffer = HARMLESS,
@@ -117,21 +117,21 @@ export class QuarantineHarness {
     return this.manager.repository.get(id)!;
   }
 
-  /** Archivos de la bóveda (blobs y temporales). */
+  /** Vault files (blobs and temporaries). */
   async vaultFiles(): Promise<string[]> {
     return (await exists(this.vault.root))
       ? (await fs.readdir(this.vault.root)).sort()
       : [];
   }
 
-  /** Temporales de restauración en texto plano que hayan quedado en `dir`. */
+  /** Plain-text restoration temporaries left in `dir`. */
   async restoreTemps(dir = this.root): Promise<string[]> {
     return (await fs.readdir(dir)).filter((name) =>
       name.startsWith('.cybersoc-restore-'),
     );
   }
 
-  /** Cambia columnas que el repositorio no actualiza (clave, IV, hash…): simula una BD manipulada. */
+  /** Changes columns the repository does not update (key, IV, hash…): simulates a tampered DB. */
   tamper(id: string, column: string, value: string | number | null): void {
     this.db
       .prepare(`UPDATE quarantine_items SET ${column} = ? WHERE id = ?`)
@@ -142,7 +142,7 @@ export class QuarantineHarness {
     vi.restoreAllMocks();
     await this.manager.close();
     this.db.close();
-    // Solo la carpeta creada por esta prueba; nunca archivos del usuario.
+    // Only the folder created by this test; never user files.
     await fs.rm(this.root, { recursive: true, force: true });
   }
 }

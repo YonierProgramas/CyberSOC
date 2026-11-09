@@ -30,7 +30,7 @@ const messageColumns = `id, conversation_id AS conversationId, role, content,
   tool_calls_json AS toolCallsJson, model, input_tokens AS inputTokens,
   output_tokens AS outputTokens, created_at AS createdAt`;
 
-/** Historial completo en SQLite; rowid desempata mensajes con la misma fecha. */
+/** Complete history in SQLite; rowid breaks ties between messages with the same date. */
 export class ConversationRepository {
   constructor(private readonly db: Database) {}
 
@@ -63,7 +63,7 @@ export class ConversationRepository {
       !Number.isSafeInteger(offset) ||
       offset < 0
     )
-      throw new RangeError('Paginación inválida.');
+      throw new RangeError('Invalid pagination.');
     return this.db
       .prepare(
         `SELECT ${conversationColumns} FROM ai_conversations
@@ -72,7 +72,7 @@ export class ConversationRepository {
       .all(limit, offset) as unknown as ConversationDTO[];
   }
 
-  /** El lote de mensajes y updated_at se confirman juntos o se revierten juntos. */
+  /** The message batch and updated_at are committed or rolled back together. */
   append(id: string, messages: readonly NewConversationMessage[]): void {
     this.db.transaction(() => {
       if (!this.get(id)) throw new Error('La conversación no existe.');
@@ -85,7 +85,7 @@ export class ConversationRepository {
         if (message.toolCallsJson != null) JSON.parse(message.toolCallsJson);
         for (const tokens of [message.inputTokens, message.outputTokens]) {
           if (tokens != null && (!Number.isSafeInteger(tokens) || tokens < 0))
-            throw new RangeError('Conteo de tokens inválido.');
+            throw new RangeError('Invalid token count.');
         }
         insert.run(
           randomUUID(),
@@ -105,7 +105,7 @@ export class ConversationRepository {
     });
   }
 
-  /** Mensaje final y tarjeta comparten COMMIT; el llamador solo avanza Queue después. */
+  /** Final message and card share a COMMIT; the caller only advances the Queue afterwards. */
   appendAnsweredWithCard(
     id: string,
     message: Omit<NewConversationMessage, 'role' | 'toolCallsJson'>,
@@ -117,12 +117,12 @@ export class ConversationRepository {
       byteLimit < 1 ||
       byteLimit > ASSISTANT_CARD_MAX_BYTES
     )
-      throw new RangeError('Límite de tarjeta inválido.');
+      throw new RangeError('Invalid card limit.');
     let json: string | undefined;
     try {
       json = JSON.stringify(card);
     } catch {
-      /* Una tarjeta no serializable queda OMITTED. */
+      /* A non-serializable card stays OMITTED. */
     }
     const bytes = json === undefined ? 0 : Buffer.byteLength(json, 'utf8');
     const valid = assistantCardV1Schema.safeParse(card).success;
@@ -134,7 +134,7 @@ export class ConversationRepository {
           : null;
     for (const tokens of [message.inputTokens, message.outputTokens])
       if (tokens != null && (!Number.isSafeInteger(tokens) || tokens < 0))
-        throw new RangeError('Conteo de tokens inválido.');
+        throw new RangeError('Invalid token count.');
     const savedId = this.db.transaction(() => {
       if (!this.get(id)) throw new Error('La conversación no existe.');
       const messageId = randomUUID();
@@ -206,7 +206,7 @@ export class ConversationRepository {
     }));
   }
 
-  /** Últimos turnos de usuario, incluidos sus mensajes de herramientas, en orden de llegada. */
+  /** Latest user turns, including their tool messages, in arrival order. */
   recentMessages(id: string, turns = 10): ConversationMessageDTO[] {
     if (!Number.isSafeInteger(turns) || turns < 1 || turns > 10)
       throw new RangeError('La ventana admite entre 1 y 10 turnos.');
@@ -224,11 +224,11 @@ export class ConversationRepository {
       .all(id, id, turns) as unknown as ConversationMessageDTO[];
   }
 
-  /** Diez pares completos: los intentos sin respuesta no expulsan contexto válido. */
+  /** Ten complete pairs: attempts without a response do not evict valid context. */
   recentCompletedTurns(id: string): { question: string; answer: string }[] {
     if (!this.get(id)) throw new Error('La conversación no existe.');
-    // LEAD delimita cada pregunta hasta la siguiente. La última respuesta sin
-    // tool_calls es la respuesta final; los mensajes intermedios no son turnos.
+    // LEAD delimits each question up to the next one. The last response without
+    // tool_calls is the final response; intermediate messages are not turns.
     const rows = this.db
       .prepare(
         `

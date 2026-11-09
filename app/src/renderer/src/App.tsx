@@ -21,7 +21,7 @@ function readCollapsed(): boolean {
     if (saved === 'collapsed') return true;
     if (saved === 'expanded') return false;
   } catch {
-    /* Sin preferencia guardada se usa el ancho de la ventana. */
+    /* Without a stored preference the window width is used. */
   }
   return window.matchMedia('(max-width: 1100px)').matches;
 }
@@ -50,7 +50,7 @@ function AppFrame() {
       try {
         if (localStorage.getItem(SIDEBAR_KEY)) return;
       } catch {
-        /* Sin almacén local, el ancho de la ventana manda. */
+        /* Without local storage, the window width decides. */
       }
       setCollapsed(media.matches);
     };
@@ -75,7 +75,7 @@ function AppFrame() {
       try {
         localStorage.setItem(SIDEBAR_KEY, next ? 'collapsed' : 'expanded');
       } catch {
-        /* La preferencia del menú no afecta al motor. */
+        /* The menu preference does not affect the engine. */
       }
       return next;
     });

@@ -69,7 +69,7 @@ import { openDatabaseWithBackup } from '../core/persistence/UpgradeBackup';
 
 let evidenceRoot: string | undefined;
 
-/** Solo el opt-in explícito aísla datos y sustituye el diálogo nativo. */
+/** Only the explicit opt-in isolates data and replaces the native dialog. */
 function prepareEvidenceMode(): string | undefined {
   if (RELEASE) return undefined;
   if (process.env.CYBERSOC_EVIDENCE_MODE !== '1') return undefined;
@@ -77,15 +77,15 @@ function prepareEvidenceMode(): string | undefined {
   const root = process.env.CYBERSOC_EVIDENCE_ROOT
     ? resolve(process.env.CYBERSOC_EVIDENCE_ROOT)
     : mkdtempSync(join(tmpdir(), 'cybersoc-evidence-'));
-  // El capturador solo puede reutilizar un directorio propio: el temporal del sistema
-  // o Public, porque AppData oculto haría que un perfil sin ocultos no vea fixtures.
+  // The capturer may only reuse its own directory: the system temporary folder
+  // or Public, because hidden AppData would keep a no-hidden profile from seeing fixtures.
   const parent = realpathSync(dirname(root));
   const allowedParents = [realpathSync(tmpdir())];
   if (process.env.PUBLIC) {
     try {
       allowedParents.push(realpathSync(process.env.PUBLIC));
     } catch {
-      // Public no está disponible; solo se acepta el temporal del sistema.
+      // Public is not available; only the system temporary folder is accepted.
     }
   }
   if (
@@ -100,8 +100,8 @@ function prepareEvidenceMode(): string | undefined {
   const userData = join(root, 'user-data');
   mkdirSync(userData, { recursive: true });
   app.setPath('userData', userData);
-  // La ventana nace oculta. Con recordVideo, Playwright no llega a pintar
-  // esa ventana hasta que se muestra. Solo aplica a este modo.
+  // The window starts hidden. With recordVideo, Playwright does not get to paint
+  // that window until it is shown. Applies only to this mode.
   app.on('browser-window-created', (_event, window) => {
     window.show();
   });
@@ -137,7 +137,7 @@ export function createSecretStore(database: Database): SecretStore {
   });
 }
 
-/** El ciclo de vida de main inicia/detiene este worker; el proveedor se lee por petición. */
+/** The main lifecycle starts/stops this worker; the provider is read per request. */
 export function createAIWorkflow(
   database: Database,
   provider: () => AIProvider | null = () => createAIProvider(database),
@@ -163,7 +163,7 @@ export function createAIProvider(
     process.env.CYBERSOC_EVIDENCE_MODE === '1' &&
     process.env.CYBERSOC_EVIDENCE_LIVE !== '1'
   ) {
-    // Respuesta fija y explícitamente simulada. Atraviesa el validador y RiskPolicy.
+    // Fixed and explicitly simulated response. It goes through the validator and RiskPolicy.
     const escalation = process.env.CYBERSOC_EVIDENCE_SCENARIO === 'escalation';
     const provider = new EvidenceAIProvider({ model: 'fake-evidence-v1' });
     const value = escalation
@@ -236,9 +236,9 @@ export function createAIProvider(
 }
 
 /**
- * Herramientas de SOLO lectura del Copilot v2 (T5.3) con datos reales: SQLite, catálogo de
- * reglas y firmas del motor, zonas resueltas de este equipo y unidades extraíbles conectadas.
- * La IA nunca aporta rutas: todas salen de aquí.
+ * READ-ONLY Copilot v2 tools (T5.3) with real data: SQLite, the engine rule and
+ * signature catalog, the resolved zones of this machine and connected removable drives.
+ * The AI never supplies paths: all of them come from here.
  */
 export function createAssistantTools(
   database: Database,
@@ -256,8 +256,8 @@ export function createAssistantTools(
       ),
     );
   } catch {
-    // Sin catálogo, get_rule_info y lookup_hash responden NOT_FOUND; el chat sigue.
-    console.error('No se pudo cargar el catálogo de reglas y firmas.');
+    // Without a catalog, get_rule_info and lookup_hash answer NOT_FOUND; the chat continues.
+    console.error('Could not load the rule and signature catalog.');
     catalog = new ToolCatalogRepository([], []);
   }
   return createToolRegistry(
@@ -271,7 +271,7 @@ export function createAssistantTools(
   );
 }
 
-/** Unidades D: a Z: que existen y que el motor clasifica como REMOVABLE. */
+/** Drives D: to Z: that exist and that the engine classifies as REMOVABLE. */
 async function removableDrives(
   engine: Pick<EngineProcess, 'driveInfo'>,
 ): Promise<{ driveId: string; path: string }[]> {
@@ -284,7 +284,7 @@ async function removableDrives(
       if ((await engine.driveInfo(path)).driveType === 'REMOVABLE')
         drives.push({ driveId: `${letter}:`, path });
     } catch {
-      // Letra sin unidad o motor desconectado: no se ofrece como destino.
+      // Letter without a drive or engine disconnected: not offered as a target.
     }
   }
   return drives;
@@ -305,10 +305,7 @@ export function createAISettings(
     try {
       options.onReady?.();
     } catch {
-      logger.warn(
-        { component: 'ai' },
-        'No se pudo reanudar el análisis de IA.',
-      );
+      logger.warn({ component: 'ai' }, 'Could not resume the AI analysis.');
     }
   };
   return {
@@ -352,7 +349,7 @@ export function createAISettings(
     },
     async testConnection(): Promise<AIHealthCheck> {
       try {
-        // Crear por petición evita usar una clave vieja tras reemplazarla/eliminarla.
+        // Creating per request avoids using a stale key after replacing/removing it.
         const provider = createAIProvider(database, secrets);
         if (provider === null)
           return {
@@ -366,8 +363,8 @@ export function createAISettings(
         const result = await provider.healthCheck();
         if (result.ok) {
           notifyReady();
-          logger.info({ component: 'settings' }, 'Conexión de IA comprobada.');
-          // Solo datos locales y numéricos: ni cuerpos HTTP ni model devuelto por la red.
+          logger.info({ component: 'settings' }, 'AI connection verified.');
+          // Local numeric data only: neither HTTP bodies nor the model returned by the network.
           return {
             ok: true,
             value: { model: provider.model },
@@ -378,7 +375,7 @@ export function createAISettings(
         }
         logger.warn(
           { component: 'settings' },
-          'No se pudo comprobar la conexión de IA.',
+          'Could not check the AI connection.',
         );
         return {
           ok: false,
@@ -394,7 +391,7 @@ export function createAISettings(
       } catch {
         logger.warn(
           { component: 'settings' },
-          'Fallo al preparar o comprobar la conexión de IA.',
+          'Failed to prepare or check the AI connection.',
         );
         return {
           ok: false,
@@ -409,7 +406,7 @@ export function createAISettings(
   };
 }
 
-/** Solo se instancia en modo evidencia sin --live: simula el modelo, nunca la política. */
+/** Only instantiated in evidence mode without --live: it simulates the model, never the policy. */
 class EvidenceAIProvider extends FakeAIProvider {
   override async generateStructured<T>(
     request: StructuredRequest<T>,
@@ -451,9 +448,9 @@ class EvidenceAIProvider extends FakeAIProvider {
   }
 
   /**
-   * Solo en modo evidencia. OFFLINE simula que Claude no responde. Las preguntas del
-   * guion S5 piden la herramienta que corresponde y arman la respuesta con sus IDs reales.
-   * El resto sigue siendo texto del foco, sin herramientas.
+   * Evidence mode only. OFFLINE simulates that Claude does not respond. The questions of the
+   * S5 script request the matching tool and build the answer with its real IDs.
+   * Everything else remains focus text, with no tools.
    */
   override async runAssistantTurn<T = string>(
     request: AssistantTurnRequest<T>,
@@ -978,7 +975,7 @@ export function createScanOrchestrator(
             getState: () => engine.getState(),
             reconnect: () => engine.reconnect(),
             async scanFile(params, timeoutMs) {
-              // Solo ralentiza la demostración; ni fabrica ni modifica resultados.
+              // It only slows down the demonstration; it neither fabricates nor modifies results.
               await evidenceDelay();
               return engine.scanFile(params, timeoutMs);
             },
@@ -1028,8 +1025,8 @@ export function createScanOrchestrator(
               : null,
           });
         } else {
-          // Compatibilidad con respuestas v1 anteriores a T2.3: conservar los hechos
-          // sin inventar una puntuación o declarar CLEAN un resultado no evaluado.
+          // Compatibility with v1 responses earlier than T2.3: keep the facts
+          // without inventing a score or declaring an unevaluated result CLEAN.
           results.insertResult(enriched);
           new EvidenceRepository(database).insertMany(
             record.id,
@@ -1041,17 +1038,17 @@ export function createScanOrchestrator(
           );
         }
       });
-      // La IA falla de forma independiente: el resultado local ya está confirmado.
+      // The AI fails independently: the local result is already committed.
       try {
         worker?.enqueueAutomatic(record.id);
       } catch {
-        console.error('No se pudo encolar el análisis de IA.');
+        console.error('Could not enqueue the AI analysis.');
       }
     },
-    onError: (error) => console.error('Error de escaneo:', error),
+    onError: (error) => console.error('Scan error:', error),
   });
-  // JOB_SUMMARY: cada escaneo completado encola su resumen de IA. Igual que el análisis por
-  // archivo, un fallo de la IA no afecta al escaneo ya guardado.
+  // JOB_SUMMARY: each completed scan enqueues its AI summary. As with the per-file
+  // analysis, an AI failure does not affect the already stored scan.
   orchestrator.on('finished', (job: ScanJobRecord) => {
     if (job.status !== 'COMPLETED') return;
     try {
@@ -1077,7 +1074,7 @@ export function createDatabase(userDataPath: string): Database {
   }
 }
 
-/** Main es el único adaptador que puede solicitar confirmación. No existe disparo automático. */
+/** Main is the only adapter that can request confirmation. There is no automatic trigger. */
 export function createQuarantineManager(
   database: Database,
   confirm?: QuarantineOptions['confirm'],
@@ -1142,7 +1139,7 @@ export function createEngine(
     process.resourcesPath,
   );
   return new EngineProcess({
-    // La alternativa de desarrollo pertenece a main; el proceso Python no la necesita.
+    // The development alternative belongs to main; the Python process does not need it.
     spawnProcess: ((
       file: string,
       args: string[],
@@ -1184,11 +1181,11 @@ export function createEngine(
   });
 }
 
-/** Instrumentación prepara su perfil antes del lock; release no lee sus variables. */
+/** Instrumentation prepares its profile before the lock; release does not read its variables. */
 export function prepareAppProfile(): void {
   if (RELEASE) {
-    // Un perfil alternativo es una elección explícita de CLI, no un modo de pruebas.
-    // Aísla también la bóveda; el perfil predeterminado conserva sus rutas históricas.
+    // An alternative profile is an explicit CLI choice, not a test mode.
+    // Also isolates the vault; the default profile keeps its historical paths.
     for (const flag of [
       'remote-debugging-port',
       'remote-debugging-pipe',

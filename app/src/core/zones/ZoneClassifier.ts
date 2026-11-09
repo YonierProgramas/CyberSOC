@@ -12,12 +12,12 @@ export interface ZoneRoot {
 }
 
 export class ZoneClassifier {
-  // Invariante: cada prefijo completo tiene una zona. El trie conserva la última
-  // coincidencia al recorrer d segmentos: O(d), más normalización O(L caracteres).
-  // No se usan startsWith ni extensiones: C:\Win no incluye C:\Windows.
+  // Invariant: each complete prefix has a zone. The trie keeps the last
+  // match while walking d segments: O(d), plus O(L characters) normalization.
+  // Neither startsWith nor extensions are used: C:\Win does not include C:\Windows.
   private readonly paths = new PathTrie<Zone>();
-  // Una consulta de unidad por raíz en esta sesión; Map busca en O(1) promedio.
-  // Crear un clasificador por escaneo evita conservar información vieja de USB.
+  // One drive query per root in this session; Map lookup is O(1) average.
+  // Creating one classifier per scan avoids keeping stale USB information.
   private readonly drives = new Map<string, Promise<DriveInfoResult>>();
 
   constructor(
@@ -40,7 +40,7 @@ export class ZoneClassifier {
       this.drives.set(root, drive);
       void drive.catch(() => this.drives.delete(root));
     }
-    // El medio extraíble prima incluso si el usuario trasladó Descargas a esa USB.
+    // Removable media takes precedence even if the user moved Downloads to that USB.
     return (await drive).driveType === 'REMOVABLE'
       ? 'EXTRAIBLE'
       : (match ?? 'OTRA');

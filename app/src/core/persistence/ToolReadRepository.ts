@@ -34,7 +34,7 @@ export interface LayerScope {
 const resultColumns = `id, job_id AS jobId, seq, file_name AS fileName, path, sha256,
   verdict, engine_score AS engineScore, zone`;
 
-/** Frontera de lectura para las herramientas: solo SELECT, sin métodos de escritura. */
+/** Read boundary for the tools: SELECT only, with no write methods. */
 export class ToolReadRepository {
   constructor(private readonly db: Database) {}
 
@@ -98,7 +98,7 @@ export class ToolReadRepository {
   }
   *riskCandidates(jobId: string): Iterable<RiskResult> {
     this.job(jobId);
-    // Iterador: TopK recibe cada fila una vez, sin cargar todos los resultados.
+    // Iterator: TopK receives each row once, without loading all results.
     for (const row of this.db
       .prepare(
         `SELECT ${resultColumns} FROM scan_results
@@ -170,7 +170,7 @@ export class ToolReadRepository {
       .all(resultId);
   }
   quarantine(status?: string | null) {
-    // Lista explícita: nunca entregar claves, IV, tags, blobs ni errores internos a la IA.
+    // Explicit list: never hand keys, IVs, tags, blobs or internal errors to the AI.
     return this.db
       .prepare(
         `SELECT id, result_id AS resultId, original_path AS originalPath,
@@ -197,7 +197,7 @@ export class ToolReadRepository {
     const saved = this.db
       .prepare('SELECT value_json FROM settings WHERE key = ?')
       .get('scan.zoneProfiles.v1');
-    // Sin BD en el constructor: obtener defaults nunca inicializa settings.
+    // No DB in the constructor: getting defaults never initializes settings.
     return saved
       ? z
           .record(zoneSchema, scanProfileSchema)

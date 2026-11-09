@@ -8,7 +8,7 @@ import { exists } from '../../src/core/quarantine/paths';
 import * as originalFile from '../../src/core/quarantine/OriginalFile';
 import { QuarantineHarness, sha, type Seeded } from './harness';
 
-// Permite espiar deleteVerifiedOriginal (export ESM) sin cambiar su comportamiento real.
+// Allows spying on deleteVerifiedOriginal (ESM export) without changing its real behavior.
 vi.mock('../../src/core/quarantine/OriginalFile', async (original) => ({
   ...(await original<
     typeof import('../../src/core/quarantine/OriginalFile')
@@ -23,7 +23,7 @@ beforeEach(async () => {
 });
 afterEach(() => h.close());
 
-/** Otro resultado del MISMO archivo (p. ej. escaneado dos veces), con la ruta escrita como `path`. */
+/** Another result of the SAME file (e.g. scanned twice), with the path written as `path`. */
 let extraSeq = 1000;
 function secondResult(input: Seeded, path: string): string {
   const original = new ScanResultRepository(h.db).get(input.id)!;
@@ -40,7 +40,7 @@ function secondResult(input: Seeded, path: string): string {
   return id;
 }
 
-/** Retiene la primera confirmación hasta `release()`: la operación queda "en curso". */
+/** Holds the first confirmation until `release()`: the operation stays "in progress". */
 function holdFirstConfirmation() {
   let release!: (ok: boolean) => void;
   h.confirm.mockImplementationOnce(
@@ -55,7 +55,7 @@ function holdFirstConfirmation() {
   };
 }
 
-/** Exactamente una copia: el blob del único ítem QUARANTINED; nada PENDING ni sobrante en la bóveda. */
+/** Exactly one copy: the blob of the only QUARANTINED item; nothing PENDING or left over in the vault. */
 async function expectSingleQuarantine(input: Seeded) {
   const items = h.manager.list();
   expect(items.filter((i) => i.status === 'PENDING')).toEqual([]);
@@ -66,14 +66,14 @@ async function expectSingleQuarantine(input: Seeded) {
   return active[0]!;
 }
 
-describe('mismo gestor (una instancia de la app)', () => {
+describe('same manager (one app instance)', () => {
   it.each([
     ['la misma ruta', (p: string) => p],
     ['la ruta en MAYÚSCULAS', (p: string) => p.toUpperCase()],
     ['la ruta en minúsculas', (p: string) => p.toLowerCase()],
     ['la ruta con barras normales', (p: string) => p.replaceAll('\\', '/')],
   ])(
-    'dos solicitudes a la vez con %s: la segunda se rechaza BUSY antes de confirmar',
+    'two requests at once with %s: the second is rejected BUSY before confirming',
     async (_name, spelling) => {
       const input = await h.seed();
       const other = secondResult(input, spelling(input.path));
@@ -93,7 +93,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     },
   );
 
-  it('con un alias corto 8.3 de la carpeta: la segunda también se rechaza BUSY', async (context) => {
+  it('with an 8.3 short alias of the folder: the second is also rejected BUSY', async (context) => {
     const shortTemp = tmpdir();
     if ((await fs.realpath(shortTemp)) === shortTemp)
       context.skip('Este equipo no expone %TEMP% con nombre corto 8.3.');
@@ -113,7 +113,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     await expectSingleQuarantine(input);
   });
 
-  it('la segunda solicitud, después de terminar la primera, falla limpia: sin PENDING ni blob extra', async () => {
+  it('the second request, after the first ends, fails cleanly: no PENDING or extra blob', async () => {
     const input = await h.seed();
     const other = secondResult(input, input.path);
     await h.manager.quarantine(input.id);
@@ -121,7 +121,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     await expectSingleQuarantine(input);
   });
 
-  it('diez solicitudes simultáneas del mismo archivo: una sola cuarentena', async () => {
+  it('ten simultaneous requests for the same file: a single quarantine', async () => {
     const input = await h.seed();
     const ids = [
       input.id,
@@ -134,7 +134,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     await expectSingleQuarantine(input);
   });
 
-  it('cancelar la primera libera la ruta: la siguiente solicitud funciona', async () => {
+  it('cancelling the first releases the path: the next request works', async () => {
     const input = await h.seed();
     const hold = holdFirstConfirmation();
     const first = h.manager.quarantine(input.id);
@@ -145,7 +145,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     await expectSingleQuarantine(input);
   });
 
-  it('archivos distintos en paralelo no se bloquean entre sí', async () => {
+  it('different files in parallel do not block each other', async () => {
     const a = await h.seed('a.txt', 'contenido A');
     const b = await h.seed('b.txt', 'contenido B');
     const [x, y] = await Promise.all([
@@ -162,7 +162,7 @@ describe('mismo gestor (una instancia de la app)', () => {
     }
   });
 
-  it('reconcile mientras hay una operación activa se rechaza BUSY', async () => {
+  it('reconcile while an operation is active is rejected BUSY', async () => {
     const input = await h.seed();
     const hold = holdFirstConfirmation();
     const first = h.manager.quarantine(input.id);
@@ -174,10 +174,10 @@ describe('mismo gestor (una instancia de la app)', () => {
   });
 });
 
-describe('dos instancias de la app (dos gestores sobre la misma BD)', () => {
-  // La app no llama a app.requestSingleInstanceLock(): el usuario puede abrirla dos veces.
-  // El Map de operaciones es de cada instancia, así que no las coordina entre sí.
-  // B se detiene en `pause` y, mientras tanto, A completa TODA la cuarentena del mismo archivo.
+describe('two app instances (two managers on the same DB)', () => {
+  // The app does not call app.requestSingleInstanceLock(): the user can open it twice.
+  // The operations Map belongs to each instance, so it does not coordinate them.
+  // B stops at `pause` and meanwhile A completes the WHOLE quarantine of the same file.
   async function raceTwoInstances(pause: 'tras-cifrar' | 'antes-de-borrar') {
     const input = await h.seed(
       'compartido.txt',
@@ -191,7 +191,7 @@ describe('dos instancias de la app (dos gestores sobre la misma BD)', () => {
     });
     let bPaused = false;
     if (pause === 'tras-cifrar') {
-      // B ya insertó su PENDING y tiene su blob publicado.
+      // B has already inserted its PENDING and has its blob published.
       const encryptB = vaultB.encrypt.bind(vaultB);
       vi.spyOn(vaultB, 'encrypt').mockImplementation(async (file, item) => {
         const tag = await encryptB(file, item);
@@ -200,7 +200,7 @@ describe('dos instancias de la app (dos gestores sobre la misma BD)', () => {
         return tag;
       });
     } else {
-      // B ya revalidó la ruta y el hash: solo le falta borrar el original.
+      // B has already revalidated the path and hash: it only has to delete the original.
       const realDelete = originalFile.deleteVerifiedOriginal;
       let calls = 0;
       vi.spyOn(originalFile, 'deleteVerifiedOriginal').mockImplementation(
@@ -222,14 +222,14 @@ describe('dos instancias de la app (dos gestores sobre la misma BD)', () => {
     aDone();
     const outcomeB = await b;
     await managerB.close();
-    // Se cierran ambas instancias y la app arranca de nuevo.
+    // Both instances are closed and the app starts again.
     h.manager = h.makeManager();
     await h.manager.reconcile();
     return { input, outcomeB };
   }
 
   it.each(['tras-cifrar', 'antes-de-borrar'] as const)(
-    'B detenida %s mientras A termina: B falla limpia y no duplica (una cuarentena, sin PENDING ni blobs sobrantes)',
+    'B stopped %s while A finishes: B fails cleanly and does not duplicate (one quarantine, no PENDING or leftover blobs)',
     async (pause) => {
       const { input, outcomeB } = await raceTwoInstances(pause);
       expect(outcomeB).not.toBe('ok');

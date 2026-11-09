@@ -7,17 +7,17 @@ import type { ToolRegistry } from '../../src/core/ai/tools/ToolRegistry';
 import { loadToolCatalog } from '../../src/core/ai/ToolCatalogLoader';
 import type { AssistantReplyWire } from '../../src/core/ai/AssistantReply';
 
-/** Catálogo real del motor (reglas YAML y firmas JSON de prueba, todas inofensivas). */
+/** Real engine catalog (YAML rules and JSON test signatures, all harmless). */
 export const ENGINE_DATA = resolve(import.meta.dirname, '../../../engine/data');
 
-/** Zonas fijas de prueba: nunca rutas reales del usuario. */
+/** Fixed test zones: never real user paths. */
 export const TEST_ZONE_ROOTS = [
   { zone: 'DESCARGAS' as const, path: 'C:\\Pruebas\\Usuario\\Downloads' },
   { zone: 'DOCUMENTOS' as const, path: 'C:\\Pruebas\\Usuario\\Documents' },
   { zone: 'SISTEMA' as const, path: 'C:\\Windows' },
 ];
 
-/** Herramientas reales de solo lectura sobre la BD de la prueba + borradores de reporte. */
+/** Real read-only tools on the test DB + report drafts. */
 export function copilotDeps(
   db: Database,
   removable: { driveId: string; path: string }[] = [
@@ -37,7 +37,7 @@ export function copilotDeps(
   return { tools, reports };
 }
 
-/** Respuesta final mínima del Copilot v2 (sin referencias, acciones, reporte ni plan). */
+/** Minimal Copilot v2 final response (no references, actions, report or plan). */
 export function final(
   answer: string,
   extra: Partial<AssistantReplyWire> = {},

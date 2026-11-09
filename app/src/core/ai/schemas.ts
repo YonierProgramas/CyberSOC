@@ -4,7 +4,7 @@ import { toClaudeJsonSchema } from './providers/ClaudeProvider';
 export const AI_CONTEXT_SCHEMA_ID = 'cybersoc.ai-context/v1';
 export const AI_ASSESSMENT_SCHEMA_ID = 'cybersoc.ai-assessment/v1';
 
-/** Longitudes máximas (en unidades UTF-16, como `string.length`) y topes de `ai-context/v1`. */
+/** Maximum lengths (in UTF-16 units, like `string.length`) and caps of `ai-context/v1`. */
 export const AI_CONTEXT_LIMITS = {
   resultId: 64,
   fileName: 255,
@@ -20,7 +20,7 @@ export const AI_CONTEXT_LIMITS = {
   profileName: 40,
 } as const;
 
-/** Longitudes máximas de `ai-assessment/v1`. Caben en el `max_tokens` del análisis (≈ 1 200). */
+/** Maximum lengths of `ai-assessment/v1`. They fit in the analysis `max_tokens` (≈ 1,200). */
 export const AI_ASSESSMENT_LIMITS = {
   summary: 280,
   plainExplanation: 800,
@@ -36,7 +36,7 @@ export const AI_ASSESSMENT_LIMITS = {
 // Enums compartidos
 // ---------------------------------------------------------------------------
 
-/** Capa que produjo una evidencia. En S2 solo existen SIGNATURES y FILETYPE. */
+/** Layer that produced an evidence item. In S2 only SIGNATURES and FILETYPE exist. */
 export const evidenceSourceSchema = z.enum([
   'SIGNATURES',
   'FILETYPE',
@@ -53,7 +53,7 @@ export const severitySchema = z.enum([
   'HIGH',
   'CRITICAL',
 ]);
-/** Capas del motor para la traza (D18). */
+/** Engine layers for the trace (D18). */
 export const engineLayerSchema = z.enum([
   'HASH',
   'SIGNATURES',
@@ -69,7 +69,7 @@ export const layerStatusSchema = z.enum([
   'DISABLED',
   'ERROR',
 ]);
-/** Mismos valores que `scan_results.verdict`. */
+/** Same values as `scan_results.verdict`. */
 export const engineVerdictSchema = z.enum([
   'NOT_EVALUATED',
   'CLEAN',
@@ -77,7 +77,7 @@ export const engineVerdictSchema = z.enum([
   'DETECTED',
   'NOT_ANALYZED',
 ]);
-// Mismos valores que el contrato del motor (T2.1) y risk_assessments (T2.4).
+// Same values as the engine contract (T2.1) and risk_assessments (T2.4).
 export const riskLevelSchema = z.enum(['BAJO', 'MEDIO', 'ALTO', 'CRÍTICO']);
 /** Zonas de D15 (S3). */
 export const zoneSchema = z.enum([
@@ -105,27 +105,27 @@ export const recommendedActionSchema = z.enum([
   'RESTORE_IF_TRUSTED',
 ]);
 
-/** `ev1..evN`, en el orden estable del motor. */
+/** `ev1..evN`, in the stable engine order. */
 export const evidenceIdSchema = z.string().regex(/^ev[1-9][0-9]{0,2}$/);
 const sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
 const nonNegativeInt = z.number().int().nonnegative();
 
 // ---------------------------------------------------------------------------
-// ai-context/v1: lo único que sale del equipo hacia la IA
+// ai-context/v1: the only thing that leaves the machine towards the AI
 // ---------------------------------------------------------------------------
 
 const L = AI_CONTEXT_LIMITS;
 
 const contextFileSchema = z.strictObject({
   resultId: z.string().min(1).max(L.resultId),
-  /** Nombre real o seudónimo (ver `constraints.fileNamePseudonymized`). */
+  /** Real name or pseudonym (see `constraints.fileNamePseudonymized`). */
   name: z.string().min(1).max(L.fileName),
   extension: z.string().max(L.extension).nullable(),
-  /** Tipo real por magic numbers (S2); `null` si aún no se calcula. */
+  /** Real type from magic numbers (S2); `null` if not yet computed. */
   detectedType: z.string().max(L.detectedType).nullable(),
   typeMatchesExtension: z.boolean().nullable(),
   sizeBytes: nonNegativeInt.nullable(),
-  /** Carpeta del archivo con la ruta de usuario anonimizada (`%USERPROFILE%\…`). */
+  /** File folder with the user path anonymized (`%USERPROFILE%\…`). */
   location: z.string().max(L.location),
   sha256: sha256Schema.nullable(),
   /** Llega en S3 (D15). */
@@ -141,7 +141,7 @@ const contextEngineSchema = z.strictObject({
   engineVersion: z.string().max(L.version).nullable(),
   signaturesVersion: z.string().max(L.version).nullable(),
   verdict: engineVerdictSchema,
-  /** `null` mientras el motor no puntúe (S1). */
+  /** `null` until the engine scores (S1). */
   score: nonNegativeInt.max(100).nullable(),
   riskLevel: riskLevelSchema.nullable(),
   scoreBreakdown: z.array(scoreItemSchema).max(L.maxEvidence),
@@ -152,7 +152,7 @@ const contextEvidenceSchema = z.strictObject({
   source: evidenceSourceSchema,
   code: z
     .string()
-    // Las reglas versionadas del motor usan IDs como R-TEST-DOWNLOADER.
+    // Versioned engine rules use IDs such as R-TEST-DOWNLOADER.
     .regex(/^[A-Z][A-Z0-9_-]*$/)
     .max(L.evidenceCode),
   severity: severitySchema,
@@ -167,7 +167,7 @@ const contextLayerSchema = z.strictObject({
   reason: z.string().min(1).max(L.layerReason).optional(),
 });
 
-/** Perfil de capas aplicado al archivo (D15). Llega en S3. */
+/** Layer profile applied to the file (D15). Arrives in S3. */
 const contextProfileSchema = z.strictObject({
   name: z.string().min(1).max(L.profileName),
   layers: z
@@ -182,10 +182,10 @@ const contextHistorySchema = z.strictObject({
 
 const contextConstraintsSchema = z.strictObject({
   evidenceTruncated: z.boolean(),
-  /** Algún campo se recortó por superar su longitud máxima. */
+  /** Some field was trimmed for exceeding its maximum length. */
   fieldsTruncated: z.boolean(),
   fileNamePseudonymized: z.boolean(),
-  /** Nunca se envía contenido del archivo. */
+  /** File content is never sent. */
   contentIncluded: z.literal(false),
 });
 
@@ -203,7 +203,7 @@ export const aiContextSchema = z
     evidence: z.array(contextEvidenceSchema).max(L.maxEvidence),
     layers: z.array(contextLayerSchema).max(L.maxLayers).optional(),
     profile: contextProfileSchema.optional(),
-    /** Veces que se vio el mismo SHA-256 antes; lo calculará el Core desde SQLite. */
+    /** Times the same SHA-256 was seen before; the Core will compute it from SQLite. */
     history: contextHistorySchema.optional(),
     constraints: contextConstraintsSchema,
   })
@@ -245,13 +245,13 @@ export const aiContextSchema = z
 export type AIContext = z.infer<typeof aiContextSchema>;
 
 // ---------------------------------------------------------------------------
-// ai-assessment/v1: respuesta esperada de la IA
+// ai-assessment/v1: expected AI response
 // ---------------------------------------------------------------------------
 
 const A = AI_ASSESSMENT_LIMITS;
 
-// Las salidas estructuradas no admiten maxLength ni rangos: los límites van también en la
-// descripción para que el modelo los vea; zod los hace cumplir al validar.
+// Structured outputs do not support maxLength or ranges: the limits also go in the
+// description so the model sees them; zod enforces them on validation.
 const text = (max: number, description: string) =>
   z
     .string()
@@ -308,20 +308,20 @@ export const aiAssessmentSchema = z.strictObject({
 export type AIAssessment = z.infer<typeof aiAssessmentSchema>;
 
 /**
- * JSON Schema de `ai-assessment/v1` para `output_config.format` de la API de Claude.
- * Es exactamente el que envía `ClaudeProvider` al recibir `aiAssessmentSchema`.
+ * JSON Schema of `ai-assessment/v1` for the Claude API `output_config.format`.
+ * It is exactly the one `ClaudeProvider` sends when it receives `aiAssessmentSchema`.
  */
 export function aiAssessmentJsonSchema(): Record<string, unknown> {
   return toClaudeJsonSchema(aiAssessmentSchema);
 }
 
 // ---------------------------------------------------------------------------
-// JOB_SUMMARY (S3): resumen de un escaneo terminado
+// JOB_SUMMARY (S3): summary of a finished scan
 // ---------------------------------------------------------------------------
 
 export const JOB_SUMMARY_CONTEXT_SCHEMA_ID = 'cybersoc.job-summary-context/v1';
 
-/** Topes del contexto del resumen: contadores + los 10 resultados de mayor riesgo. */
+/** Caps of the summary context: counters + the 10 highest-risk results. */
 export const JOB_SUMMARY_CONTEXT_LIMITS = {
   jobId: 64,
   resultId: 64,
@@ -330,7 +330,7 @@ export const JOB_SUMMARY_CONTEXT_LIMITS = {
   maxEvidencePerResult: 10,
 } as const;
 
-/** Longitudes máximas de la salida del resumen; caben en su `max_tokens`. */
+/** Maximum lengths of the summary output; they fit in its `max_tokens`. */
 export const JOB_SUMMARY_LIMITS = {
   summary: 800,
   maxHighlights: 10,
@@ -357,7 +357,7 @@ export const jobSummaryContextSchema = z
     job: z.strictObject({
       jobId: z.string().min(1).max(JL.jobId),
       targetKind: z.enum(['FILE', 'FOLDER']),
-      /** Ruta escaneada con la carpeta de usuario anonimizada. */
+      /** Scanned path with the user folder anonymized. */
       targetLocation: z.string().max(JL.location),
       durationMs: nonNegativeInt.nullable(),
       counters: z.strictObject({
@@ -392,9 +392,9 @@ export const jobSummaryContextSchema = z
       )
       .max(JL.maxTopResults),
     constraints: z.strictObject({
-      /** Había más de 10 resultados de riesgo; solo van los 10 primeros. */
+      /** There were more than 10 risk results; only the first 10 are included. */
       topResultsTruncated: z.boolean(),
-      /** Algún resultado tenía más de 10 evidencias; solo van las 10 primeras. */
+      /** Some result had more than 10 evidence items; only the first 10 are included. */
       evidenceTruncated: z.boolean(),
       fileNamesPseudonymized: z.boolean(),
       contentIncluded: z.literal(false),
@@ -415,7 +415,7 @@ export type JobSummaryContext = z.infer<typeof jobSummaryContextSchema>;
 const S = JOB_SUMMARY_LIMITS;
 const resultIdSchema = z.string().min(1).max(JL.resultId);
 
-/** Salida del resumen: exactamente las claves del plan de S3. */
+/** Summary output: exactly the keys of the S3 plan. */
 export const jobSummarySchema = z.strictObject({
   summary: text(
     S.summary,
@@ -447,7 +447,7 @@ export const jobSummarySchema = z.strictObject({
 
 export type JobSummary = z.infer<typeof jobSummarySchema>;
 
-/** JSON Schema del resumen para `output_config.format` (el mismo que envía ClaudeProvider). */
+/** Summary JSON Schema for `output_config.format` (the same one ClaudeProvider sends). */
 export function jobSummaryJsonSchema(): Record<string, unknown> {
   return toClaudeJsonSchema(jobSummarySchema);
 }

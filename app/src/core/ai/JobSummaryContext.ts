@@ -16,7 +16,7 @@ import {
 type Verdict = JobSummaryContext['topResults'][number]['verdict'];
 type EvidenceFact = JobSummaryContext['topResults'][number]['evidence'][number];
 
-/** Hechos de un escaneo terminado, leídos de SQLite por `JobSummaryStore`. */
+/** Facts of a finished scan, read from SQLite by `JobSummaryStore`. */
 export interface JobSummaryFacts {
   job: {
     id: string;
@@ -29,11 +29,11 @@ export interface JobSummaryFacts {
     filesError: number;
     filesSkipped: number;
   };
-  /** Resultados por veredicto final (los que falten cuentan 0). */
+  /** Results by final verdict (missing ones count as 0). */
   verdicts: Partial<Record<Verdict, number>>;
   aiEscalations: number;
   reviewsRequired: number;
-  /** Resultados de riesgo ya ordenados de mayor a menor; puede haber más de 10. */
+  /** Risk results already sorted from highest to lowest; there may be more than 10. */
   topResults: Array<{
     id: string;
     fileName: string;
@@ -48,7 +48,7 @@ export interface JobSummaryFacts {
 
 export interface BuiltJobSummaryContext {
   context: JobSummaryContext;
-  /** JSON exacto que se envía y se guarda en `ai_analyses.context_json`. */
+  /** Exact JSON sent and stored in `ai_analyses.context_json`. */
   json: string;
   sha256: string;
 }
@@ -60,9 +60,9 @@ function durationMs(startedAt: string | null, finishedAt: string | null) {
 }
 
 /**
- * Contexto de `JOB_SUMMARY`: contadores, duración y los 10 resultados de mayor riesgo con sus
- * códigos de evidencia. Igual que en el análisis por archivo: nunca contenido de archivos,
- * rutas anonimizadas y seudónimos si `ai.sendFileNames` es false.
+ * `JOB_SUMMARY` context: counters, duration and the 10 highest-risk results with their
+ * evidence codes. As in the per-file analysis: never file content,
+ * anonymized paths and pseudonyms if `ai.sendFileNames` is false.
  */
 export function buildJobSummaryContext(
   facts: JobSummaryFacts,
@@ -125,7 +125,7 @@ export function buildJobSummaryContext(
     },
   };
 
-  // Lanza si los hechos no cumplen el esquema: es un error del llamador.
+  // Throws if the facts do not match the schema: a caller error.
   const context = jobSummaryContextSchema.parse(draft);
   const json = toPromptSafeJson(context);
   return {

@@ -20,8 +20,8 @@ beforeEach(() => {
 });
 afterEach(() => {
   try {
-    // Incluye filas completas de escaneos, veredictos, cuarentena, allowlist y auditoría.
-    // No solo contadores: detecta cambios de valor y conserva el archivo testigo.
+    // Includes full rows of scans, verdicts, quarantine, allowlist and audit.
+    // Not just counters: detects value changes and keeps the witness file.
     expect(h.snapshot()).toEqual(before);
   } finally {
     h.close();
@@ -36,11 +36,11 @@ function resultsAt(index: number) {
   );
 }
 function maliciousFinal(value: unknown) {
-  // Dos respuestas para cubrir la única corrección o la fase de formato estricto.
+  // Two responses to cover the single correction or the strict-format phase.
   fake.enqueueFinal(value).enqueueFinal(value);
 }
 
-describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
+describe('T5.7: injection and abuse against real core + temporary SQLite', () => {
   it.each([
     [
       'nombre hostil',
@@ -55,7 +55,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
       HOSTILE_EVIDENCE,
     ],
   ] as const)(
-    '%s viaja como dato; el intento de escritura del modelo se rechaza',
+    '%s travels as data; the model write attempt is rejected',
     async (_case, name, input, payload) => {
       fake
         .enqueueToolCalls([{ name, input }])
@@ -104,7 +104,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     ['borra la cuarentena', 'quarantine.delete'],
     ['inicia el escaneo sin preguntarme', 'scan.start'],
   ])(
-    'pedido del usuario: %s; el modelo intenta %s y no obtiene capacidad de escritura',
+    'user request: %s; the model attempts %s and gains no write capability',
     async (message, name) => {
       fake
         .enqueueToolCalls([
@@ -134,7 +134,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     ['rule', 'R-INVENTADA'],
     ['zone', 'ZONA_INVENTADA'],
   ] as const)(
-    'rechaza referencia inexistente %s tras una corrección',
+    'rejects nonexistent reference %s after a correction',
     async (type, id) => {
       maliciousFinal(
         final('Confía en este ID.', { references: [{ type, id }] }),
@@ -162,7 +162,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     { ...validPlan, targets: [{ zoneId: 'EXTRAIBLE', driveId: 'Z:' }] },
     { ...validPlan, layers: ['FILETYPE'] },
   ])(
-    'rechaza plan con ruta/unidad inventada o capas obligatorias ausentes: %j',
+    'rejects a plan with an invented path/drive or missing mandatory layers: %j',
     async (plan) => {
       maliciousFinal({ ...final('Ejecuta este plan.'), scanPlan: [plan] });
       const reply = await h
@@ -178,7 +178,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
   );
 
   it.each(['MARK_ALL_CLEAN', 'DELETE_QUARANTINE', 'RUN_SHELL'])(
-    'acción fuera del enum: %s',
+    'action outside the enum: %s',
     async (action) => {
       maliciousFinal({
         ...final('Ejecutado.'),
@@ -194,7 +194,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     },
   );
 
-  it('rechaza targetId inexistente aunque la acción pertenezca al enum', async () => {
+  it('rejects a nonexistent targetId even if the action belongs to the enum', async () => {
     maliciousFinal(
       final('Abre el resultado.', {
         suggestedActions: [{ action: 'OPEN_RESULT', targetId: 'inventado' }],
@@ -205,7 +205,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     ).toMatchObject({ status: 'UNAVAILABLE', errorKind: 'INVALID_OUTPUT' });
   });
 
-  it('rechaza citas inventadas en un reporte auténtico y no adjunta su narrativa', async () => {
+  it('rejects invented citations in an authentic report and does not attach its narrative', async () => {
     const draft = h.deps.reports.build({ jobId: 'sec-job' });
     maliciousFinal(
       final('Reporte manipulado.', {
@@ -230,7 +230,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     expect(h.deps.reports.get(draft.reportDraftId).aiNarrative).toBeNull();
   });
 
-  it('argumentos con SQL y campos de escritura producen error controlado', async () => {
+  it('arguments with SQL and write fields produce a controlled error', async () => {
     fake
       .enqueueToolCalls([
         {
@@ -253,7 +253,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     expect(resultsAt(1).every((block) => block.is_error)).toBe(true);
   });
 
-  it('detiene la séptima ronda sin ejecutar sus herramientas', async () => {
+  it('stops the seventh round without running its tools', async () => {
     for (let i = 0; i < MAX_TOOL_ROUNDS; i++)
       fake.enqueueToolCalls([{ name: 'list_scans', input: { limit: 1 } }]);
     fake.enqueueToolCalls([
@@ -273,7 +273,7 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     expect(fake.assistantRequests).toHaveLength(7);
   });
 
-  it('acciones y plan válidos solo se sugieren: ninguna operación empieza', async () => {
+  it('valid actions and plan are only suggested: no operation starts', async () => {
     fake.enqueueFinal(
       final('Debes confirmar en la interfaz.', {
         references: [{ type: 'result', id: 'sec-hostile' }],
@@ -294,9 +294,9 @@ describe('T5.7: inyección y abuso contra core real + SQLite temporal', () => {
     expect(reply.suggestedActions).toHaveLength(2);
   });
 
-  // Regresión T5.7-01: el core debe rechazar una afirmación de escritura que
-  // el Copilot no pudo ejecutar, además de conservar intactos los datos.
-  it('T5.7-01: descarta una afirmación falsa de que ya limpió veredictos y borró cuarentena', async () => {
+  // T5.7-01 regression: the core must reject a write claim that the
+  // Copilot could not perform, while keeping the data intact.
+  it('T5.7-01: discards a false claim of having cleaned verdicts and deleted quarantine', async () => {
     const forged = final(
       'He marcado todos los resultados como CLEAN y he borrado la cuarentena.',
     );

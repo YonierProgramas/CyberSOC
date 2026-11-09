@@ -1,14 +1,14 @@
 import type { ReportDraft } from '../ReportBuilder';
 
-/** RFC 4180: comillas dobles duplicadas y CRLF; neutraliza fórmulas de hojas de cálculo. */
+/** RFC 4180: doubled double quotes and CRLF; neutralizes spreadsheet formulas. */
 export function csvCell(value: unknown): string {
   let text = String(value ?? '');
   if (/^[\s\u0000-\u001f]*[=+@-]/u.test(text)) text = `'${text}`;
   return `"${text.replaceAll('"', '""')}"`;
 }
 export function exportCsv(draft: ReportDraft): string {
-  // Un CSV rectangular conserva todas las secciones sin mezclar cabeceras de tablas:
-  // cada fila identifica sección, registro, campo y valor. Los índices comienzan en 1.
+  // A rectangular CSV keeps all sections without mixing table headers:
+  // each row identifies section, record, field and value. Indexes start at 1.
   const rows: unknown[][] = [['section', 'record', 'field', 'value']];
   const sections = {
     metadata: [

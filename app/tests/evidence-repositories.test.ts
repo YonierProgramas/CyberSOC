@@ -96,7 +96,7 @@ function analysis(id = 'analysis', resultId = 'job-0'): InsertAIAnalysis {
   };
 }
 
-describe('Migración 003 y repositorios de evidencia en una BD temporal', () => {
+describe('Migration 003 and evidence repositories in a temporary DB', () => {
   let directory: string;
   let db: Database;
   let results: ScanResultRepository;
@@ -120,7 +120,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
   afterEach(() => {
     vi.restoreAllMocks();
     db.close();
-    // Solo se elimina la carpeta temporal creada por esta prueba.
+    // Only the temporary folder created by this test is deleted.
     rmSync(directory, { recursive: true, force: true });
   });
   function bindRepositories() {
@@ -131,15 +131,15 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     ai = new AIAnalysisRepository(db);
   }
   function count(table: string) {
-    // table proviene exclusivamente de literales de estas pruebas.
+    // table comes exclusively from literals in these tests.
     return db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()!.n;
   }
 
-  it('migra v2 con datos, conserva valores y aplica 003 una sola vez al reabrir', () => {
+  it('migrates v2 with data, keeps values and applies 003 only once on reopen', () => {
     const old = new Database(join(directory, 'v2.db'));
     try {
       new MigrationRunner(old, [initialMigration, scansMigration]).run();
-      // Datos v2 mediante SQL histórico: el repositorio actual requiere 004.
+      // v2 data through historical SQL: the current repository requires 004.
       old
         .prepare(
           `INSERT INTO scan_jobs (id, target_path, target_kind, status, created_at)
@@ -183,7 +183,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     }
   });
 
-  it('crea las cuatro tablas, columnas e índices y respeta NOT NULL y CHECK del plan', () => {
+  it('creates the four tables, columns and indexes and respects the plan NOT NULL and CHECK', () => {
     const columns = (table: string) =>
       db
         .prepare(`PRAGMA table_info(${table})`)
@@ -266,7 +266,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     );
   });
 
-  it('revierte también los ALTER TABLE si 003 falla a mitad de la migración', () => {
+  it('also reverts the ALTER TABLE if 003 fails midway', () => {
     const old = new Database(join(directory, 'conflict.db'));
     try {
       new MigrationRunner(old, [initialMigration, scansMigration]).run();
@@ -295,7 +295,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     }
   });
 
-  it('persiste el resultado completo y sus detalles Unicode tras cerrar y reabrir', () => {
+  it('persists the full result and its Unicode details after closing and reopening', () => {
     const calls = vi.spyOn(db, 'exec');
     const saved = results.insertComplete(complete());
     expect(
@@ -343,7 +343,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
   });
 
   it.each(['scan_results', 'evidences', 'result_layers', 'risk_assessments'])(
-    'revierte todo cuando un trigger falla después de insertar en %s',
+    'reverts everything when a trigger fails after inserting into %s',
     (table) => {
       results.insertComplete(complete(0, 'other'));
       db.exec(
@@ -362,7 +362,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     },
   );
 
-  it('no publica escrituras de repositorios internos antes del COMMIT exterior', () => {
+  it('does not publish writes from inner repositories before the outer COMMIT', () => {
     const observer = new Database(db.path);
     try {
       db.transaction(() => {
@@ -386,7 +386,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     }
   });
 
-  it('un savepoint fallido no borra trabajo previo si el llamador captura el error', () => {
+  it('a failed savepoint does not delete earlier work if the caller catches the error', () => {
     db.transaction(() => {
       results.insertResult(result());
       expect(() => evidences.insertMany('job-0', [evidence, evidence])).toThrow(
@@ -398,7 +398,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     expect(results.listByJob('job', 0, 10)).toHaveLength(2);
   });
 
-  it('separa UUID global y evN local, ordena ev2 antes de ev10 y rechaza duplicados', () => {
+  it('separates global UUID and local evN, sorts ev2 before ev10 and rejects duplicates', () => {
     results.insertResult(result());
     results.insertResult(result(1));
     evidences.insertMany(
@@ -420,7 +420,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     );
   });
 
-  it('revierte lotes con capa duplicada o motivo SKIPPED ausente', () => {
+  it('reverts batches with a duplicate layer or missing SKIPPED reason', () => {
     results.insertResult(result());
     expect(() => traces.insertTrace('job-0', [layers[0]!, layers[0]!])).toThrow(
       'UNIQUE',
@@ -436,7 +436,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     expect(() => traces.insertTrace('missing', layers)).toThrow('FOREIGN KEY');
   });
 
-  it('agrega archivos, estados, hallazgos, puntos y tiempo solo del trabajo indicado', () => {
+  it('aggregates files, statuses, findings, points and time only for the given job', () => {
     for (const [seq, status] of (
       ['RAN', 'SKIPPED', 'DISABLED', 'ERROR'] as const
     ).entries()) {
@@ -470,7 +470,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
   });
 
   it.each(['ERROR', 'SKIPPED'] as const)(
-    'guarda %s sin fabricar puntuación ni evaluación',
+    'stores %s without fabricating score or assessment',
     (status) => {
       const saved = results.insertComplete({
         result: { ...result(), status, errorCode: 'IO_ERROR' },
@@ -495,7 +495,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     },
   );
 
-  it('exige evaluación para análisis completado o evidencia decisiva', () => {
+  it('requires an assessment for a completed analysis or decisive evidence', () => {
     expect(() =>
       results.insertComplete({ ...complete(), assessment: null }),
     ).toThrow('requiere evaluación');
@@ -517,7 +517,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     });
   });
 
-  it('rechaza evaluación duplicada, ausente o inválida y recupera su traza', () => {
+  it('rejects a duplicate, missing or invalid assessment and recovers its trace', () => {
     results.insertComplete(complete());
     const input = {
       ...complete().assessment!,
@@ -546,7 +546,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     });
   });
 
-  it('almacena contexto exacto y su hash; conserva intentos inválidos sin alterar decisiones', () => {
+  it('stores the exact context and its hash; keeps invalid attempts without altering decisions', () => {
     results.insertComplete(complete());
     const before = risks.get('job-0');
     const stored = ai.insert(analysis());
@@ -569,7 +569,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     expect(results.get('job-0')?.aiStatus).toBe('PENDING');
   });
 
-  it('elige último VALID por fecha y desempata por inserción, aislando resultados', () => {
+  it('picks the latest VALID by date and breaks ties by insertion, isolating results', () => {
     results.insertResult(result());
     results.insertResult(result(1));
     ai.insert(analysis('z-first'));
@@ -586,7 +586,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     expect(ai.get('missing')).toBeUndefined();
   });
 
-  it('admite resúmenes de trabajo y rechaza referencias incoherentes o inexistentes', () => {
+  it('accepts job summaries and rejects incoherent or nonexistent references', () => {
     results.insertResult(result());
     expect(
       ai.insert({
@@ -611,7 +611,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     ).toThrow();
   });
 
-  it('consulta pendientes aun sin intentos, con paginación y actualización explícita', () => {
+  it('queries pending items even without attempts, with paging and explicit update', () => {
     for (const [seq, aiStatus] of (
       ['PENDING', 'RETRY_WAIT', 'RUNNING', 'COMPLETED', 'NOT_REQUIRED'] as const
     ).entries())
@@ -638,7 +638,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
   });
 
   it.each([-1, 1.5, NaN, Infinity])(
-    'rechaza números inválidos sin escrituras: %s',
+    'rejects invalid numbers without writes: %s',
     (invalid) => {
       expect(() =>
         results.insertResult({ ...result(), engineScore: invalid }),
@@ -649,7 +649,7 @@ describe('Migración 003 y repositorios de evidencia en una BD temporal', () => 
     },
   );
 
-  it('borra todas las relaciones en cascada y conserva otros trabajos', () => {
+  it('deletes all relations in cascade and keeps other jobs', () => {
     results.insertComplete(complete());
     results.insertComplete(complete(0, 'other'));
     ai.insert(analysis());

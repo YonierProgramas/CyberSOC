@@ -26,7 +26,7 @@ import {
 let directory: string;
 let db: Database;
 let fake: FakeAIProvider;
-/** Peticiones de análisis por archivo; cada escaneo completado añade además su JOB_SUMMARY. */
+/** Per-file analysis requests; each completed scan also adds its JOB_SUMMARY. */
 function fileRequests() {
   return fake.requests.filter(
     (request) => request.schema === aiAssessmentSchema,
@@ -105,7 +105,7 @@ async function scan(
   };
 }
 
-it('escaneo → transacción completa → IA → RiskPolicy, usando las fábricas reales de main', async () => {
+it('scan → full transaction → AI → RiskPolicy, using the real main factories', async () => {
   fake.enqueueValue(valid);
   const event = vi.fn();
   worker.on('ai:resultUpdated', event);
@@ -137,7 +137,7 @@ it('escaneo → transacción completa → IA → RiskPolicy, usando las fábrica
   });
 });
 
-it('un CLEAN sin evidencia conserva evaluación local y no llama a la IA', async () => {
+it('a CLEAN without evidence keeps the local assessment and does not call the AI', async () => {
   const { result } = await scan({
     verdict: 'CLEAN',
     score: 0,
@@ -151,7 +151,7 @@ it('un CLEAN sin evidencia conserva evaluación local y no llama a la IA', async
   expect(fileRequests()).toHaveLength(0);
 });
 
-it('un fallo de API no impide terminar el escaneo local', async () => {
+it('an API failure does not prevent finishing the local scan', async () => {
   fake.enqueueError('RATE_LIMIT', { retryAfterMs: 60_000 });
   const { job, result } = await scan();
   expect(job.status).toBe('COMPLETED');
@@ -161,7 +161,7 @@ it('un fallo de API no impide terminar el escaneo local', async () => {
   });
 });
 
-it('un fallo al insertar capas revierte todas las tablas y no encola IA', async () => {
+it('a failure inserting layers rolls back all tables and does not enqueue AI', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => {});
   db.exec(
     "CREATE TRIGGER fail_layers BEFORE INSERT ON result_layers BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END;",
@@ -175,7 +175,7 @@ it('un fallo al insertar capas revierte todas las tablas y no encola IA', async 
   expect(fileRequests()).toHaveLength(0);
 });
 
-it('un fallo de la cola conserva el resultado y se comunica sin detalles sensibles', async () => {
+it('a queue failure keeps the result and is reported without sensitive details', async () => {
   const log = vi.spyOn(console, 'error').mockImplementation(() => {});
   const { job, result } = await scan(assessed, {
     enqueueAutomatic: () => {
@@ -184,11 +184,11 @@ it('un fallo de la cola conserva el resultado y se comunica sin detalles sensibl
   });
   expect(job.status).toBe('COMPLETED');
   expect(result?.verdict).toBe('SUSPICIOUS');
-  expect(log).toHaveBeenCalledWith('No se pudo encolar el análisis de IA.');
+  expect(log).toHaveBeenCalledWith('Could not enqueue the AI analysis.');
   expect(JSON.stringify(log.mock.calls)).not.toContain('secreto-ficticio');
 });
 
-it('respuestas antiguas conservan hechos sin inventar puntuación ni enviarse automáticamente', async () => {
+it('old responses keep facts without inventing a score or being sent automatically', async () => {
   const { result } = await scan({ evidence, layers });
   expect(result).toMatchObject({ verdict: 'NOT_EVALUATED', engineScore: null });
   expect(new EvidenceRepository(db).listByResult(result!.id)).toHaveLength(1);
@@ -196,7 +196,7 @@ it('respuestas antiguas conservan hechos sin inventar puntuación ni enviarse au
   expect(fileRequests()).toHaveLength(0);
 });
 
-it('un archivo no analizado conserva traza y puntuación nula sin evaluación inventada', async () => {
+it('an unanalyzed file keeps its trace and null score without an invented assessment', async () => {
   const sink = { enqueueAutomatic: vi.fn(() => true) };
   const { result } = await scan(
     {

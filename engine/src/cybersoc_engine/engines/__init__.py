@@ -1,1 +1,1 @@
-"""Capas de detección que analizan datos leídos por el motor."""
+"""Detection layers that analyze data read by the engine."""

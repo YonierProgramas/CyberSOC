@@ -1,4 +1,4 @@
-"""Comprobación del runtime de build. Nunca se copia al motor de producción."""
+"""Build runtime check. It is never copied into the production engine."""
 import importlib.util
 import json
 import sys

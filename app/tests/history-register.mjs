@@ -1,4 +1,4 @@
-// Ejecución Node de pruebas/benchmarks propios sin instalar un cargador adicional.
+// Node run of our own tests/benchmarks without installing an extra loader.
 import { registerHooks } from 'node:module';
 const root = new URL('../', import.meta.url).href;
 registerHooks({

@@ -15,9 +15,9 @@ export interface ToolSpec {
 }
 
 export class ToolRegistry {
-  // Tabla de despacho: cada nombre identifica exactamente un esquema y ejecutor.
+  // Dispatch table: each name identifies exactly one schema and executor.
   // Map registra/busca en O(1) promedio, frente a recorrer n if/else (O(n)).
-  // La validación y el trabajo del ejecutor tienen su propio costo; listar es O(n).
+  // Validation and the executor work have their own cost; listing is O(n).
   private readonly entries = new Map<
     string,
     {
@@ -32,14 +32,14 @@ export class ToolRegistry {
       !/^[a-z][a-z0-9_]{0,63}$/.test(tool.name) ||
       this.entries.has(tool.name)
     )
-      throw new Error('Nombre de herramienta inválido o duplicado.');
+      throw new Error('Invalid or duplicate tool name.');
     const json = z.toJSONSchema(tool.arguments, {
       target: 'draft-7',
       io: 'input',
     });
     delete json.$schema;
     if (json.type !== 'object' || json.additionalProperties !== false)
-      throw new Error('Los argumentos deben ser un objeto estricto.');
+      throw new Error('Arguments must be a strict object.');
     const spec: ToolSpec = {
       name: tool.name,
       description: tool.description,
@@ -79,7 +79,7 @@ export class ToolRegistry {
 
 class InvalidToolArguments extends Error {}
 
-/** En modo estricto todos los campos figuran en required; los opcionales aceptan null. */
+/** In strict mode every field appears in required; optional ones accept null. */
 function strictSchema(input: Record<string, unknown>): Record<string, unknown> {
   const copy = structuredClone(input);
   const properties = copy.properties as

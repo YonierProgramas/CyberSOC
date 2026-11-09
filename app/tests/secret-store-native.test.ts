@@ -8,7 +8,7 @@ import { build } from 'esbuild';
 import { expect, it } from 'vitest';
 
 it.skipIf(process.platform !== 'win32')(
-  'safeStorage real cifra en Windows y descifra en otro proceso Electron',
+  'real safeStorage encrypts on Windows and decrypts in another Electron process',
   async () => {
     const directory = mkdtempSync(join(tmpdir(), 'cybersoc-native-secret-'));
     const bundle = join(directory, 'main.cjs');

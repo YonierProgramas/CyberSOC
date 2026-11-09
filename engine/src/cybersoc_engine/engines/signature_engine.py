@@ -31,12 +31,12 @@ class SignatureCatalog:
     def __init__(self, directory: Path = DEFAULT_SIGNATURES) -> None:
         paths = sorted(directory.glob("*.json"))
         if not paths:
-            raise ValueError("No hay archivos de firmas locales")
-        # Invariante: cada hash normalizado identifica una sola firma. Construir
-        # el dict cuesta O(n) promedio; buscar con get cuesta O(1) promedio,
-        # frente a O(n) para recorrer una lista. Ocupa O(n) memoria.
+            raise ValueError("There are no local signature files")
+        # Invariant: each normalized hash identifies a single signature. Building
+        # the dict costs O(n) average; lookup with get costs O(1) average,
+        # versus O(n) to walk a list. It takes O(n) memory.
         self._by_hash: dict[str, Signature] = {}
-        # El set impide IDs repetidos entre archivos: consulta/add O(1) promedio.
+        # The set prevents repeated IDs across files: O(1) average lookup/add.
         ids: set[str] = set()
         digest = hashlib.sha256()
         for path in paths:
@@ -49,11 +49,11 @@ class SignatureCatalog:
             for signature in document.signatures:
                 key = signature.sha256.lower()
                 if key in self._by_hash or signature.id in ids:
-                    raise ValueError("Hash o ID de firma duplicado")
+                    raise ValueError("Duplicate signature hash or ID")
                 self._by_hash[key] = signature.model_copy(update={"sha256": key})
                 ids.add(signature.id)
-        # La versión identifica los datos cargados, no su ubicación ni los saltos
-        # de línea de Windows/Linux. No cambia por reformatear el JSON.
+        # The version identifies the loaded data, not its location or the Windows/Linux
+        # line endings. Reformatting the JSON does not change it.
         self.version = "sha256:" + digest.hexdigest()
 
     @property
@@ -61,14 +61,14 @@ class SignatureCatalog:
         return len(self._by_hash)
 
     def find(self, sha256: str) -> Signature | None:
-        # Hash de longitud fija (64): normalización y consulta O(1) promedio.
+        # Fixed-length hash (64): O(1) average normalization and lookup.
         return self._by_hash.get(sha256.lower())
 
 
 @lru_cache(maxsize=1)
 def default_catalog() -> SignatureCatalog:
-    # Solo se conserva el catálogo de referencia; nunca resultados de archivos.
-    # Se carga una vez por proceso. Reiniciar el motor aplica cambios del catálogo.
+    # Only the reference catalog is kept; never file results.
+    # Loaded once per process. Restarting the engine applies catalog changes.
     return SignatureCatalog()
 
 

@@ -10,7 +10,7 @@ export interface AuditEntry {
   targetId: string | null;
   detailsJson: string | null;
 }
-/** Solo se registran hechos de la operación; nunca claves de cifrado ni contenido de archivos. */
+/** Only operation facts are recorded; never encryption keys or file content. */
 export class AuditLog {
   constructor(private readonly db: Database) {}
   append(

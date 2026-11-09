@@ -45,7 +45,7 @@ it.each([
   ['facts', []],
   ['facts', 'text'],
   ['extra', 1],
-])('rechaza evidencia inválida %s=%j', (field, value) => {
+])('rejects invalid evidence %s=%j', (field, value) => {
   expect(
     evidenceSchema.safeParse({ ...evidence, [field]: value }).success,
   ).toBe(false);
@@ -59,18 +59,18 @@ it.each([
   'PE',
   'SCRIPTS',
   'ENGINE',
-])('acepta la fuente %s', (source) => {
+])('accepts source %s', (source) => {
   expect(evidenceSchema.safeParse({ ...evidence, source }).success).toBe(true);
 });
 it.each(['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])(
-  'acepta la severidad %s',
+  'accepts severity %s',
   (severity) => {
     expect(evidenceSchema.safeParse({ ...evidence, severity }).success).toBe(
       true,
     );
   },
 );
-it('conserva hechos JSON anidados y confianza en ambos límites', () => {
+it('keeps nested JSON facts and confidence at both limits', () => {
   for (const confidence of [0, 1]) {
     const value = {
       ...evidence,
@@ -102,7 +102,7 @@ it.each([
   ['reason', ''],
   ['reason', '   '],
   ['extra', 1],
-])('rechaza traza inválida %s=%j', (field, value) => {
+])('rejects invalid trace %s=%j', (field, value) => {
   expect(layerTraceSchema.safeParse({ ...trace, [field]: value }).success).toBe(
     false,
   );
@@ -115,11 +115,11 @@ it.each([
   'HEURISTICS',
   'PE',
   'SCRIPTS',
-])('acepta la capa %s', (layer) => {
+])('accepts layer %s', (layer) => {
   expect(layerTraceSchema.safeParse({ ...trace, layer }).success).toBe(true);
 });
 it.each(['RAN', 'SKIPPED', 'DISABLED', 'ERROR'])(
-  'acepta el estado %s y exige motivo para SKIPPED/DISABLED',
+  'accepts status %s and requires a reason for SKIPPED/DISABLED',
   (status) => {
     expect(
       layerTraceSchema.safeParse({
@@ -136,7 +136,7 @@ it.each(['RAN', 'SKIPPED', 'DISABLED', 'ERROR'])(
     );
   },
 );
-it('rechaza capas repetidas y HASH desactivada', () => {
+it('rejects repeated layers and disabled HASH', () => {
   const value = structuredClone(scan);
   value.result.layers.push(value.result.layers[0]!);
   expect(scanFileResponseSchema.safeParse(value).success).toBe(false);
@@ -146,14 +146,14 @@ it('rechaza capas repetidas y HASH desactivada', () => {
   ).toBe(false);
 });
 it.each([-1, 1.5, true, '5', null, 9007199254740992])(
-  'rechaza signaturesCount inválido: %j',
+  'rejects invalid signaturesCount: %j',
   (signaturesCount) => {
     const value = load('engine.stats.response.json');
     value.result.signaturesCount = signaturesCount;
     expect(statsResponseSchema.safeParse(value).success).toBe(false);
   },
 );
-it('engine.stats acepta cero firmas y rechaza método, versiones y parámetros inválidos', () => {
+it('engine.stats accepts zero signatures and rejects invalid method, versions and parameters', () => {
   const value = load('engine.stats.response.json');
   value.result.signaturesCount = 0;
   expect(statsResponseSchema.safeParse(value).success).toBe(true);
@@ -178,7 +178,7 @@ it('engine.stats acepta cero firmas y rechaza método, versiones y parámetros i
       .success,
   ).toBe(false);
 });
-it('los ejemplos distinguen firma decisiva de una heurística sin decidir el veredicto', () => {
+it('examples distinguish a decisive signature from a heuristic without deciding the verdict', () => {
   const signature = scanFileResponseSchema.parse(
     load('scan.file.response.detected-signature.json'),
   );
@@ -191,7 +191,7 @@ it('los ejemplos distinguen firma decisiva de una heurística sin decidir el ver
 });
 
 it.each([0, 1.0, Number.MAX_SAFE_INTEGER])(
-  'acepta enteros JSON representables: %j',
+  'accepts representable JSON integers: %j',
   (count) => {
     const stats = load('engine.stats.response.json');
     stats.result.signaturesCount = count;

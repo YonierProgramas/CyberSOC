@@ -13,8 +13,8 @@ import {
   type JobSummary,
 } from './schemas';
 
-// Estado de IA del resumen de cada escaneo, en `settings` como el contador ai.autoCount.<job>.
-// AppConfigStore ignora estas claves: no son ajustes del usuario.
+// AI status of each scan summary, in `settings` like the ai.autoCount.<job> counter.
+// AppConfigStore ignores these keys: they are not user settings.
 const STATUS_PREFIX = 'ai.jobSummary.';
 const evidenceItem =
   jobSummaryContextSchema.shape.topResults.element.shape.evidence.element;
@@ -25,11 +25,11 @@ export interface StoredJobSummary {
   summary: JobSummary;
 }
 
-/** Adaptador de persistencia del resumen de escaneo. Solo lee hechos ya guardados. */
+/** Persistence adapter of the scan summary. It only reads already stored facts. */
 export class JobSummaryStore {
   constructor(private readonly db: Database) {}
 
-  /** Hechos del escaneo para el contexto. Lanza si el escaneo no existe. */
+  /** Scan facts for the context. Throws if the scan does not exist. */
   facts(jobId: string): JobSummaryFacts {
     const job = new ScanJobRepository(this.db).get(jobId);
     if (!job) throw new Error('No existe el escaneo solicitado.');
@@ -55,8 +55,8 @@ export class JobSummaryStore {
           .get(jobId)!.n,
       );
 
-    // Mayor riesgo primero: DETECTED, SUSPICIOUS y luego por puntuación; seq desempata.
-    // Se pide uno más que el tope para saber si la lista se recortó.
+    // Highest risk first: DETECTED, SUSPICIOUS and then by score; seq breaks ties.
+    // One more than the cap is requested to know whether the list was trimmed.
     const top = this.db
       .prepare(
         `SELECT r.id, r.file_name AS fileName, r.extension, r.verdict,
@@ -118,8 +118,8 @@ export class JobSummaryStore {
   }
 
   /**
-   * Marca el resumen como pendiente si el escaneo terminó (COMPLETED) y aún no tiene un
-   * resumen final (COMPLETED o INVALID) ni uno en curso. Devuelve si hay que encolarlo.
+   * Marks the summary as pending if the scan finished (COMPLETED) and has neither a
+   * final summary (COMPLETED or INVALID) nor one in progress. Returns whether to enqueue it.
    */
   markPending(jobId: string): boolean {
     return this.db.transaction(() => {
@@ -137,7 +137,7 @@ export class JobSummaryStore {
     });
   }
 
-  /** Resúmenes pendientes, en orden de creación del escaneo. Un RUNNING huérfano vuelve a PENDING. */
+  /** Pending summaries, in scan creation order. An orphaned RUNNING returns to PENDING. */
   pending(): string[] {
     this.db
       .prepare(
@@ -148,12 +148,12 @@ export class JobSummaryStore {
     return this.jobsWithStatus(['PENDING', 'RETRY_WAIT']);
   }
 
-  /** Resúmenes detenidos por credencial o red, para reanudarlos con `resume()`. */
+  /** Summaries stopped by credential or network, to be resumed with `resume()`. */
   paused(): string[] {
     return this.jobsWithStatus(['NOT_CONFIGURED', 'UNAVAILABLE']);
   }
 
-  /** Guarda el intento y el estado del resumen en una sola transacción. */
+  /** Stores the attempt and the summary status in a single transaction. */
   saveAttempt(input: InsertAIAnalysis, status: AIStatus): void {
     this.db.transaction(() => {
       new AIAnalysisRepository(this.db).insert(input);
@@ -161,7 +161,7 @@ export class JobSummaryStore {
     });
   }
 
-  /** Último resumen VALID del escaneo (para la UI), ya validado contra el esquema. */
+  /** Latest VALID summary of the scan (for the UI), already validated against the schema. */
   latestValid(jobId: string): StoredJobSummary | undefined {
     const row = this.db
       .prepare(

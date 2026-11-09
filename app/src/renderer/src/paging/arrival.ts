@@ -1,8 +1,8 @@
 /**
- * Decide si un aviso de escaneo puede ser un análisis nuevo.
- * Un id ya mostrado en el filtro vigente es una actualización: no se consulta
- * de nuevo la primera página. Un id nunca visto, o uno que aún no cumplía el
- * filtro y acaba de terminar, sí se comprueba.
+ * Decides whether a scan notice can be a new analysis.
+ * An id already shown under the current filter is an update: the first page
+ * is not queried again. An id never seen, or one that did not yet match the
+ * filter and just finished, is checked.
  */
 export function shouldProbeArrival(input: {
   matched: boolean;
@@ -14,8 +14,8 @@ export function shouldProbeArrival(input: {
 }
 
 /**
- * La página 1 solo se muestra si el alta aparece en la consulta filtrada.
- * Si el filtro lo excluye, el lector conserva el offset.
+ * Page 1 is only shown if the addition appears in the filtered query.
+ * If the filter excludes it, the reader keeps the offset.
  */
 export function offsetAfterArrival(
   offset: number,
@@ -25,9 +25,9 @@ export function offsetAfterArrival(
 }
 
 /**
- * Reabrir el archivo conserva la página hasta que el total crece.
- * La primera lectura no tiene línea base: un total mayor que cero no es un alta.
- * Una conversación existente que cambia de fecha no aumenta el total.
+ * Reopening the archive keeps the page until the total grows.
+ * The first read has no baseline: a total above zero is not an addition.
+ * An existing conversation that changes date does not increase the total.
  */
 export function archiveOffsetAfterReopen(input: {
   offset: number;

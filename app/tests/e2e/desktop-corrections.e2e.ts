@@ -11,8 +11,8 @@ import type { CyberSocApi } from '../../src/shared/ipc';
 import { buildSyntheticProfile } from './synthetic-profile';
 
 const appRoot = resolve(import.meta.dirname, '../..');
-// Resultados y capturas: carpeta elegida con CYBERSOC_E2E_EVIDENCE_DIR o, por defecto,
-// una temporal. La prueba no lee nada de construccion/, que no está en el repositorio.
+// Results and captures: folder chosen with CYBERSOC_E2E_EVIDENCE_DIR or, by default,
+// a temporary one. The test reads nothing from construccion/, which is not in the repository.
 const evidence = resolve(
   process.env.CYBERSOC_E2E_EVIDENCE_DIR ??
     join(tmpdir(), 'cybersoc-e2e-correcciones'),
@@ -69,7 +69,7 @@ async function release() {
     for (const entry of state.pending) entry.resolve();
     state.pending = [];
   });
-  // Barrera de entrega del IPC, sin temporizadores para ocultar carreras.
+  // IPC delivery barrier, without timers to hide races.
   await page.evaluate(
     () =>
       new Promise<void>((resolve) => {
@@ -264,7 +264,7 @@ test.beforeAll(async () => {
     PYTHONPATH: resolve(appRoot, '../engine/src'),
     PYTHONDONTWRITEBYTECODE: '1',
   });
-  // Mismo calentamiento local del harness existente: no prolongar el handshake.
+  // Same local warm-up as the existing harness: do not prolong the handshake.
   execFileSync(
     join(appRoot, '../engine/.venv/Scripts/python.exe'),
     ['-c', 'import cybersoc_engine'],
@@ -300,7 +300,7 @@ test.afterAll(async () => {
   await app?.close();
 });
 
-test('E-02: COMPLETED actualiza Inicio sin navegar de nuevo', async () => {
+test('E-02: COMPLETED updates Home without navigating again', async () => {
   await page.getByTestId('nav-status').click();
   await expect(page.getByTestId('engine-status')).toContainText(
     'Motor: conectado',
@@ -332,7 +332,7 @@ test('E-02: COMPLETED actualiza Inicio sin navegar de nuevo', async () => {
   });
 });
 
-test('instrumentación explícita de latencia/error y eventos de prueba', async () => {
+test('explicit latency/error instrumentation and test events', async () => {
   await app.evaluate(({ ipcMain }) => {
     const state: Controls = {
       counts: {},
@@ -429,7 +429,7 @@ test('instrumentación explícita de latencia/error y eventos de prueba', async 
   });
 });
 
-test('E-01: tres páginas, selección conservada, error/reintento y archivo sin efectos', async () => {
+test('E-01: three pages, selection kept, error/retry and archive without side effects', async () => {
   await openArchive();
   const before = await controls();
   await page
@@ -482,7 +482,7 @@ test('E-01: tres páginas, selección conservada, error/reintento y archivo sin 
   record('E01', { pages, before: before.counts, after: after.counts });
 });
 
-test('E-03: chat lento o fallido no expone mensajes/continuación de otro', async () => {
+test('E-03: a slow or failed chat does not expose messages/continuation of another', async () => {
   await page
     .getByTestId('archive-conversation')
     .filter({ hasText: title(44) })
@@ -538,7 +538,7 @@ test('E-03: chat lento o fallido no expone mensajes/continuación de otro', asyn
   });
 });
 
-test('E-06/08: tarjeta completa de solo lectura, herramientas y 121 entradas', async () => {
+test('E-06/08: full read-only card, tools and 121 entries', async () => {
   await page
     .getByTestId('archive-conversation')
     .filter({ hasText: title(44) })
@@ -592,7 +592,7 @@ test('E-06/08: tarjeta completa de solo lectura, herramientas y 121 entradas', a
   await page.getByTestId('assistant-close').click();
 });
 
-test('E-04: detalle y referencia tardíos no cambian la última selección ni foco', async () => {
+test('E-04: late detail and reference do not change the last selection or focus', async () => {
   await page.getByTestId('nav-history').click();
   await expect(page.getByTestId('history-job')).toHaveCount(20);
   await hold('scan:getJob', 'history-00044');
@@ -628,7 +628,7 @@ test('E-04: detalle y referencia tardíos no cambian la última selección ni fo
   await expect(page.getByTestId('job-detail')).toContainText('history-00043');
   await release();
   await expect(page.getByTestId('job-detail')).toContainText('history-00043');
-  // Una petición pendiente al salir tampoco puede modificar el foco global.
+  // A request pending on exit cannot modify the global focus either.
   await hold('scan:getJob', 'history-00044');
   await page
     .getByTestId('history-job')
@@ -650,7 +650,7 @@ test('E-04: detalle y referencia tardíos no cambian la última selección ni fo
   });
 });
 
-test('E-05, D02/D03: contraste de borde, teclado y zoom real 200%', async () => {
+test('E-05, D02/D03: border contrast, keyboard and real 200% zoom', async () => {
   await page.getByTestId('dashboard-scope-ALL_COMPLETED').focus();
   await page.keyboard.press('Space');
   await expect(
@@ -747,7 +747,7 @@ test('E-05, D02/D03: contraste de borde, teclado y zoom real 200%', async () => 
   });
 });
 
-test('E-02: eventos FAILED/CANCELLED y resultado actualizado conservan ámbito/rango', async () => {
+test('E-02: FAILED/CANCELLED events and updated result keep scope/range', async () => {
   await page.getByTestId('dashboard-from').fill('2026-11-02');
   await page.getByTestId('dashboard-to').fill('2026-11-04');
   await page.getByTestId('dashboard-apply-range').click();
@@ -770,7 +770,7 @@ test('E-02: eventos FAILED/CANCELLED y resultado actualizado conservan ámbito/r
         'history-00044',
       ),
     );
-    // Evento sintético explícito; datos releídos por el Core/SQLite real.
+    // Explicit synthetic event; data reread by the real Core/SQLite.
     await app.evaluate(
       ({ BrowserWindow }, job) =>
         BrowserWindow.getAllWindows()[0]?.webContents.send(
@@ -835,7 +835,7 @@ test('E-02: eventos FAILED/CANCELLED y resultado actualizado conservan ámbito/r
   });
 });
 
-test('E-02: historial abierto actualiza filtro y detalle al terminar', async () => {
+test('E-02: open history updates filter and detail on finish', async () => {
   await page.getByTestId('nav-history').click();
   await page.getByTestId('history-job-status').selectOption('CANCELLED');
   await page.getByTestId('history-apply-jobs').click();
@@ -902,7 +902,7 @@ test('E-02: historial abierto actualiza filtro y detalle al terminar', async () 
   });
 });
 
-test('E-09: Escape/Cancelar/reabrir acciones en ancho, estrecho y 200 %', async () => {
+test('E-09: Escape/Cancel/reopen actions at wide, narrow and 200 %', async () => {
   await page.getByTestId('assistant-open').click();
   const before = (await controls()).counts;
   const matrix = [];
@@ -956,7 +956,7 @@ test('E-09: Escape/Cancelar/reabrir acciones en ancho, estrecho y 200 %', async 
   record('E09-acciones', { matrix, noExecution: true, before, after });
 });
 
-test('E-09: plan vivo cancela y reabre sin iniciar escaneo; operación ocupada conserva bloqueo', async () => {
+test('E-09: live plan cancels and reopens without starting a scan; busy operation keeps the lock', async () => {
   await app.evaluate(
     (_, path) => {
       (globalThis as unknown as { __DReview: Controls }).__DReview.planPath =
@@ -1034,7 +1034,7 @@ test('E-09: plan vivo cancela y reabre sin iniciar escaneo; operación ocupada c
   });
 });
 
-test('E-10: reset fallido antiguo no borra chat continuado ni respuesta/tarjeta nueva', async () => {
+test('E-10: an old failed reset does not delete a continued chat or new response/card', async () => {
   await deferError('assistant:reset');
   await page.getByTestId('copilot-reset').click();
   await expect.poll(async () => (await controls()).pending.length).toBe(1);
@@ -1085,7 +1085,7 @@ test('E-10: reset fallido antiguo no borra chat continuado ni respuesta/tarjeta 
   });
 });
 
-test('E-10: reset antiguo exitoso no habilita envío mientras continúa otro chat', async () => {
+test('E-10: an old successful reset does not enable sending while another chat continues', async () => {
   await hold('assistant:reset', '');
   await page.getByTestId('copilot-reset').click();
   await expect.poll(async () => (await controls()).pending.length).toBe(1);
@@ -1144,7 +1144,7 @@ test('E-10: reset antiguo exitoso no habilita envío mientras continúa otro cha
   });
 });
 
-test('E-09: confirmación de resultado usa la misma cancelación y se puede reabrir', async () => {
+test('E-09: result confirmation uses the same cancellation and can be reopened', async () => {
   await page
     .getByTestId('archive-card-RECORDED')
     .locator('[data-reference-id="synthetic-3"]')
@@ -1164,7 +1164,7 @@ test('E-09: confirmación de resultado usa la misma cancelación y se puede reab
   record('E09-resultado', { escapeAndReopen: true, noQuarantineCalled: true });
 });
 
-test('R-UI-01: revalidar en segundo plano conserva aviso, filas y página mientras llega la respuesta', async () => {
+test('R-UI-01: background revalidation keeps notice, rows and page while the response arrives', async () => {
   await page.getByTestId('nav-history').click();
   await page.getByTestId('history-job-status').selectOption('');
   await page.getByTestId('history-apply-jobs').click();
@@ -1204,7 +1204,7 @@ test('R-UI-01: revalidar en segundo plano conserva aviso, filas y página mientr
   });
 });
 
-test('E-01: archivo vacío no conserva chats de una página anterior', async () => {
+test('E-01: empty archive does not keep chats from an earlier page', async () => {
   const db = new DatabaseSync(dbPath);
   try {
     db.exec('PRAGMA foreign_keys=ON; DELETE FROM ai_conversations');

@@ -179,7 +179,7 @@ def test_invalid_rule_has_filename_and_clear_error(tmp_path, changes):
     changes = dict(changes)
     conditions = changes.pop("conditions", {"extensions": [".txt"]})
     write_rule(tmp_path, conditions, **changes)
-    with pytest.raises(RuleConfigError, match="Regla inválida en rule.yaml"):
+    with pytest.raises(RuleConfigError, match="Invalid rule in rule.yaml"):
         RuleCatalog(tmp_path)
 
 
@@ -197,16 +197,16 @@ def test_invalid_rule_has_filename_and_clear_error(tmp_path, changes):
 )
 def test_unsafe_duplicate_or_malformed_yaml(tmp_path, content):
     (tmp_path / "bad.yaml").write_text(content, encoding="utf-8")
-    with pytest.raises(RuleConfigError, match="Regla inválida en bad.yaml"):
+    with pytest.raises(RuleConfigError, match="Invalid rule in bad.yaml"):
         RuleCatalog(tmp_path)
 
 
 def test_duplicate_ids_and_missing_catalog(tmp_path):
-    with pytest.raises(RuleConfigError, match="No hay reglas"):
+    with pytest.raises(RuleConfigError, match="There are no local YAML rules"):
         RuleCatalog(tmp_path)
     write_rule(tmp_path, {"extensions": [".txt"]}, name="a.yaml")
     write_rule(tmp_path, {"extensions": [".txt"]}, name="b.yaml")
-    with pytest.raises(RuleConfigError, match="ID de regla repetido"):
+    with pytest.raises(RuleConfigError, match="Repeated rule ID"):
         RuleCatalog(tmp_path)
 
 

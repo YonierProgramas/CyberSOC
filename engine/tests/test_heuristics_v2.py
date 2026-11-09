@@ -239,7 +239,7 @@ def test_system_profile_disables_three_new_layers_without_parsing(tmp_path):
 
 def test_pe_imports_are_shared_with_rules_and_parse_once(tmp_path):
     path = tmp_path / "fixture.bin"
-    path.write_bytes(b"MZ")  # Cabecera inerte; el parser de esta prueba es simulado.
+    path.write_bytes(b"MZ")  # Inert header; the parser in this test is simulated.
     rules = tmp_path / "rules"
     rules.mkdir()
     (rules / "imports.yaml").write_text(
