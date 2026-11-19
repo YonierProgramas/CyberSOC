@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CopilotPanel } from './components/CopilotPanel';
 import { useAssistantChrome } from './components/AssistantDock';
 import { Sidebar } from './components/Sidebar';
+import { SecurityAlerts } from './components/SecurityAlerts';
 import { CopilotFocusProvider } from './copilot/focus';
 import { ShellProvider, useShell } from './navigation/shell';
 import { DashboardPage } from './pages/DashboardPage';
@@ -96,6 +97,7 @@ function AppFrame() {
             engine={engine}
           />
           <div className="workspace-content">
+            <SecurityAlerts />
             {view === 'home' && <DashboardPage />}
             {view === 'scan' && <ScanPage />}
             {view === 'history' && <HistoryPage />}

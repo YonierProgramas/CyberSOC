@@ -10,11 +10,13 @@ export function QuarantineButton({
   path,
   verdict,
   onDone,
+  buttonTestId = 'quarantine-file',
 }: {
   resultId: string;
   path: string;
   verdict: ScanResultDTO['verdict'];
   onDone: () => void;
+  buttonTestId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,7 +49,7 @@ export function QuarantineButton({
     <>
       <button
         type="button"
-        data-testid="quarantine-file"
+        data-testid={buttonTestId}
         onClick={() => setOpen(true)}
       >
         Poner en cuarentena
